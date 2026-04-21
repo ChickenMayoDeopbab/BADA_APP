@@ -22,7 +22,7 @@ export default function TabLayout() {
         },
       }}
     >
-      <Tabs.Screen name="Home" options={{
+      <Tabs.Screen name="(home)/Home" options={{
         title: '메인',
         tabBarIcon: ({ color, size }) => (
           <Octicons name="home-fill" size={size} color={color} />
