@@ -4,12 +4,13 @@
     "slug": "bada",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/badaLogo.svg",
+    "icon": "./assets/badaLogo.png",
     "scheme": "bada",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bada.app"
     },
     "android": {
       "edgeToEdgeEnabled": true,
@@ -24,7 +25,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/badaLogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
