@@ -1,4 +1,5 @@
 import GreenBtn from "@/components/common/GreenBtn";
+import { router } from "expo-router";
 import { Image, Text, View } from "react-native";
 
 export default function Welcome() {
@@ -10,7 +11,7 @@ export default function Welcome() {
         <Text className="text-base font-medium text-[#5C5E5E] mt-2">간단한 자가진단을 통해 {"\n"} 나의 콜포비아 지수를 진단해보세요.</Text>
       </View>
 
-      <GreenBtn label="자가진단 시작하기" isDisabled={true}/>
+      <GreenBtn label="자가진단 시작하기" isDisabled={false} onClick={() => router.push("/diagnosis/Question")}/>
     </View>
   )
 }
