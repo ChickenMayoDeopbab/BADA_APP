@@ -7,7 +7,6 @@
     "icon": "./assets/badaLogo.png",
     "scheme": "bada",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bada.app"
