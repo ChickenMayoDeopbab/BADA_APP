@@ -25,7 +25,7 @@ export default function Top({ title, isMain = false, back = false }: TopProps) {
       ) : <></>}
 
       {isMain ? (
-        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" style={{ width: 90, marginTop: 10, marginBottom: 10 }} />
+        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" className="w-[90%] my-[10px]" />
       ) : (
         <Text className="text-xl font-bold my-[10px]">{title}</Text>
       )}
