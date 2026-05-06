@@ -1,6 +1,5 @@
-import * as S from "./Top.styles"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "react-native";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -15,18 +14,21 @@ export default function Top({ title, isMain = false, back = false }: TopProps) {
   const router = useRouter();
 
   return (
-    <S.TopContainer $top={insets.top}>
+    <View
+      className="w-full flex justify-center items-center relative h-[105px]"
+      style={{ paddingTop: insets.top }}
+    >
       {back ? (
-        <S.backBtn onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} className="absolute left-[30px] top-[50px]">
           <Ionicons name="chevron-back-sharp" size={30} color="black" />
-        </S.backBtn>
+        </TouchableOpacity>
       ) : <></>}
 
       {isMain ? (
-        <Image source={require("/Users/ahxn/bada/assets/badaLogo2.png")} resizeMode="contain" style={{ width: 90, marginTop: 10, marginBottom: 10 }} />
+        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" style={{ width: 90, marginTop: 10, marginBottom: 10 }} />
       ) : (
-        <S.Title>{title}</S.Title>
+        <Text className="text-xl font-bold my-[10px]">{title}</Text>
       )}
-    </S.TopContainer>
+    </View>
   );
 }
