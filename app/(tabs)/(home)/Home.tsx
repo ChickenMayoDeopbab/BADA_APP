@@ -1,9 +1,9 @@
-import Top from "@/components/common/Top/Top";
+import Top from "@/components/common/Top";
 import { View } from "react-native";
 
 export default function Home() {
   return (
-    <View style={{ flex: 1, backgroundColor: 'white' }}>
+    <View className="flex-1 bg-white">
       <Top isMain/>
     </View>
   )
