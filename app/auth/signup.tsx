@@ -1,0 +1,69 @@
+import BadaLogo from "@/assets/badaLogo2.svg";
+import CustomButton from "@/components/CustomButton";
+import CustomInput from "@/components/CustomInput";
+import { router } from "expo-router";
+import { useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+export default function SignupScreen() {
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="justify-between flex-1 px-8 pt-20">
+        <View className="flex-1">
+          <BadaLogo width={70} />
+          <Text className=" text-3xl font-bold text-[#0D0D0E]">회원가입</Text>
+        </View>
+
+        <View className="flex-1 mb-44">
+          <View className="mb-5">
+            <View className="flex-row items-start gap-x-3">
+              <View className="flex-1">
+                <CustomInput
+                  value={userId}
+                  onChangeText={setUserId}
+                  label="이메일"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View className="mt-[18px] w-[105px]">
+                <CustomButton
+                  label="인증코드 전송"
+                  variant="lg"
+                  backgroundColor="#0AE365"
+                />
+              </View>
+            </View>
+
+            <CustomInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="인증코드를 입력하세요."
+              label="인증코드"
+            />
+          </View>
+
+          <View className="h-6 mb-6" />
+
+          <View className="gap-y-3">
+            <CustomButton
+              label="인증하기"
+              color="#F6F6F6"
+              backgroundColor="#0AE365"
+            />
+          </View>
+
+          <View className="flex-row mt-3 gap-x-4">
+            <TouchableOpacity onPress={() => router.push("/auth/login")}>
+              <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
