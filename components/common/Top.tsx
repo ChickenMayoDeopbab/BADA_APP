@@ -7,11 +7,20 @@ interface TopProps {
   title?: string;
   isMain?: boolean;
   back?: boolean;
+  onBack?: () => void;
 }
 
-export default function Top({ title, isMain = false, back = false }: TopProps) {
+export default function Top({ title, isMain = false, back = false, onBack }: TopProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();  
+    } else {
+      router.back(); 
+    }
+  };
 
   return (
     <View
@@ -19,13 +28,13 @@ export default function Top({ title, isMain = false, back = false }: TopProps) {
       style={{ paddingTop: insets.top }}
     >
       {back ? (
-        <TouchableOpacity onPress={() => router.back()} className="absolute left-[30px] top-[50px]">
+        <TouchableOpacity onPress={handleBack} className="absolute left-[30px] top-[50px]">
           <Ionicons name="chevron-back-sharp" size={30} color="black" />
         </TouchableOpacity>
       ) : <></>}
 
       {isMain ? (
-        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" style={{ width: 90, marginTop: 10, marginBottom: 10 }} />
+        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" className="w-[90%] my-[10px]" />
       ) : (
         <Text className="text-xl font-bold my-[10px]">{title}</Text>
       )}
