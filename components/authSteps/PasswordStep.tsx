@@ -1,6 +1,6 @@
 import CustomButton from "@/components/CustomButton";
 import CustomInput from "@/components/CustomInput";
-import { router } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
@@ -9,9 +9,12 @@ type StepProps = {
   onPrev?: () => void;
 };
 
-export default function PasswordStep({onPrev, onNext}: StepProps) {
+export default function PasswordStep({ onPrev, onNext }: StepProps) {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
+  
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   return (
     <View>
       <View className="mb-5">
@@ -19,6 +22,18 @@ export default function PasswordStep({onPrev, onNext}: StepProps) {
           value={userId}
           onChangeText={setUserId}
           label="비밀번호"
+          secureTextEntry={!isPasswordVisible}
+          rightIcon={
+            <TouchableOpacity
+              onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+            >
+              <Ionicons
+                name={isPasswordVisible ? "eye-off-sharp" : "eye"}
+                size={20}
+                color="#BDBEBE"
+              />
+            </TouchableOpacity>
+          }
         />
 
         <CustomInput
@@ -26,6 +41,18 @@ export default function PasswordStep({onPrev, onNext}: StepProps) {
           onChangeText={setPassword}
           placeholder="비밀번호를 다시 입력하세요."
           label="비밀번호 확인"
+          secureTextEntry={!isConfirmPasswordVisible}
+          rightIcon={
+            <TouchableOpacity
+              onPress={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}
+            >
+              <Ionicons
+                name={isPasswordVisible ? "eye-off-sharp" : "eye"}
+                size={20}
+                color="#BDBEBE"
+              />
+            </TouchableOpacity>
+          }
         />
       </View>
 
