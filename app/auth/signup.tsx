@@ -1,14 +1,13 @@
 import BadaLogo from "@/assets/badaLogo2.svg";
-import CustomButton from "@/components/CustomButton";
-import CustomInput from "@/components/CustomInput";
-import { router } from "expo-router";
+import NicknameStep from "@/components/authSteps/NicknameStep";
+import PasswordStep from "@/components/authSteps/PasswordStep";
+import UsernameStep from "@/components/authSteps/UsernameStep";
 import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignupScreen() {
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
+  const [step, setStep] = useState(1);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -19,49 +18,9 @@ export default function SignupScreen() {
         </View>
 
         <View className="flex-1 mb-44">
-          <View className="mb-5">
-            <View className="flex-row items-start gap-x-3">
-              <View className="flex-1">
-                <CustomInput
-                  value={userId}
-                  onChangeText={setUserId}
-                  label="이메일"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View className="mt-[18px] w-[105px]">
-                <CustomButton
-                  label="인증코드 전송"
-                  variant="lg"
-                  backgroundColor="#0AE365"
-                />
-              </View>
-            </View>
-
-            <CustomInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="인증코드를 입력하세요."
-              label="인증코드"
-            />
-          </View>
-
-          <View className="h-6 mb-6" />
-
-          <View className="gap-y-3">
-            <CustomButton
-              label="인증하기"
-              color="#F6F6F6"
-              backgroundColor="#0AE365"
-            />
-          </View>
-
-          <View className="flex-row mt-3 gap-x-4">
-            <TouchableOpacity onPress={() => router.push("/auth/login")}>
-              <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
-            </TouchableOpacity>
-          </View>
+          {step === 1 && <UsernameStep onNext={() => setStep(2)} />}
+          {step === 2 && <PasswordStep onPrev={() => setStep(1)} onNext={() => setStep(3)} />}
+          {step === 3 && <NicknameStep onPrev={() => setStep(2)}  onNext={() => setStep(4)} />}
         </View>
       </View>
     </SafeAreaView>
