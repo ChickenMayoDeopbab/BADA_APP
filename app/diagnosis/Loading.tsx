@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
 import AnimatedCheck from "./AnimatedCheck";
 import Top from "@/components/common/Top";
 
@@ -8,13 +8,24 @@ type status = 'loading' | 'done';
 
 export default function Loading() {
   const rotation = useSharedValue(0);
-  const [status, setStatus] = useState<status>('done');
+  const [status, setStatus] = useState<status>('loading');
 
   useEffect(() => {
     rotation.value = withRepeat(
-      withTiming(360, {duration: 1200, easing: Easing.linear}), -1
-    )
-  }, [rotation])
+      withSequence(
+        // 확 돌기: 0° → 180° 빠르게
+        withTiming(180, { duration: 400, easing: Easing.out(Easing.cubic) }),
+        // 잠깐 멈춤
+        withTiming(180, { duration: 500, easing: Easing.linear }),
+        // 확 돌기: 180° → 360° 빠르게
+        withTiming(360, { duration: 400, easing: Easing.out(Easing.cubic) }),
+        // 다음 사이클 전 멈춤
+        withTiming(360, { duration: 300, easing: Easing.linear }),
+      ),
+      -1,
+      false
+    );
+  }, [rotation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{rotate: `${rotation.value}deg`}]
