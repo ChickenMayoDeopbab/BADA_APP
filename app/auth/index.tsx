@@ -2,14 +2,15 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
 import CustomButton from "@/components/CustomButton";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import { router } from "expo-router";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AuthScreen() {
   return (
     <SafeAreaView className="flex-1">
-      <View className="flex-1 items-center justify-between px-8 pb-24">
-        <View className="flex-1 justify-center">
+      <View className="items-center justify-between flex-1 px-8 pb-24">
+        <View className="justify-center flex-1">
           <BadaLogo width={125} />
         </View>
 
@@ -36,6 +37,7 @@ export default function AuthScreen() {
             label="아이디로 계속할래요"
             color="#0D0D0E"
             backgroundColor="#F8F8F8"
+            onPress={() => router.replace("/auth/Login")}
           />
         </View>
       </View>
