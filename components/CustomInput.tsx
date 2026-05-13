@@ -66,7 +66,7 @@ export default function CustomInput({
         `}
       >
         <TextInput
-          className="flex-1 p-0 text-base text-[#0D0D0E] outline-none"
+          className="flex-1 p-0 text-lg font-medium text-[#0D0D0E] outline-none"
           placeholderTextColor="#BDBEBE"
           placeholder={
             isFocused
