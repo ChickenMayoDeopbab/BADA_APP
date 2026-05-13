@@ -1,16 +1,43 @@
-import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
+import { useEffect } from "react";
+import { Image, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+  withSequence,
+} from "react-native-reanimated";
 import AnimatedCheck from "./AnimatedCheck";
 import Top from "@/components/common/Top";
 import SandClock from "@/assets/sandClock.svg";
 
-type status = 'loading' | 'done';
+type Status = "loading" | "done" | "error";
 
-export default function Loading() {
+interface LoadingProps {
+  status?: Status;
+  title?: string;
+  loadingText?: string;
+  loadingSubText?: string;
+  doneText?: string;
+  doneSubText?: string;
+  errorText?: string;
+  errorSubText?: string;
+}
+
+const AnimatedSandClock = Animated.createAnimatedComponent(SandClock);
+
+export default function Loading({
+  status,
+  title ,
+  loadingText,
+  loadingSubText,
+  doneText,
+  doneSubText,
+  errorText,
+  errorSubText,
+}: LoadingProps) {
   const rotation = useSharedValue(0);
-  const [status, setStatus] = useState<status>('loading');
-  const AnimatedSandClock = Animated.createAnimatedComponent(SandClock);
 
   useEffect(() => {
     rotation.value = withRepeat(
@@ -28,23 +55,57 @@ export default function Loading() {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{rotate: `${rotation.value}deg`}]
   }))
-  
+
+  const renderContent = () => {
+    if (status === "loading") {
+      return (
+        <>
+          <AnimatedSandClock style={animatedStyle} />
+          <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
+            {loadingText}
+          </Text>
+          <Text className="color-[#5C5E5E] font-medium text-base">
+            {loadingSubText}
+          </Text>
+        </>
+      );
+    }
+
+    if (status === "done") {
+      return (
+        <>
+          <AnimatedCheck />
+          <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
+            {doneText}
+          </Text>
+          <Text className="color-[#5C5E5E] font-medium text-base">
+            {doneSubText}
+          </Text>
+        </>
+      );
+    }
+
+    if (status === "error") {
+      return (
+        <>
+          <Image source={require("@/assets/sadFace.gif")} style={{ width: 90, height: 90 }} />
+          <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
+            {errorText}
+          </Text>
+          <Text className="color-[#5C5E5E] font-medium text-base">
+            {errorSubText}
+          </Text>
+        </>
+      );
+    }
+  };
+
   return (
     <View className="flex-1 px-10 bg-white">
-      <Top title="자가진단"/>
+      <Top title={title} />
       <View className="flex-col items-center justify-center flex-1 mb-[105px]">
-        {status === 'loading' 
-          ? <>
-              <AnimatedSandClock style={animatedStyle} />
-              <Text className="text-2xl font-bold mb-[10px] mt-[30px]">콜포비아 레벨을 계산 중이에요.</Text>
-              <Text className="color-[#5C5E5E] font-medium text-base">잠시만 기다려 주세요.</Text>
-            </>
-          : <>
-              <AnimatedCheck/>
-              <Text className="text-2xl font-bold mb-[10px] mt-[30px]">콜포비아 레벨의 계산이 끝났어요.</Text>
-              <Text className="color-[#5C5E5E] font-medium text-base">함께 결과를 확인해볼까요?</Text>
-            </>}
+        {renderContent()}
       </View>
     </View>
-  )
+  );
 }
