@@ -1,8 +1,9 @@
 import Top from "@/components/common/Top";
 import { useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import CustomButton from "@/components/common/CustomButton";
+import Clap from "@/assets/clap.svg";
 
 type mode = 'scenario' | 'warmUp';
 
@@ -14,7 +15,7 @@ export default function Report() {
       <Top title="훈련 종료"/>
       <View className="flex-col flex-1 px-10 mb-10">
         <View className="flex-col items-center justify-center flex-1">
-          <Image source={require("@/assets/clap.svg")} resizeMode="contain"/>
+          <Clap />
           <Text className="my-5 text-4xl font-bold">수고하셨어요!</Text>
           {mode === 'scenario' 
             ? <>
@@ -56,7 +57,7 @@ export default function Report() {
             </View>
           </View>
         </View>
-        <CustomButton label="끝내기" />
+        <CustomButton label="끝내기" backgroundColor="#0AE365" color="white"/>
       </View>
     </View>
   )
