@@ -1,8 +1,8 @@
-import GreenBtn from "@/components/common/GreenBtn";
 import Top from "@/components/common/Top";
 import { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
+import CustomButton from "@/components/common/CustomButton";
 
 type mode = 'scenario' | 'warmUp';
 
@@ -56,7 +56,7 @@ export default function Report() {
             </View>
           </View>
         </View>
-        <GreenBtn label="저장하고 끝내기"/>
+        <CustomButton label="끝내기" />
       </View>
     </View>
   )

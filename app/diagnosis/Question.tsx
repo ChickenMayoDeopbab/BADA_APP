@@ -1,4 +1,4 @@
-import GreenBtn from "@/components/common/GreenBtn";
+import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { DIAGNOSIS } from "@/constants/diagnosis";
 import { router } from "expo-router";
@@ -116,7 +116,7 @@ export default function Question() {
           onChange={setAnswer}
         />
         <View className="my-10 border border-[#EAEAEA]" />
-        <GreenBtn label="다음 문항" isDisabled={false} onClick={handleNext} />
+        <CustomButton label="다음 문항" onPress={handleNext} backgroundColor="#0AE365" color="white"/>
       </View>
     </View>
   );

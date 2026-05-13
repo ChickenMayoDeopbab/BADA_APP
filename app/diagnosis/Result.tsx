@@ -1,9 +1,9 @@
-import GreenBtn from "@/components/common/GreenBtn";
 import Top from "@/components/common/Top";
 import { Pressable, Text, View, TouchableWithoutFeedback } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from "react";
 import { router } from "expo-router";
+import CustomButton from "@/components/common/CustomButton";
 
 export default function Result() {
   const [isShowCard, setIsShowCard] = useState<boolean>(false);
@@ -33,7 +33,7 @@ export default function Result() {
           <View className="my-10 border border-[#EAEAEA] w-full" />
           <Text>모르는 번호로 걸려 온 전화를 받지 않는데 어려움을 느낍니다. 식당 예약이나 고객센터 문의와 같은 공적인 전화 상황에서 특히 긴장하거나 회피하는 부담을 느낍니다. 전화벨이 울릴 때 받아야 한다는 압박감으로 망설이게 되어 어려움을 느낍니다.</Text>
         </View>
-        <GreenBtn label="저장하고 홈으로 가기" isDisabled={false} onClick={() => router.push("/Home")}/>
+        <CustomButton label="저장하고 홈으로 가기" onPress={() => router.push("/Home")} backgroundColor="#0AE365" color="white"/>
       </View>
     </View>
   )
