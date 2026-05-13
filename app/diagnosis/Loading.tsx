@@ -13,13 +13,9 @@ export default function Loading() {
   useEffect(() => {
     rotation.value = withRepeat(
       withSequence(
-        // 확 돌기: 0° → 180° 빠르게
         withTiming(180, { duration: 400, easing: Easing.out(Easing.cubic) }),
-        // 잠깐 멈춤
         withTiming(180, { duration: 500, easing: Easing.linear }),
-        // 확 돌기: 180° → 360° 빠르게
         withTiming(360, { duration: 400, easing: Easing.out(Easing.cubic) }),
-        // 다음 사이클 전 멈춤
         withTiming(360, { duration: 300, easing: Easing.linear }),
       ),
       -1,
@@ -37,7 +33,7 @@ export default function Loading() {
       <View className="flex-col items-center justify-center flex-1 mb-[105px]">
         {status === 'loading' 
           ? <>
-              <Animated.Image source={require("@/assets/sandClock.png")} style={animatedStyle} />
+              <Animated.Image source={require("@/assets/sandClock.svg")} style={animatedStyle} />
               <Text className="text-2xl font-bold mb-[10px] mt-[30px]">콜포비아 레벨을 계산 중이에요.</Text>
               <Text className="color-[#5C5E5E] font-medium text-base">잠시만 기다려 주세요.</Text>
             </>

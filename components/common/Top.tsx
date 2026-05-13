@@ -34,7 +34,7 @@ export default function Top({ title, isMain = false, back = false, onBack }: Top
       ) : <></>}
 
       {isMain ? (
-        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" className="w-[90%] my-[10px]" />
+        <Image source={require("@/assets/badaLogo2.svg")} resizeMode="contain" className="w-[90%] my-[10px]" />
       ) : (
         <Text className="text-xl font-bold my-[10px]">{title}</Text>
       )}
