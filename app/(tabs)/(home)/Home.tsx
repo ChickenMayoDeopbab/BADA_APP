@@ -10,11 +10,11 @@ export default function Home() {
       <Top isMain/>
       <View className="flex flex-col gap-2 mt-[10%]">
         <Text className="text-xl font-bold">빠른 시작</Text>
-        <Pressable className="flex-row items-center justify-between p-4 mt-2 rounded-xl" style={{backgroundColor: '#0AE365'}}>
+        <Pressable className="flex-row items-center justify-between p-4 mt-2 rounded-xl bg-[#0AE365]">
           <Ionicons name="call" size={22} color="white" />
           <Text className="text-lg font-bold text-white">커스텀 훈련 바로 시작하기</Text>
         </Pressable>
-        <Pressable className="flex-row items-center justify-between p-4 rounded-xl" style={{backgroundColor: '#006FCC'}}>
+        <Pressable className="flex-row items-center justify-between p-4 rounded-xl bg-[#006FCC]">
           <MaterialIcons name="local-fire-department" size={24} color="white" />
           <Text className="text-lg font-bold text-white">통화 전 워밍업 시작하기</Text>
         </Pressable>

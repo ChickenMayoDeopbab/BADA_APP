@@ -7,7 +7,6 @@
     "icon": "./assets/badaLogo.png",
     "scheme": "bada",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bada.app"
@@ -34,8 +33,8 @@
         }
       ],
       "expo-font",
-      "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
