@@ -4,6 +4,7 @@ import { DIAGNOSIS } from "@/constants/diagnosis";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
+import Loading from "./Loading";
 
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
@@ -57,15 +58,18 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   );
 };
 
+type Status = "loading" | "done" | "error" | null;
+
 export default function Question() {
   const [nowStep, setNowStep] = useState<number>(0);
   const [answer, setAnswer] = useState<number>(3);
+  const [status, setStatus] = useState<Status>(null);
 
   const handleNext = () => {
     if (nowStep < 9) {
       setNowStep(prev => prev + 1);
     } else {
-      router.push("/diagnosis/Loading");
+      setStatus("error");
     }
   };
 
@@ -85,6 +89,19 @@ export default function Question() {
       </View>
     );
   };
+
+  if (status !== null) {
+    return <Loading 
+            status={status} 
+            title="자가진단" 
+            loadingText="콜포비아 레벨을 계산 중이에요." 
+            loadingSubText="잠시만 기다려 주세요." 
+            doneText="콜포비아 레벨의 계산이 끝났어요."
+            doneSubText="함께 결과를 확인해볼까요?"
+            errorText="레벨 계산에 실패했어요."
+            errorSubText="다시 시도해주세요."
+            />;
+  }
 
   return (
     <View className="flex-1 bg-white">
