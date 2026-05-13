@@ -9,11 +9,11 @@ type StepProps = {
 };
 
 export default function NicknameStep({ onPrev, onNext }: StepProps) {
-  const [userId, setUserId] = useState("");
+  const [nickname, setNickname] = useState("");
   return (
     <View>
       <View className="mb-[102px]">
-        <CustomInput value={userId} onChangeText={setUserId} label="닉네임" />
+        <CustomInput value={nickname} onChangeText={setNickname} label="닉네임" />
       </View>
 
       <View className="h-6 mb-6" />

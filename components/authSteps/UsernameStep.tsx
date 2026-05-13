@@ -10,16 +10,16 @@ type StepProps = {
 };
 
 export default function UsernameStep({ onNext }: StepProps) {
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   return (
     <View>
       <View className="mb-5">
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <CustomInput
-              value={userId}
-              onChangeText={setUserId}
+              value={email}
+              onChangeText={setEmail}
               label="이메일"
               autoCapitalize="none"
             />
@@ -35,8 +35,8 @@ export default function UsernameStep({ onNext }: StepProps) {
         </View>
 
         <CustomInput
-          value={password}
-          onChangeText={setPassword}
+          value={verificationCode}
+          onChangeText={setVerificationCode}
           placeholder="인증코드를 입력하세요."
           label="인증코드"
         />
@@ -54,7 +54,11 @@ export default function UsernameStep({ onNext }: StepProps) {
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
-        <TouchableOpacity onPress={() => router.push("/auth")}>
+        <TouchableOpacity
+          onPress={() => {
+            router.replace("/auth");
+          }}
+        >
           <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
         </TouchableOpacity>
       </View>
