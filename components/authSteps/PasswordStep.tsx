@@ -10,8 +10,8 @@ type StepProps = {
 };
 
 export default function PasswordStep({ onPrev, onNext }: StepProps) {
-  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
@@ -19,8 +19,8 @@ export default function PasswordStep({ onPrev, onNext }: StepProps) {
     <View>
       <View className="mb-5">
         <CustomInput
-          value={userId}
-          onChangeText={setUserId}
+          value={password}
+          onChangeText={setPassword}
           label="비밀번호"
           secureTextEntry={!isPasswordVisible}
           rightIcon={
@@ -37,8 +37,8 @@ export default function PasswordStep({ onPrev, onNext }: StepProps) {
         />
 
         <CustomInput
-          value={password}
-          onChangeText={setPassword}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
           placeholder="비밀번호를 다시 입력하세요."
           label="비밀번호 확인"
           secureTextEntry={!isConfirmPasswordVisible}
