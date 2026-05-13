@@ -14,7 +14,7 @@ export default function Report() {
       <Top title="훈련 종료"/>
       <View className="flex-col flex-1 px-10 mb-10">
         <View className="flex-col items-center justify-center flex-1">
-          <Image source={require("@/assets/clap.png")} resizeMode="contain"/>
+          <Image source={require("@/assets/clap.svg")} resizeMode="contain"/>
           <Text className="my-5 text-4xl font-bold">수고하셨어요!</Text>
           {mode === 'scenario' 
             ? <>
