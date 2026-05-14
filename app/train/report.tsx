@@ -26,13 +26,13 @@ export default function Report() {
               </>
             : <Text className="text-base font-medium">워밍업 시간 <Text className="font-bold">2분 13초</Text></Text>
           }
-          <View className="w-full bg-[#F5F5F5] h-80 rounded-2xl p-5 mt-20">
+          <View className="w-full bg-[#F5F5F5] h-80 rounded-2xl p-5 mt-10">
             <Text className="text-lg font-bold">이 부분이 좋았어요!</Text>
             <View className="flex-col flex-1 w-full gap-4 mt-4">
               <View className="flex-row items-center justify-between flex-1 p-3 bg-white rounded-xl">
-                <View className="flex-col gap-1 ml-[10px]">
-                  <Text className="text-xs font-medium">좋았던 내용 요약 정리</Text>
-                  <Text className="color-[#BDBEBE] font-medium text-xs">00:00 ~ 00:00</Text>
+                <View className="flex-col ml-[10px]">
+                  <Text className="text-base font-medium">좋았던 내용 요약 정리</Text>
+                  <Text className="color-[#BDBEBE] font-medium text-sm">00:00 ~ 00:00</Text>
                 </View>
                 <TouchableOpacity onPress={(prev) => setIsPlaying(prev => prev.map((val, i) => i === 0 ? !val : val))}>
                   {isPlaying[0] === false
@@ -41,9 +41,9 @@ export default function Report() {
                 </TouchableOpacity>
               </View>
               <View className="flex-row items-center justify-between flex-1 p-3 bg-white rounded-xl">
-                <View className="flex-col gap-1 ml-[10px]">
-                  <Text className="text-xs font-medium">좋았던 내용 요약 정리</Text>
-                  <Text className="color-[#BDBEBE] font-medium text-xs">00:00 ~ 00:00</Text>
+                <View className="flex-col ml-[10px]">
+                  <Text className="text-base font-medium">좋았던 내용 요약 정리</Text>
+                  <Text className="color-[#BDBEBE] font-medium text-sm">00:00 ~ 00:00</Text>
                 </View>
                 <TouchableOpacity onPress={(prev) => setIsPlaying(prev => prev.map((val, i) => i === 1 ? !val : val))}>
                   {isPlaying[1] === false
@@ -52,9 +52,9 @@ export default function Report() {
                 </TouchableOpacity>
               </View>
               <View className="flex-row items-center justify-between flex-1 p-3 bg-white rounded-xl">
-                <View className="flex-col gap-1 ml-[10px]">
-                  <Text className="text-xs font-medium">좋았던 내용 요약 정리</Text>
-                  <Text className="color-[#BDBEBE] font-medium text-xs">00:00 ~ 00:00</Text>
+                <View className="flex-col ml-[10px]">
+                  <Text className="text-base font-medium">좋았던 내용 요약 정리</Text>
+                  <Text className="color-[#BDBEBE] font-medium text-sm">00:00 ~ 00:00</Text>
                 </View>
                 <TouchableOpacity onPress={(prev) => setIsPlaying(prev => prev.map((val, i) => i === 2 ? !val : val))}>
                   {isPlaying[2] === false
