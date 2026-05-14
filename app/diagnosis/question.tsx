@@ -1,10 +1,12 @@
-import GreenBtn from "@/components/common/GreenBtn";
+import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { DIAGNOSIS } from "@/constants/diagnosis";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
+import Loading from "@/components/common/Loading";
 
+// 라디오 버튼 관련 타입
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
   value: number;
@@ -19,6 +21,7 @@ type RadioProps = {
 const ACTIVE_COLOR = '#0AE365';
 const INACTIVE_COLOR = '#DADADB';
 
+// 라디오 버튼
 const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   return (
     <>
@@ -57,18 +60,24 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   );
 };
 
+// 서버 응답 관련 타입
+type Status = "loading" | "done" | "error" | null;
+
 export default function Question() {
   const [nowStep, setNowStep] = useState<number>(0);
   const [answer, setAnswer] = useState<number>(3);
+  const [status, setStatus] = useState<Status>(null);
 
+  // 다음 버튼 눌렀을 때
   const handleNext = () => {
     if (nowStep < 9) {
       setNowStep(prev => prev + 1);
     } else {
-      router.push("/diagnosis/Loading");
+      setStatus("error");
     }
   };
 
+  // 뒤로 가기 버튼 눌렀을 때
   const handleBack = () => {
     if (nowStep > 0) {
       setNowStep(prev => prev - 1);
@@ -77,6 +86,7 @@ export default function Question() {
     }
   };
 
+  // 진행바
   const PercentBar = ({ step }: { step: number }) => {
     const percent = (step / 10) * 100;
     return (
@@ -85,6 +95,19 @@ export default function Question() {
       </View>
     );
   };
+
+  if (status !== null) {
+    return <Loading 
+            status={status} 
+            title="자가진단" 
+            loadingText="콜포비아 레벨을 계산 중이에요." 
+            loadingSubText="잠시만 기다려 주세요." 
+            doneText="콜포비아 레벨의 계산이 끝났어요."
+            doneSubText="함께 결과를 확인해볼까요?"
+            errorText="레벨 계산에 실패했어요."
+            errorSubText="다시 시도해주세요."
+            />;
+  }
 
   return (
     <View className="flex-1 bg-white">
@@ -116,7 +139,7 @@ export default function Question() {
           onChange={setAnswer}
         />
         <View className="my-10 border border-[#EAEAEA]" />
-        <GreenBtn label="다음 문항" isDisabled={false} onClick={handleNext} />
+        <CustomButton label="다음 문항" onPress={handleNext} backgroundColor="#0AE365" color="white"/>
       </View>
     </View>
   );

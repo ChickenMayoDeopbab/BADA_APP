@@ -20,15 +20,17 @@ export default function CustomButton({
   label,
   icon,
   variant = "xl",
-  color="#F6F6F6",
+  color = "#F6F6F6",
   backgroundColor,
+  disabled,
   ...props
 }: CustomButtonProps) {
   const { height, text } = variantStyle[variant];
   return (
     <Pressable
-      className={`rounded-xl justify-center items-center active:opacity-80 w-full ${height}`}
+      className={`rounded-xl justify-center items-center active:opacity-80 w-full ${height} ${disabled ? "opacity-50" : "opacity-100"}`}
       style={backgroundColor ? { backgroundColor } : undefined}
+      disabled={disabled}
       {...props}
     >
       <View className="flex-row items-center gap-x-2">
