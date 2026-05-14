@@ -36,7 +36,7 @@ export default function Top({ title, isMain = false, back = false, onBack }: Top
       ) : <></>}
 
       {isMain ? (
-        <BadaLogo className="w-[90%] my-[10px]" />
+        <BadaLogo className="my-[10px]" style={{width: 80, aspectRatio: 126 / 58}}/>
       ) : (
         <Text className="text-xl font-bold my-[10px]">{title}</Text>
       )}

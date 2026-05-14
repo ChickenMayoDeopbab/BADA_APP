@@ -73,7 +73,7 @@ export default function Question() {
     if (nowStep < 9) {
       setNowStep(prev => prev + 1);
     } else {
-      setStatus("error");
+      setStatus("loading");
     }
   };
 
