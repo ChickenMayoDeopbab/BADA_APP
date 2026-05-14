@@ -1,7 +1,8 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from '@expo/vector-icons/Ionicons';
+import BadaLogo from "@/assets/badaLogo2.svg";
 
 interface TopProps {
   title?: string;
@@ -14,6 +15,7 @@ export default function Top({ title, isMain = false, back = false, onBack }: Top
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  // 뒤로 가기 버튼 눌렀을 때
   const handleBack = () => {
     if (onBack) {
       onBack();  
@@ -34,7 +36,7 @@ export default function Top({ title, isMain = false, back = false, onBack }: Top
       ) : <></>}
 
       {isMain ? (
-        <Image source={require("@/assets/badaLogo2.png")} resizeMode="contain" className="w-[90%] my-[10px]" />
+        <BadaLogo className="w-[90%] my-[10px]" />
       ) : (
         <Text className="text-xl font-bold my-[10px]">{title}</Text>
       )}

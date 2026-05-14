@@ -1,6 +1,6 @@
 import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
-import CustomButton from "@/components/CustomButton";
+import CustomButton from "@/components/common/CustomButton";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,8 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function AuthScreen() {
   return (
     <SafeAreaView className="flex-1">
-      <View className="flex-1 items-center justify-between px-8 pb-24">
-        <View className="flex-1 justify-center">
+      <View className="items-center justify-between flex-1 px-8 pb-24">
+        <View className="justify-center flex-1">
           <BadaLogo width={125} />
         </View>
 
