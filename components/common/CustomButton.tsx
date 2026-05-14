@@ -28,7 +28,7 @@ export default function CustomButton({
   const { height, text } = variantStyle[variant];
   return (
     <Pressable
-      className={`rounded-xl justify-center items-center active:opacity-80 w-full ${height} ${disabled ? "opacity-50" : "opacity-100"}`}
+      className={`rounded-xl justify-center items-center active:opacity-80 w-full mb-10 ${height} ${disabled ? "opacity-50" : "opacity-100"}`}
       style={backgroundColor ? { backgroundColor } : undefined}
       disabled={disabled}
       {...props}
