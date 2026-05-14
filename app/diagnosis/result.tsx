@@ -7,6 +7,7 @@ import CustomButton from "@/components/common/CustomButton";
 
 export default function Result() {
   const [isShowCard, setIsShowCard] = useState<boolean>(false);
+  
   return (
     <View className="flex-1 bg-white">
       <Top title="자가진단"/>
