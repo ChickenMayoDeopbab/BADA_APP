@@ -22,25 +22,25 @@ export default function TabLayout() {
         },
       }}
     >
-      <Tabs.Screen name="(home)/Home" options={{
+      <Tabs.Screen name="(home)/home" options={{
         title: '메인',
         tabBarIcon: ({ color, size }) => (
           <Octicons name="home-fill" size={size} color={color} />
         )
       }} />
-      <Tabs.Screen name="Train" options={{
+      <Tabs.Screen name="train" options={{
         title: '훈련',
         tabBarIcon: ({ color, size }) => (
           <Ionicons name="call" size={size} color={color} />
         )
       }} />
-      <Tabs.Screen name="Record" options={{
+      <Tabs.Screen name="record" options={{
         title: '기록',
         tabBarIcon: ({ color, size }) => (
           <Octicons name="history" size={size} color={color} />
         )
       }} />
-      <Tabs.Screen name="Profile" options={{
+      <Tabs.Screen name="profile" options={{
         title: '프로필',
         tabBarIcon: ({ color, size }) => (
           <Ionicons name="person" size={size} color={color} />
