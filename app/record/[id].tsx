@@ -16,6 +16,18 @@ const GOOD_PARTS = [
   { id: "3", summary: "좋았던 내용\n요약 정리", time: "1:31~1:40" },
 ];
 
+function PlayingButton() {
+  const [play, setPlay] = useState(false);
+
+  return (
+    <TouchableOpacity onPress={() => setPlay(!play)}>
+      <View className="w-10 h-10 rounded-full bg-[#0AE365] items-center justify-center">
+        <Ionicons name={play ? "stop" : "play"} size={16} color="white" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 
 export default function RecordDetailScreen() {
   const { id, date, scenarioName } = useLocalSearchParams<DetailParams>();
@@ -50,11 +62,7 @@ export default function RecordDetailScreen() {
             녹음본 듣기
           </Text>
           <View className="flex-row items-center gap-x-3">
-            <TouchableOpacity>
-              <View className="w-10 h-10 rounded-full bg-[#0AE365] items-center justify-center">
-                <Ionicons name="play" size={18} color="white" />
-              </View>
-            </TouchableOpacity>
+            <PlayingButton />
             <View className="flex-1 h-[2px] bg-[#BDBEBE] rounded-full" />
           </View>
         </View>
@@ -73,11 +81,7 @@ export default function RecordDetailScreen() {
                   {part.summary}
                 </Text>
                 <Text className="text-xs text-[#BDBEBE] mb-3">{part.time}</Text>
-                <TouchableOpacity>
-                  <View className="w-10 h-10 rounded-full bg-[#0AE365] items-center justify-center">
-                    <Ionicons name="play" size={16} color="white" />
-                  </View>
-                </TouchableOpacity>
+                <PlayingButton />
               </View>
             ))}
           </View>
