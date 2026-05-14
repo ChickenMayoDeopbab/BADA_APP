@@ -15,6 +15,7 @@ export default function Top({ title, isMain = false, back = false, onBack }: Top
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  // 뒤로 가기 버튼 눌렀을 때
   const handleBack = () => {
     if (onBack) {
       onBack();  

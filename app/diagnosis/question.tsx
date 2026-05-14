@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Loading from "@/components/common/Loading";
 
+// 라디오 버튼 관련 타입
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
   value: number;
@@ -20,6 +21,7 @@ type RadioProps = {
 const ACTIVE_COLOR = '#0AE365';
 const INACTIVE_COLOR = '#DADADB';
 
+// 라디오 버튼
 const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   return (
     <>
@@ -58,6 +60,7 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   );
 };
 
+// 서버 응답 관련 타입
 type Status = "loading" | "done" | "error" | null;
 
 export default function Question() {
@@ -65,6 +68,7 @@ export default function Question() {
   const [answer, setAnswer] = useState<number>(3);
   const [status, setStatus] = useState<Status>(null);
 
+  // 다음 버튼 눌렀을 때
   const handleNext = () => {
     if (nowStep < 9) {
       setNowStep(prev => prev + 1);
@@ -73,6 +77,7 @@ export default function Question() {
     }
   };
 
+  // 뒤로 가기 버튼 눌렀을 때
   const handleBack = () => {
     if (nowStep > 0) {
       setNowStep(prev => prev - 1);
@@ -81,6 +86,7 @@ export default function Question() {
     }
   };
 
+  // 진행바
   const PercentBar = ({ step }: { step: number }) => {
     const percent = (step / 10) * 100;
     return (

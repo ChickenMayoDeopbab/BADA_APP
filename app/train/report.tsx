@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import CustomButton from "@/components/common/CustomButton";
 import Clap from "@/assets/clap.svg";
 
+// 훈련 타입
 type mode = 'scenario' | 'warmUp';
 
 export default function Report() {

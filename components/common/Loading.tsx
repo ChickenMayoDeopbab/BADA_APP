@@ -12,6 +12,7 @@ import AnimatedCheck from "./AnimatedCheck";
 import Top from "@/components/common/Top";
 import SandClock from "@/assets/sandClock.svg";
 
+// 서버 응답 대기 타입
 type Status = "loading" | "done" | "error";
 
 interface LoadingProps {
@@ -39,6 +40,7 @@ export default function Loading({
 }: LoadingProps) {
   const rotation = useSharedValue(0);
 
+  // 모래시계 돌리기
   useEffect(() => {
     rotation.value = withRepeat(
       withSequence(
@@ -56,6 +58,7 @@ export default function Loading({
     transform: [{rotate: `${rotation.value}deg`}]
   }))
 
+  // 상태에 따라 다른 오브젝트 출력
   const renderContent = () => {
     if (status === "loading") {
       return (
