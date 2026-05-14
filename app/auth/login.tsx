@@ -74,12 +74,13 @@ export default function LoginScreen() {
               label="로그인"
               color="#F6F6F6"
               backgroundColor="#0AE365"
+              onPress={() => router.replace("/home")}
             />
             <CustomButton
               label="회원가입"
               color="#0D0D0E"
               backgroundColor="#F8F8F8"
-              onPress={() => router.push("/auth/signup")}
+              onPress={() => router.replace("/auth/signup")}
             />
           </View>
 
