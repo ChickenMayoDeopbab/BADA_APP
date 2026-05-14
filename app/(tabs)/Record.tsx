@@ -1,5 +1,5 @@
 import { View } from "react-native";
 
 export default function Record() {
-  return <View style={{ flex: 1, backgroundColor: 'white' }} />;
+  return <View className="flex-1 bg-white"/>;
 }
