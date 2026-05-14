@@ -4,7 +4,7 @@
     "slug": "bada",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/badaLogo.svg",
+    "icon": "./assets/badaLogo.png",
     "scheme": "bada",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -23,7 +23,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/badaLogo.svg",
+          "image": "./assets/badaLogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
