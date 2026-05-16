@@ -4,7 +4,7 @@ import { DIAGNOSIS } from "@/constants/diagnosis";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
-import Loading from "./Loading";
+import Loading from "./loading";
 
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {

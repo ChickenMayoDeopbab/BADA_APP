@@ -12,7 +12,7 @@ export default function Welcome() {
         <Text className="text-base font-medium text-[#5C5E5E] mt-2">간단한 자가진단을 통해 {"\n"} 나의 콜포비아 지수를 진단해보세요.</Text>
       </View>
 
-      <CustomButton label="자가진단 시작하기" onPress={() => router.push("/diagnosis/Question")} backgroundColor="#0AE365" color="white"/>
+      <CustomButton label="자가진단 시작하기" onPress={() => router.push("/diagnosis/question")} backgroundColor="#0AE365" color="white"/>
     </View>
   )
 }
