@@ -8,7 +8,8 @@ import Clap from "@/assets/clap.svg";
 type mode = 'scenario' | 'warmUp';
 
 export default function Report() {
-  const [mode, setMode] = useState<mode>('scenario');
+  const [mode, setMode] = useState<mode>('warmUp');
+  const [isPlaying, setIsPlaying] = useState<boolean[]>([false, false, false]);
   
   return (
     <View className="flex-1 bg-white">
@@ -32,8 +33,10 @@ export default function Report() {
                   <Text className="text-xs font-medium">좋았던 내용 요약 정리</Text>
                   <Text className="color-[#BDBEBE] font-medium text-xs">00:00 ~ 00:00</Text>
                 </View>
-                <TouchableOpacity>
-                  <Ionicons name="play-circle-sharp" size={40} color="#0AE365" />
+                <TouchableOpacity onPress={(prev) => setIsPlaying(prev => prev.map((val, i) => i === 0 ? !val : val))}>
+                  {isPlaying[0] === false
+                    ? <Ionicons name="play-circle-sharp" size={40} color="#0AE365" />
+                    : <Ionicons name="pause-circle" size={40} color="#0AE365" />}
                 </TouchableOpacity>
               </View>
               <View className="flex-row items-center justify-between flex-1 p-3 bg-white rounded-xl">
@@ -41,8 +44,10 @@ export default function Report() {
                   <Text className="text-xs font-medium">좋았던 내용 요약 정리</Text>
                   <Text className="color-[#BDBEBE] font-medium text-xs">00:00 ~ 00:00</Text>
                 </View>
-                <TouchableOpacity>
-                  <Ionicons name="play-circle-sharp" size={40} color="#0AE365" />
+                <TouchableOpacity onPress={(prev) => setIsPlaying(prev => prev.map((val, i) => i === 1 ? !val : val))}>
+                  {isPlaying[1] === false
+                    ? <Ionicons name="play-circle-sharp" size={40} color="#0AE365" />
+                    : <Ionicons name="pause-circle" size={40} color="#0AE365" />}
                 </TouchableOpacity>
               </View>
               <View className="flex-row items-center justify-between flex-1 p-3 bg-white rounded-xl">
@@ -50,8 +55,10 @@ export default function Report() {
                   <Text className="text-xs font-medium">좋았던 내용 요약 정리</Text>
                   <Text className="color-[#BDBEBE] font-medium text-xs">00:00 ~ 00:00</Text>
                 </View>
-                <TouchableOpacity>
-                  <Ionicons name="play-circle-sharp" size={40} color="#0AE365" />
+                <TouchableOpacity onPress={(prev) => setIsPlaying(prev => prev.map((val, i) => i === 2 ? !val : val))}>
+                  {isPlaying[2] === false
+                    ? <Ionicons name="play-circle-sharp" size={40} color="#0AE365" />
+                    : <Ionicons name="pause-circle" size={40} color="#0AE365" />}
                 </TouchableOpacity>
               </View>
             </View>
