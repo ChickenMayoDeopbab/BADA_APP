@@ -1,5 +1,5 @@
-import CustomButton from "@/components/CustomButton";
-import CustomInput from "@/components/CustomInput";
+import CustomButton from "@/components/common/CustomButton";
+import CustomInput from "@/components/common/CustomInput";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
