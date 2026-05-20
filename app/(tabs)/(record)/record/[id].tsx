@@ -3,18 +3,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GOOD_PARTS } from "@/constants/recordDummy";
 
 type DetailParams = {
   id: string;
   date: string;
   scenarioName: string;
 };
-
-const GOOD_PARTS = [
-  { id: "1", summary: "좋았던 내용\n요약 정리", time: "1:31~1:40" },
-  { id: "2", summary: "좋았던 내용\n요약 정리", time: "2:06~2:13" },
-  { id: "3", summary: "좋았던 내용\n요약 정리", time: "1:31~1:40" },
-];
 
 function PlayingButton() {
   const [play, setPlay] = useState<boolean>(false);
