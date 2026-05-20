@@ -17,7 +17,7 @@ const GOOD_PARTS = [
 ];
 
 function PlayingButton() {
-  const [play, setPlay] = useState(false);
+  const [play, setPlay] = useState<boolean>(false);
 
   return (
     <TouchableOpacity onPress={() => setPlay(!play)}>

@@ -10,8 +10,8 @@ type StepProps = {
 };
 
 export default function UsernameStep({ onNext }: StepProps) {
-  const [email, setEmail] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [verificationCode, setVerificationCode] = useState<string>("");
   return (
     <View>
       <View className="mb-5">

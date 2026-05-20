@@ -54,8 +54,8 @@ const dummyData = [
 ];
 
 export default function RecordScreen() {
-  const [sortVisible, setSortVisible] = useState(false);
-  const [selectedSort, setSelectedSort] = useState("최신 순");
+  const [isVisible, setIsVisible] = useState<boolean>(false);
+  const [selectedSort, setSelectedSort] = useState<string>("최신 순");
 
   return (
     <SafeAreaView className="items-center flex-1 px-8 bg-[#FEFEFE]">
@@ -66,7 +66,7 @@ export default function RecordScreen() {
       <View className="flex-row w-full mb-5 gap-x-3">
         <View>
           <TouchableOpacity
-            onPress={() => setSortVisible(true)}
+            onPress={() => setIsVisible(true)}
             className="flex-row items-center justify-between bg-[#EBEBEC] rounded-lg px-4"
             style={{ width: 116, height: 32 }}
           >
@@ -74,10 +74,10 @@ export default function RecordScreen() {
             <Ionicons name="chevron-down" size={14} color="#BDBEBE" />
           </TouchableOpacity>
 
-          <Modal visible={sortVisible} transparent animationType="fade">
+          <Modal visible={isVisible} transparent animationType="fade">
             <TouchableOpacity
               className="flex-1"
-              onPress={() => setSortVisible(false)}
+              onPress={() => setIsVisible(false)}
             >
               <View
                 className="absolute w-[116px] overflow-hidden shadow-lg bg-[#EBEBEC] rounded-2xl"
@@ -89,7 +89,7 @@ export default function RecordScreen() {
                     className="px-4 py-4"
                     onPress={() => {
                       setSelectedSort(option);
-                      setSortVisible(false);
+                      setIsVisible(false);
                     }}
                   >
                     <Text
