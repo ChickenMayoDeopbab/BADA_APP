@@ -7,7 +7,7 @@ import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignupScreen() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<number>(1);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -16,7 +16,8 @@ export default function SignupScreen() {
           <BadaLogo width={70} />
           <Text className=" text-3xl font-bold text-[#0D0D0E]">회원가입</Text>
         </View>
-
+        
+        {/* 조건부 입력창 렌더링 */}
         <View className="flex-1 mb-44">
           {step === 1 && <UsernameStep onNext={() => setStep(2)} />}
           {step === 2 && <PasswordStep onPrev={() => setStep(1)} onNext={() => setStep(3)} />}

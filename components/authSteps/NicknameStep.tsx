@@ -9,7 +9,7 @@ type StepProps = {
 };
 
 export default function NicknameStep({ onPrev, onNext }: StepProps) {
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState<string>("");
   return (
     <View>
       <View className="mb-[102px]">

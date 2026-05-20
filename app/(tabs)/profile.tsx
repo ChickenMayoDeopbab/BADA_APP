@@ -18,7 +18,7 @@ const MenuItem = ({ label, onPress }: MenuItemProps) => (
   </TouchableOpacity>
 );
 
-const ProfileScreen = () => {
+function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#FEFEFE] px-8">
       <Text className="text-xl font-bold text-[#3B3D3E] mt-10 mb-7 text-center">
