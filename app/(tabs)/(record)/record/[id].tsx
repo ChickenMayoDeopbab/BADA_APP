@@ -1,9 +1,9 @@
+import { GOOD_PARTS } from "@/constants/dummyRecords";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { GOOD_PARTS } from "@/constants/recordDummy";
 
 type DetailParams = {
   id: string;
@@ -22,7 +22,6 @@ function PlayingButton() {
     </TouchableOpacity>
   );
 }
-
 
 export default function RecordDetailScreen() {
   const { id, date, scenarioName } = useLocalSearchParams<DetailParams>();
