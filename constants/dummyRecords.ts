@@ -1,5 +1,3 @@
-const SORT_OPTIONS = ["최신 순", "오래된 순"];
-
 const dummyData = [
   { id: "1", date: "2026-04-11(토) 12:32", scenarioName: "피자 주문하기" },
   { id: "2", date: "2026-04-11(토) 10:10", scenarioName: "커스텀 시나리오" },
@@ -47,10 +45,4 @@ const dummyData = [
   { id: "40", date: "2026-03-22(일) 19:03", scenarioName: "지하철 길 찾기" },
 ];
 
-const GOOD_PARTS = [
-  { id: "1", summary: "좋았던 내용\n요약 정리", time: "1:31~1:40" },
-  { id: "2", summary: "좋았던 내용\n요약 정리", time: "2:06~2:13" },
-  { id: "3", summary: "좋았던 내용\n요약 정리", time: "1:31~1:40" },
-];
-
-export { dummyData, SORT_OPTIONS, GOOD_PARTS };
+export { dummyData };
