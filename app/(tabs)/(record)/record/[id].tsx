@@ -1,4 +1,4 @@
-import { GOOD_PARTS } from "@/constants/dummyRecords";
+import { GOOD_PARTS } from "@/constants/recordConsts";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -12,12 +12,12 @@ type DetailParams = {
 };
 
 function PlayingButton() {
-  const [play, setPlay] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   return (
-    <TouchableOpacity onPress={() => setPlay(!play)}>
+    <TouchableOpacity onPress={() => setIsPlaying(!isPlaying)}>
       <View className="w-10 h-10 rounded-full bg-[#0AE365] items-center justify-center">
-        <Ionicons name={play ? "stop" : "play"} size={16} color="white" />
+        <Ionicons name={isPlaying ? "stop" : "play"} size={16} color="white" />
       </View>
     </TouchableOpacity>
   );
