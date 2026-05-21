@@ -1,9 +1,10 @@
-import { dummyData, SORT_OPTIONS } from "@/constants/dummyRecords";
+import { dummyData } from "@/constants/dummyRecords";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { FlatList, Modal, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SORT_OPTIONS } from "@/constants/recordConsts";
 
 export default function RecordScreen() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
