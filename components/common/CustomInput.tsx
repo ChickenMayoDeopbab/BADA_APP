@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Text, TextInput, TextInputProps, View } from "react-native";
+import { Text, TextInput, TextInputProps, useWindowDimensions, View } from "react-native";
 
 interface InputFieldProps extends TextInputProps {
   label?: string;
@@ -33,6 +33,8 @@ export default function CustomInput({
   placeholder,
   ...props
 }: InputFieldProps) {
+  const { width } = useWindowDimensions();
+  const scale = Math.min(Math.max(width / 393, 0.94), width >= 600 ? 1.06 : 1);
   const [isFocused, setIsFocused] = useState(false);
 
   const hasValue = Boolean(value);
@@ -53,20 +55,23 @@ export default function CustomInput({
   return (
     <View className="w-full">
       <Text
-        className={`h-4 text-xs mb-0.5 transition duration-100 ${labelColor} ${isFocused || hasValue ? "opacity-100" : "opacity-0"}`}
+        className={`transition duration-100 ${labelColor} ${isFocused || hasValue ? "opacity-100" : "opacity-0"}`}
+        style={{ height: 16 * scale, marginBottom: 2 * scale, fontSize: 12 * scale }}
       >
         {label ?? " "}
       </Text>
 
       <View
         className={`
-          h-[44px] flex-row items-center border-b
+          flex-row items-center border-b
           ${variantClass[variant]}
           ${borderColor}
         `}
+        style={{ minHeight: 44 * scale }}
       >
         <TextInput
-          className="flex-1 p-0 text-lg font-medium text-[#0D0D0E] outline-none"
+          className="flex-1 p-0 font-medium text-[#0D0D0E] outline-none"
+          style={{ fontSize: 18 * scale, lineHeight: 24 * scale }}
           placeholderTextColor="#BDBEBE"
           placeholder={
             isFocused
@@ -89,7 +94,8 @@ export default function CustomInput({
       </View>
 
       <Text
-        className={`h-4 mt-1 text-xs text-[#FF0000] ${isError ? "opacity-100" : "opacity-0"}`}
+        className={`text-[#FF0000] ${isError ? "opacity-100" : "opacity-0"}`}
+        style={{ height: 16 * scale, marginTop: 4 * scale, fontSize: 12 * scale }}
       >
         {error ?? " "}
       </Text>
