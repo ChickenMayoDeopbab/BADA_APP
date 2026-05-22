@@ -70,8 +70,7 @@ export default function CustomInput({
         style={{ minHeight: 44 * scale }}
       >
         <TextInput
-          className="flex-1 p-0 font-medium text-[#0D0D0E] outline-none"
-          style={{ fontSize: 18 * scale, lineHeight: 24 * scale }}
+          className="flex-1 p-0 text-lg font-medium text-[#0D0D0E] outline-none"
           placeholderTextColor="#BDBEBE"
           placeholder={
             isFocused
