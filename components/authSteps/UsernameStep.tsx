@@ -2,7 +2,12 @@ import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import {
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 type StepProps = {
   onNext: () => void;
@@ -10,11 +15,18 @@ type StepProps = {
 };
 
 export default function UsernameStep({ onNext }: StepProps) {
+  const { width } = useWindowDimensions();
+  const inputScale = Math.min(
+    Math.max(width / 393, 0.94),
+    width >= 600 ? 1.06 : 1,
+  );
+  const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
+  const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
   const [email, setEmail] = useState<string>("");
   const [verificationCode, setVerificationCode] = useState<string>("");
   return (
     <View>
-      <View className="mb-5">
+      <View style={{ minHeight: fieldAreaHeight }}>
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <CustomInput
@@ -25,7 +37,7 @@ export default function UsernameStep({ onNext }: StepProps) {
             />
           </View>
 
-          <View className="mt-[18px] w-[105px]">
+          <View style={{ marginTop: 18, width: codeButtonWidth }}>
             <CustomButton
               label="인증코드 전송"
               variant="lg"
@@ -41,8 +53,6 @@ export default function UsernameStep({ onNext }: StepProps) {
           label="인증코드"
         />
       </View>
-
-      <View className="h-6 mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
