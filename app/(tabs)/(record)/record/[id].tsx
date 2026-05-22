@@ -16,9 +16,11 @@ function PlayingButton() {
 
   return (
     <TouchableOpacity onPress={() => setIsPlaying(!isPlaying)}>
-      <View className="w-10 h-10 rounded-full bg-[#0AE365] items-center justify-center">
-        <Ionicons name={isPlaying ? "stop" : "play"} size={16} color="white" />
-      </View>
+      <Ionicons
+        name={isPlaying ? "pause-circle" : "play-circle-sharp"}
+        size={40}
+        color="#0AE365"
+      />
     </TouchableOpacity>
   );
 }
