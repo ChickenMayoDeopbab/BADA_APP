@@ -2,7 +2,7 @@ import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 
 type StepProps = {
   onNext: () => void;
@@ -10,17 +10,20 @@ type StepProps = {
 };
 
 export default function PasswordStep({ onPrev, onNext }: StepProps) {
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
+  const { width } = useWindowDimensions();
+  const inputScale = Math.min(Math.max(width / 393, 0.94), width >= 600 ? 1.06 : 1);
+  const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
+  const [password, setPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
   
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   return (
     <View>
-      <View className="mb-5">
+      <View style={{ minHeight: fieldAreaHeight }}>
         <CustomInput
-          value={userId}
-          onChangeText={setUserId}
+          value={password}
+          onChangeText={setPassword}
           label="비밀번호"
           secureTextEntry={!isPasswordVisible}
           rightIcon={
@@ -37,8 +40,8 @@ export default function PasswordStep({ onPrev, onNext }: StepProps) {
         />
 
         <CustomInput
-          value={password}
-          onChangeText={setPassword}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
           placeholder="비밀번호를 다시 입력하세요."
           label="비밀번호 확인"
           secureTextEntry={!isConfirmPasswordVisible}
@@ -55,8 +58,6 @@ export default function PasswordStep({ onPrev, onNext }: StepProps) {
           }
         />
       </View>
-
-      <View className="h-6 mb-6" />
 
       <View className="gap-y-3">
         <CustomButton

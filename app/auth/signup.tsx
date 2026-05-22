@@ -3,26 +3,57 @@ import NicknameStep from "@/components/authSteps/NicknameStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignupScreen() {
-  const [step, setStep] = useState(1);
+  const { height, width } = useWindowDimensions();
+  const isTablet = width >= 600;
+  const topPadding = Math.min(Math.max(height * 0.08, 56), 80);
+  const formBottomMargin = Math.min(Math.max(height * 0.17, 96), 176);
+  const [step, setStep] = useState<number>(1);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="justify-between flex-1 px-8 pt-20">
-        <View className="flex-1">
-          <BadaLogo width={70} />
-          <Text className=" text-3xl font-bold text-[#0D0D0E]">회원가입</Text>
-        </View>
-
-        <View className="flex-1 mb-44">
-          {step === 1 && <UsernameStep onNext={() => setStep(2)} />}
-          {step === 2 && <PasswordStep onPrev={() => setStep(1)} onNext={() => setStep(3)} />}
-          {step === 3 && <NicknameStep onPrev={() => setStep(2)}  onNext={() => setStep(4)} />}
-        </View>
-      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1"
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <View
+            className="justify-between flex-1 px-8"
+            style={{
+              paddingTop: topPadding,
+              width: "100%",
+              maxWidth: isTablet ? 430 : undefined,
+              alignSelf: "center",
+              minHeight: height,
+            }}
+          >
+            <View className="flex-1">
+              <BadaLogo width={70} height={32} />
+              <Text className=" text-3xl font-bold text-[#0D0D0E]">회원가입</Text>
+            </View>
+            
+            <View className="flex-1" style={{ marginBottom: formBottomMargin }}>
+              {step === 1 && <UsernameStep onNext={() => setStep(2)} />}
+              {step === 2 && <PasswordStep onPrev={() => setStep(1)} onNext={() => setStep(3)} />}
+              {step === 3 && <NicknameStep onPrev={() => setStep(2)}  onNext={() => setStep(4)} />}
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
