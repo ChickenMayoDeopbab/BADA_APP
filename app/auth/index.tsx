@@ -1,6 +1,6 @@
 import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
-import CustomButton from "@/components/CustomButton";
+import CustomButton from "@/components/common/CustomButton";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
 import { useWindowDimensions, View } from "react-native";
