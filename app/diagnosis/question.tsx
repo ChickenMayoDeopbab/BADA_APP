@@ -98,7 +98,8 @@ export default function Question() {
 
   useEffect(() => {
     if (status === 'done') {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
+        await AsyncStorage.setItem('diagnosisResult', JSON.stringify(result));
         router.push('/diagnosis/result');
       }, 3000);
       return () => clearTimeout(timer);
