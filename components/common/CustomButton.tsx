@@ -10,10 +10,10 @@ interface CustomButtonProps extends PressableProps {
 }
 
 const variantStyle = {
-  xl: { height: "h-[51px]", text: "text-lg" },
-  lg: { height: "h-[41px]", text: "text-base" },
-  md: { height: "h-[38px]", text: "text-sm" },
-  sm: { height: "h-[28px]", text: "text-xs" },
+  xl: { height: "min-h-[51px]", text: "text-lg", padding: "p-[14px]" },
+  lg: { height: "min-h-[41px]", text: "text-base", padding: "p-[10px]" },
+  md: { height: "min-h-[38px]", text: "text-sm", padding: "p-[10px]" },
+  sm: { height: "min-h-[28px]", text: "text-xs", padding: "p-[6px]" },
 };
 
 export default function CustomButton({
@@ -25,7 +25,7 @@ export default function CustomButton({
   disabled,
   ...props
 }: CustomButtonProps) {
-  const { height, text } = variantStyle[variant];
+  const { height, text, padding } = variantStyle[variant];
   return (
     <Pressable
       className={`rounded-xl justify-center items-center active:opacity-80 w-full ${height} ${disabled ? "opacity-50" : "opacity-100"}`}

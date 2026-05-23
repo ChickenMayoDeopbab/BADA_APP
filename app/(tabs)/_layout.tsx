@@ -34,12 +34,13 @@ export default function TabLayout() {
           <Ionicons name="call" size={size} color={color} />
         )
       }} />
-      <Tabs.Screen name="record" options={{
+      <Tabs.Screen name="(record)/record/index" options={{
         title: '기록',
         tabBarIcon: ({ color, size }) => (
           <Octicons name="history" size={size} color={color} />
         )
       }} />
+      <Tabs.Screen name="(record)/record/[id]" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{
         title: '프로필',
         tabBarIcon: ({ color, size }) => (

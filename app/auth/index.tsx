@@ -4,6 +4,7 @@ import CustomButton from "@/components/common/CustomButton";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
 import { useWindowDimensions, View } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AuthScreen() {
