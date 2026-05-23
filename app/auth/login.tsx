@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
+
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const topPadding = Math.min(Math.max(height * 0.08, 56), 80);
@@ -23,8 +24,8 @@ export default function LoginScreen() {
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
 
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
+  const [userId, setUserId] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -102,7 +103,6 @@ export default function LoginScreen() {
                   로그인 상태 유지
                 </Text>
               </TouchableOpacity>
-
               <View className="gap-y-3">
                 <CustomButton
                   label="로그인"
