@@ -2,9 +2,11 @@ import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { DIAGNOSIS } from "@/constants/diagnosis";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Loading from "@/components/common/Loading";
+import { getQuestion } from "@/api";
+import { Question as QuestionType } from "@/api/types";
 
 // 라디오 버튼 관련 타입
 type RadioSize = 'sm' | 'lg';
@@ -67,6 +69,20 @@ export default function Question() {
   const [nowStep, setNowStep] = useState<number>(0);
   const [answer, setAnswer] = useState<number>(3);
   const [status, setStatus] = useState<Status>(null);
+  const [questionsList, setQusetionList] = useState<QuestionType[]>([]);
+
+  useEffect(() => {
+    const getQuestionList = async () => {
+      try {
+        const data = await getQuestion();
+        setQusetionList(data.data);
+      } catch {
+        console.log("질문 리스트 가져오기 실패")
+      }
+    }
+
+    getQuestionList();
+  }, [])
 
   // 다음 버튼 눌렀을 때
   const handleNext = () => {
@@ -122,9 +138,11 @@ export default function Question() {
           <Text className="text-sm font-medium text-[#5C5E5E]">콜포비아는 누구나 겪을 수 있는 자연스러운 증상이에요.</Text>
         </View>
         <View className="flex-col items-center justify-center flex-1 gap-6">
-          <Text className="text-2xl font-bold text-center">
-            전화가 오면 바로 받지 않고 시간을 끌거나 끝내 받지 않은 적이 많다.
-          </Text>
+          <View className="flex-row flex-wrap justify-center">
+            {questionsList[nowStep]?.content.split(' ').map((word, index) => (
+              <Text key={index} className="text-2xl font-bold text-center">{word} </Text>
+            ))}
+          </View>
           <Image source={DIAGNOSIS[nowStep]} resizeMode="contain" className="w-[200px] h-[200px]" />
         </View>
         <CheckBtns
