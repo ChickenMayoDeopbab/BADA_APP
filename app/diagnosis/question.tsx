@@ -5,14 +5,17 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Loading from "@/components/common/Loading";
-import { getQuestion } from "@/api";
-import { Question as QuestionType } from "@/api/types";
+import { calculateLevel, getQuestion } from "@/api";
+import { Level, Question as QuestionType } from "@/api/types";
+import { jwtDecode } from "jwt-decode";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 
-// 라디오 버튼 관련 타입
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
   value: number;
-  size?: RadioSize; 
+  size?: RadioSize;
 }
 type RadioProps = {
   options: RadioOption[];
@@ -23,7 +26,6 @@ type RadioProps = {
 const ACTIVE_COLOR = '#0AE365';
 const INACTIVE_COLOR = '#DADADB';
 
-// 라디오 버튼
 const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   return (
     <>
@@ -62,14 +64,18 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   );
 };
 
-// 서버 응답 관련 타입
 type Status = "loading" | "done" | "error" | null;
+
+interface Token {
+  sub: string;
+}
 
 export default function Question() {
   const [nowStep, setNowStep] = useState<number>(0);
-  const [answer, setAnswer] = useState<number>(3);
+  const [answers, setAnswers] = useState<number[]>(Array(10).fill(3));
   const [status, setStatus] = useState<Status>(null);
   const [questionsList, setQusetionList] = useState<QuestionType[]>([]);
+  const [result, setResult] = useState<Level>();
 
   useEffect(() => {
     const getQuestionList = async () => {
@@ -77,23 +83,69 @@ export default function Question() {
         const data = await getQuestion();
         setQusetionList(data.data);
       } catch {
-        console.log("질문 리스트 가져오기 실패")
+        console.log("질문 리스트 가져오기 실패");
       }
-    }
+    };
 
     getQuestionList();
-  }, [])
+  }, []);
 
-  // 다음 버튼 눌렀을 때
+  useEffect(() => {
+    if (status === 'loading') {
+      submitAnswers(answers);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status === 'done') {
+      const timer = setTimeout(() => {
+        router.push('/diagnosis/result');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
+  const submitAnswers = async (answers: number[]) => {
+    const token = await AsyncStorage.getItem("accessToken");
+    if (!token) {
+      setStatus('error')
+      return;
+    }
+    const { sub: userId } = jwtDecode<Token>(token);
+
+    const id = uuidv4();
+
+    try {
+      const data = await calculateLevel({
+        userId: Number(userId),
+        sessionId: id,
+        type: "SIGNUP",
+        answers: answers,
+      });
+      setResult(data.data);
+      setStatus('done');
+    } catch (e) {
+      console.log('레벨 계산 실패');
+      setStatus('error');
+    }
+  };
+
+  const handleChange = (value: number) => {
+    setAnswers(prev => {
+      const next = [...prev];
+      next[nowStep] = value;
+      return next;
+    });
+  };
+
   const handleNext = () => {
     if (nowStep < 9) {
       setNowStep(prev => prev + 1);
     } else {
-      setStatus("loading");
+      setStatus('loading'); 
     }
   };
 
-  // 뒤로 가기 버튼 눌렀을 때
   const handleBack = () => {
     if (nowStep > 0) {
       setNowStep(prev => prev - 1);
@@ -102,7 +154,6 @@ export default function Question() {
     }
   };
 
-  // 진행바
   const PercentBar = ({ step }: { step: number }) => {
     const percent = (step / 10) * 100;
     return (
@@ -113,16 +164,18 @@ export default function Question() {
   };
 
   if (status !== null) {
-    return <Loading 
-            status={status} 
-            title="자가진단" 
-            loadingText="콜포비아 레벨을 계산 중이에요." 
-            loadingSubText="잠시만 기다려 주세요." 
-            doneText="콜포비아 레벨의 계산이 끝났어요."
-            doneSubText="함께 결과를 확인해볼까요?"
-            errorText="레벨 계산에 실패했어요."
-            errorSubText="다시 시도해주세요."
-            />;
+    return (
+      <Loading
+        status={status}
+        title="자가진단"
+        loadingText="콜포비아 레벨을 계산 중이에요."
+        loadingSubText="잠시만 기다려 주세요."
+        doneText="콜포비아 레벨의 계산이 끝났어요."
+        doneSubText="함께 결과를 확인해볼까요?"
+        errorText="레벨 계산에 실패했어요."
+        errorSubText="다시 시도해주세요."
+      />
+    );
   }
 
   return (
@@ -153,11 +206,11 @@ export default function Question() {
             { value: 4, size: 'sm' },
             { value: 5, size: 'lg' },
           ]}
-          value={answer}
-          onChange={setAnswer}
+          value={answers[nowStep]}
+          onChange={handleChange}
         />
         <View className="my-10 border border-[#EAEAEA]" />
-        <CustomButton label="다음 문항" onPress={handleNext} backgroundColor="#0AE365" color="white"/>
+        <CustomButton label="다음 문항" onPress={handleNext} backgroundColor="#0AE365" color="white" />
       </View>
     </View>
   );
