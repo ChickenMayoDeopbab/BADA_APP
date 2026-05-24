@@ -107,7 +107,7 @@ export default function AttendanceCalendar() {
           }}
         />
       </View>
-      {!isMarkedToday &&
+      {!isMarkedToday && new Date().getFullYear() === currentYear && new Date().getMonth() + 1 === currentMonth &&
         <TouchableOpacity
           className="flex-row items-center justify-center w-full p-4 mt-2 rounded-lg"
           style={{ backgroundColor: '#0AE365' }}
