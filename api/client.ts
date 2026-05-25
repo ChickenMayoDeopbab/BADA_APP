@@ -22,7 +22,6 @@ const apiClient: AxiosInstance = create({
 // 요청 인터셉터
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    AsyncStorage.setItem('accessToken', "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxIiwidHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc3OTY0MzI1NiwiZXhwIjoxNzc5NjQ2ODU2LCJyb2xlIjoiUk9MRV9VU0VSIn0.MtwbXSU2d9NokwsuUNAGxAYLYm3jBfKiu99KEZ7xxQAvIcFQ4SukM1-8ALIihVHfTIMt02o3HxfWz6hUo0sp9Q")
     const token = await AsyncStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
