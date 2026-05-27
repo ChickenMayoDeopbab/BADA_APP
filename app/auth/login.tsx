@@ -3,6 +3,7 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -27,6 +28,8 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     try {
       const response = await postLogin({ username, password });
+       await AsyncStorage.setItem('accessToken', response.data.accessToken);
+      await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
 
       if (response.status === 200) {
         router.push("/home");
