@@ -1,5 +1,5 @@
 import apiClient from "./client";
-import { ApiResponse, EmailVerificationRequest, EmailRequest, LoginRequest, SignUpRequest } from "./types";
+import { ApiResponse, EmailVerificationRequest, EmailRequest, LoginRequest, SignUpRequest, LoginResponse } from "./types";
 
 export const postSignup = async (
   data: SignUpRequest
@@ -14,7 +14,7 @@ export const postSignup = async (
 
 export const postLogin = async (
   data: LoginRequest
-): Promise<ApiResponse<void>> => {
+): Promise<ApiResponse<LoginResponse>> => {
   const response = await apiClient.post(
     "/api/v1/auth/login",
     data
