@@ -20,6 +20,10 @@ export default function SignupScreen() {
   const formBottomMargin = Math.min(Math.max(height * 0.17, 96), 176);
   const [step, setStep] = useState<number>(1);
 
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [nickname, setNickname] = useState<string>("");
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView
@@ -43,13 +47,37 @@ export default function SignupScreen() {
           >
             <View className="flex-1">
               <BadaLogo width={70} height={32} />
-              <Text className=" text-3xl font-bold text-[#0D0D0E]">회원가입</Text>
+              <Text className=" text-3xl font-bold text-[#0D0D0E]">
+                회원가입
+              </Text>
             </View>
-            
+
             <View className="flex-1" style={{ marginBottom: formBottomMargin }}>
-              {step === 1 && <UsernameStep onNext={() => setStep(2)} />}
-              {step === 2 && <PasswordStep onPrev={() => setStep(1)} onNext={() => setStep(3)} />}
-              {step === 3 && <NicknameStep onPrev={() => setStep(2)}  onNext={() => setStep(4)} />}
+              {step === 1 && (
+                <UsernameStep
+                  email={email}
+                  setEmail={setEmail}
+                  onNext={() => setStep(2)}
+                />
+              )}
+
+              {step === 2 && (
+                <PasswordStep
+                  password={password}
+                  setPassword={setPassword}
+                  onPrev={() => setStep(1)}
+                  onNext={() => setStep(3)}
+                />
+              )}
+
+              {step === 3 && (
+                <NicknameStep
+                  nickname={nickname}
+                  setNickname={setNickname}
+                  onPrev={() => setStep(2)}
+                  onNext={() => setStep(4)}
+                />
+              )}
             </View>
           </View>
         </ScrollView>
