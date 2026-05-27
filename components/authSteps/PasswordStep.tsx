@@ -2,22 +2,37 @@ import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
-import { Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import {
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
-type StepProps = {
+type PasswordProps = {
+  password: string;
+  setPassword: React.Dispatch<React.SetStateAction<string>>;
+  onPrev: () => void;
   onNext: () => void;
-  onPrev?: () => void;
 };
 
-export default function PasswordStep({ onPrev, onNext }: StepProps) {
+export default function PasswordStep({
+  password,
+  setPassword,
+  onPrev,
+  onNext,
+}: PasswordProps) {
   const { width } = useWindowDimensions();
-  const inputScale = Math.min(Math.max(width / 393, 0.94), width >= 600 ? 1.06 : 1);
+  const inputScale = Math.min(
+    Math.max(width / 393, 0.94),
+    width >= 600 ? 1.06 : 1,
+  );
   const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
-  const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
-  
+
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState<boolean>(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
+    useState<boolean>(false);
   return (
     <View>
       <View style={{ minHeight: fieldAreaHeight }}>
@@ -47,7 +62,9 @@ export default function PasswordStep({ onPrev, onNext }: StepProps) {
           secureTextEntry={!isConfirmPasswordVisible}
           rightIcon={
             <TouchableOpacity
-              onPress={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}
+              onPress={() =>
+                setIsConfirmPasswordVisible(!isConfirmPasswordVisible)
+              }
             >
               <Ionicons
                 name={isPasswordVisible ? "eye-off-sharp" : "eye"}

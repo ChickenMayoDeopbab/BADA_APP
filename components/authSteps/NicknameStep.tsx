@@ -1,24 +1,40 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
-import { useState } from "react";
-import { Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import {
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
-type StepProps = {
+type NicknameProps = {
+  nickname: string;
+  setNickname: React.Dispatch<React.SetStateAction<string>>;
+  onPrev: () => void;
   onNext: () => void;
-  onPrev?: () => void;
 };
 
-export default function NicknameStep({ onPrev, onNext }: StepProps) {
+export default function NicknameStep({
+  nickname,
+  setNickname,
+  onPrev,
+  onNext,
+}: NicknameProps) {
   const { width } = useWindowDimensions();
-  const inputScale = Math.min(Math.max(width / 393, 0.94), width >= 600 ? 1.06 : 1);
+  const inputScale = Math.min(
+    Math.max(width / 393, 0.94),
+    width >= 600 ? 1.06 : 1,
+  );
   const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
-  const [nickname, setNickname] = useState<string>("");
-
 
   return (
     <View>
       <View style={{ minHeight: fieldAreaHeight }}>
-        <CustomInput value={nickname} onChangeText={setNickname} label="닉네임" />
+        <CustomInput
+          value={nickname}
+          onChangeText={setNickname}
+          label="닉네임"
+        />
       </View>
 
       <View className="gap-y-3">
