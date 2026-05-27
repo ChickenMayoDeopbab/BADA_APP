@@ -38,3 +38,28 @@ export interface Answer {
   type: string,
   answers: number[]
 }
+
+export interface SignUpRequest {
+  username: string;
+  password: string;
+  email: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface EmailRequest {
+  email: string;
+}
+
+export interface EmailVerificationRequest {
+  email: string;
+  authNum: string;
+}
+
+export interface MyPageResponse {
+  username: string;
+  profileImage ?: string;
+}
