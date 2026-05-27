@@ -9,12 +9,17 @@ import {
   View,
 } from "react-native";
 
-type StepProps = {
+type UsernameProps = {
+  email: string;
+  setEmail: React.Dispatch<React.SetStateAction<string>>;
   onNext: () => void;
-  onPrev?: () => void;
 };
 
-export default function UsernameStep({ onNext }: StepProps) {
+export default function UsernameStep({
+  email,
+  setEmail,
+  onNext,
+}: UsernameProps) {
   const { width } = useWindowDimensions();
   const inputScale = Math.min(
     Math.max(width / 393, 0.94),
@@ -22,7 +27,7 @@ export default function UsernameStep({ onNext }: StepProps) {
   );
   const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
   const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
-  const [email, setEmail] = useState<string>("");
+
   const [verificationCode, setVerificationCode] = useState<string>("");
   return (
     <View>
