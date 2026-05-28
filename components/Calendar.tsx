@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { checkAttendance, getAttendantDays } from "@/api/AttendanceApi";
+import { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Calendar, DateData, LocaleConfig } from 'react-native-calendars';
 
@@ -12,52 +13,65 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 
 export default function AttendanceCalendar() {
-  const [markedDates, setMarkedDates] = useState<Record<string, object>>({}); // 출석체크된 날짜
+  const [markedDates, setMarkedDates] = useState<string[]>([]);
+  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
 
   const getToday = () => new Date().toISOString().split('T')[0];
-  const isMarkedToday = !!markedDates[getToday()];
 
-  // 출석 체크 버튼 클릭
-  const handleAttendance = () => {
+  const isMarkedToday = markedDates.includes(getToday());
+
+  const getAttendance = async () => {
+    try {
+      const data = await getAttendantDays(currentYear, currentMonth);
+      setMarkedDates((data.data as unknown as { date: string }[]).map(d => d.date));
+    } catch (e) {
+      console.log("출석일 가져오기 실패", e);
+    }
+  };
+
+  useEffect(() => {
+    getAttendance();
+  }, [currentYear, currentMonth]);
+
+  const handleAttendance = async (): Promise<void> => {
     const today = getToday();
-    setMarkedDates(prev => ({
-      ...prev,
-      [today] : {
-        selected: true,
-        selectedColor: '#0AE365',
-        selectedTextColor: '#ffffff',
-      }
-    }))
-  }
+    setMarkedDates(prev => [...prev, today]);
 
-  // 헤더 커스텀
-  const renderHeader = (date: Date) => {
+    try {
+      await checkAttendance();
+    } catch {
+      console.log("출석 체크 실패");
+      setMarkedDates(prev => prev.filter(date => date !== today));
+    }
+  };
+
+  const renderHeader = (date: globalThis.Date) => {
     const currentYear = new Date().getFullYear();
     const calYear = date.getFullYear();
     const calMonth = date.getMonth() + 1;
-    
-    const headerText = currentYear === calYear 
+
+    const headerText = currentYear === calYear
       ? `${calMonth}월`
       : `${calYear}년 ${calMonth}월`;
 
     return (
-      <Text className="text-lg font-bold" style={{color: '#1a1a1a'}}>{headerText}</Text>
-    )
-  }
+      <Text className="text-lg font-bold" style={{ color: '#1a1a1a' }}>{headerText}</Text>
+    );
+  };
 
-  // 날짜칸 커스텀
-  const renderDay = ({ date, state }: { date?: DateData, state?: string}) => {
+  const renderDay = ({ date, state }: { date?: DateData; state?: string }) => {
     if (!date) return null;
-    
+
     const dayOfWeek = new Date(date.dateString).getDay();
-    const isToday = date.dateString === getToday(); 
-  
+    const isToday = date.dateString === getToday();
+
     let textColor = '#1a1a1a';
     if (dayOfWeek === 0) textColor = '#E24B4A';
     if (dayOfWeek === 6) textColor = '#378ADD';
-  
-    const isAttended = markedDates[date.dateString];
-  
+
+    const isAttended = markedDates.includes(date.dateString);
+
     return (
       <View style={{
         width: 33,
@@ -65,7 +79,7 @@ export default function AttendanceCalendar() {
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 20,
-        backgroundColor: isAttended ? '#0AE365' : isToday ? '#E8F4FD' : 'transparent', // 수정
+        backgroundColor: isAttended ? '#0AE365' : isToday ? '#E8F4FD' : 'transparent',
       }}>
         <Text style={{
           fontSize: 16,
@@ -76,23 +90,32 @@ export default function AttendanceCalendar() {
       </View>
     );
   };
-   
+
   return (
     <>
       <View className="w-full overflow-hidden bg-white rounded shadow-lg aspect-square">
         <Calendar
-              hideDayNames={true}
-              markedDates={markedDates}
-              renderHeader={renderHeader}
-              dayComponent={renderDay}
-              theme={{
-                arrowColor: '#006FCC',
-              }}
+          hideDayNames={true}
+          renderHeader={renderHeader}
+          dayComponent={renderDay}
+          theme={{
+            arrowColor: '#006FCC',
+          }}
+          onMonthChange={(month) => {
+            setCurrentYear(month.year);
+            setCurrentMonth(month.month);
+          }}
         />
       </View>
-      {!isMarkedToday && 
-        <TouchableOpacity className="flex-row items-center justify-center w-full p-4 mt-2 rounded-lg" style={{backgroundColor: '#0AE365'}} onPress={handleAttendance}><Text className="font-bold text-white">출석하기</Text></TouchableOpacity>
+      {!isMarkedToday && new Date().getFullYear() === currentYear && new Date().getMonth() + 1 === currentMonth &&
+        <TouchableOpacity
+          className="flex-row items-center justify-center w-full p-4 mt-2 rounded-lg"
+          style={{ backgroundColor: '#0AE365' }}
+          onPress={handleAttendance}
+        >
+          <Text className="font-bold text-white">출석하기</Text>
+        </TouchableOpacity>
       }
     </>
-  )
+  );
 }
