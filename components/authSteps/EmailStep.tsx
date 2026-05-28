@@ -29,15 +29,11 @@ export default function EmailStep({ email, setEmail, onNext }: EmailProps) {
   const [isSent, setIsSent] = useState<boolean>(false);
 
   const handleEmailSend = async () => {
-  try {
-    const response = await postEmailSend({ email });
-    if (response.status === 200) {
+    try {
+      const response = await postEmailSend({ email });
       setIsSent(true);
-    }
-  } catch (error: any) {
-    console.log(error.response?.data);
-  }
-};
+    } catch (error) {}
+  };
 
   const handleEmailCheck = async () => {
     try {
@@ -45,9 +41,7 @@ export default function EmailStep({ email, setEmail, onNext }: EmailProps) {
         email,
         authNum: verificationCode,
       });
-      if (response.status === 200) {
-        onNext();
-      }
+      onNext();
     } catch (error) {
       console.log(error);
     }
