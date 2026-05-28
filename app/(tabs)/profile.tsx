@@ -1,7 +1,11 @@
-import React from "react";
+import { deleteSignout } from "@/api/authApi";
+import { MyPageResponse } from "@/api/types";
+import { getMyPage } from "@/api/userInfoApi";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 
 interface MenuItemProps {
   label: string;
@@ -19,6 +23,28 @@ const MenuItem = ({ label, onPress }: MenuItemProps) => (
 );
 
 function ProfileScreen() {
+  const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
+
+  useEffect(() => {
+    const fetchMyPage = async () => {
+      console.log(myPage)
+      try {
+        const response = await getMyPage();
+        if (response.status === 200) {
+          setMyPage(response.data);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchMyPage();
+  }, []);
+  
+
+  const handleSignOut = async () => {
+    await deleteSignout();
+    router.replace("/auth");
+  };
   return (
     <SafeAreaView className="flex-1 bg-[#FEFEFE] px-8">
       <Text className="text-xl font-bold text-[#3B3D3E] mt-10 mb-7 text-center">
@@ -28,13 +54,15 @@ function ProfileScreen() {
       <Text className="text-base font-bold text-[#0D0D0E] mb-3">내 정보</Text>
       <View className="w-full gap-1 mb-6">
         <View className="px-4 pt-4 pb-4 rounded-[12px] bg-[#F2F2F3]">
-          <Text className="mb-1 font-bold text-[#0D0D0E] text-2xl">변성우</Text>
+          <Text className="mb-1 font-bold text-[#0D0D0E] text-2xl">
+            {myPage?.username}
+          </Text>
           <Text className="text-[13px] text-[#8E8E8E]">
-            b2ong222 · bsw2222@google.com
+            {myPage?.email}
           </Text>
         </View>
         <MenuItem label="내 정보 수정" onPress={() => {}} />
-        <MenuItem label="로그아웃" onPress={() => {}} />
+        <MenuItem label="로그아웃" onPress={handleSignOut} />
         <MenuItem label="회원 탈퇴" onPress={() => {}} />
       </View>
 
@@ -45,6 +73,6 @@ function ProfileScreen() {
       </View>
     </SafeAreaView>
   );
-};
+}
 
 export default ProfileScreen;
