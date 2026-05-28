@@ -23,15 +23,8 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     try {
       const response = await postSignup({ email, password, username });
-
-      if (response.status === 200) {
-        router.push("/auth/login");
-      } else {
-        console.log(response.error?.message);
-      }
-    } catch (error: any) {
-      console.log("에러 내용:", error.response?.data);
-    }
+      router.push("/auth/login");
+    } catch (error) {}
   };
 
   return (

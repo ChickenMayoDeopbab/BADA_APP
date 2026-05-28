@@ -29,16 +29,11 @@ export default function LoginScreen() {
     try {
       const response = await postLogin({ username, password });
 
-      if (response.status === 200) {
-        await AsyncStorage.setItem("accessToken", response.data.accessToken);
-        await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
-        await AsyncStorage.setItem('autoLogin', isChecked ? 'true' : 'false');
-        router.push("/home");
-      } else {
-        console.log(response.error?.message);
-      }
-    } catch (error: any) {
-      console.log("에러 내용:", error.response?.data);
+      await AsyncStorage.setItem("accessToken", response.data.accessToken);
+      await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
+      await AsyncStorage.setItem("autoLogin", isChecked ? "true" : "false");
+      router.push("/home");
+    } catch (error) {
     }
   };
 
@@ -74,7 +69,7 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               label="비밀번호"
               secureTextEntry={!isPasswordVisible}
-              textContentType="oneTimeCode" 
+              textContentType="oneTimeCode"
               rightIcon={
                 <TouchableOpacity
                   onPress={() => setIsPasswordVisible(!isPasswordVisible)}
