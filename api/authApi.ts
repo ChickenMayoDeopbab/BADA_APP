@@ -3,19 +3,17 @@ import { ApiResponse, EmailVerificationRequest, EmailRequest, LoginRequest, Sign
 
 export const postSignup = async (
   data: SignUpRequest
-): Promise<ApiResponse<void>> => {
-  const response = await apiClient.post(
+): Promise<void> => {
+  await apiClient.post(
     "/api/v1/auth/signup",
     data
   );
-
-  return response.data;
 };
 
 export const postLogin = async (
   data: LoginRequest
 ): Promise<ApiResponse<LoginResponse>> => {
-  const response = await apiClient.post(
+  const response = await apiClient.post<ApiResponse<LoginResponse>>(
     "/api/v1/auth/login",
     data
   );
@@ -25,27 +23,22 @@ export const postLogin = async (
 
 export const postEmailSend = async (
   data: EmailRequest
-): Promise<ApiResponse<void>> => {
-  const response = await apiClient.post<ApiResponse<void>>(
+): Promise<void> => {
+  await apiClient.post(
     "/api/v1/auth/email/send",
     data
   );
-
-  return response.data;
 };
 
 export const postEmailCheck = async (
   data: EmailVerificationRequest
-): Promise<ApiResponse<void>> => {
-  const response = await apiClient.post<ApiResponse<void>>(
+): Promise<void> => {
+  await apiClient.post(
     "/api/v1/auth/email/check",
     data
   );
-
-  return response.data;
 };
 
-export const deleteSignout = async (): Promise<ApiResponse<void>> => {
-  const response = await apiClient.delete<ApiResponse<void>>("/api/v1/auth/signout");
-  return response.data;
+export const deleteSignout = async (): Promise<void> => {
+  await apiClient.delete("/api/v1/auth/signout");
 };
