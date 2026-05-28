@@ -66,5 +66,5 @@ export interface EmailVerificationRequest {
 
 export interface MyPageResponse {
   username: string;
-  profileImage ?: string;
+  email: string;
 }
