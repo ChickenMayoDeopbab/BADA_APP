@@ -3,7 +3,6 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
-
 import { router } from "expo-router";
 import { useState } from "react";
 import { Text, useWindowDimensions, View } from "react-native";
