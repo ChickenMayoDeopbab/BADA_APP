@@ -27,12 +27,9 @@ function ProfileScreen() {
 
   useEffect(() => {
     const fetchMyPage = async () => {
-      console.log(myPage)
       try {
         const response = await getMyPage();
-        if (response.status === 200) {
-          setMyPage(response.data);
-        }
+        setMyPage(response.data);
       } catch (error) {
         console.log(error);
       }
