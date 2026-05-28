@@ -28,10 +28,11 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     try {
       const response = await postLogin({ username, password });
-       await AsyncStorage.setItem('accessToken', response.data.accessToken);
-      await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
 
       if (response.status === 200) {
+        await AsyncStorage.setItem("accessToken", response.data.accessToken);
+        await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
+        await AsyncStorage.setItem('autoLogin', isChecked ? 'true' : 'false');
         router.push("/home");
       } else {
         console.log(response.error?.message);
@@ -66,12 +67,14 @@ export default function LoginScreen() {
               value={username}
               onChangeText={setUsername}
               label="아이디"
+              textContentType="oneTimeCode"
             />
             <CustomInput
               value={password}
               onChangeText={setPassword}
               label="비밀번호"
               secureTextEntry={!isPasswordVisible}
+              textContentType="oneTimeCode" 
               rightIcon={
                 <TouchableOpacity
                   onPress={() => setIsPasswordVisible(!isPasswordVisible)}
