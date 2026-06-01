@@ -3,15 +3,17 @@ import CustomInput from "@/components/common/CustomInput";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import {
+  Animated,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 
 type PasswordProps = {
   password: string;
   setPassword: React.Dispatch<React.SetStateAction<string>>;
+  inputTranslateY: Animated.Value;
+  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => void;
 };
@@ -19,15 +21,11 @@ type PasswordProps = {
 export default function PasswordStep({
   password,
   setPassword,
+  inputTranslateY,
+  inputAreaHeight,
   onPrev,
   onNext,
 }: PasswordProps) {
-  const { width } = useWindowDimensions();
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
   const [confirmPassword, setConfirmPassword] = useState<string>("");
 
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
@@ -35,7 +33,12 @@ export default function PasswordStep({
     useState<boolean>(false);
   return (
     <View>
-      <View style={{ minHeight: fieldAreaHeight }}>
+      <Animated.View
+        style={{
+          minHeight: inputAreaHeight,
+          transform: [{ translateY: inputTranslateY }],
+        }}
+      >
         <CustomInput
           value={password}
           onChangeText={setPassword}
@@ -74,7 +77,7 @@ export default function PasswordStep({
             </TouchableOpacity>
           }
         />
-      </View>
+      </Animated.View>
 
       <View className="gap-y-3">
         <CustomButton
