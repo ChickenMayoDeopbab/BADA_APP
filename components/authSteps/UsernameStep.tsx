@@ -1,15 +1,15 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
-import {
-  Animated,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Animated, Text, TouchableOpacity, View } from "react-native";
+
+interface UserInfo {
+  username: string;
+  userId: string;
+}
 
 type UsernameProps = {
-  username: string;
-  setUsername: React.Dispatch<React.SetStateAction<string>>;
+  userInfo: UserInfo;
+  setUserInfo: React.Dispatch<React.SetStateAction<UserInfo>>;
   inputTranslateY: Animated.Value;
   inputAreaHeight: number;
   onPrev: () => void;
@@ -17,27 +17,45 @@ type UsernameProps = {
 };
 
 export default function UsernameStep({
-  username,
-  setUsername,
+  userInfo,
+  setUserInfo,
   inputTranslateY,
-  inputAreaHeight,
   onPrev,
   onNext,
 }: UsernameProps) {
   return (
     <View>
       <Animated.View
-        style={{
-          minHeight: inputAreaHeight,
-          transform: [{ translateY: inputTranslateY }],
-        }}
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
       >
         <CustomInput
-          value={username}
-          onChangeText={setUsername}
-          label="닉네임"
+          value={userInfo.userId}
+          onChangeText={(text) =>
+            setUserInfo((prev) => ({
+              ...prev,
+              username: text,
+            }))
+          }
+          label="아이디"
+          returnKeyType="next"
+          onSubmitEditing={onNext}
+        />
+        <CustomInput
+          value={userInfo.username}
+          onChangeText={(text) =>
+            setUserInfo((prev) => ({
+              ...prev,
+              userId: text,
+            }))
+          }
+          label="이름"
+          returnKeyType="done"
+          onSubmitEditing={onNext}
         />
       </Animated.View>
+
+      <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
