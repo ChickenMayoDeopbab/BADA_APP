@@ -7,7 +7,6 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
   Keyboard,
   Platform,
   ScrollView,
@@ -35,11 +34,23 @@ export default function SignupScreen() {
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [username, setUsername] = useState<string>("");
+
+  const [userInfo, setUserInfo] = useState<{
+    userId: string;
+    username: string;
+  }>({
+    username: "",
+    userId: "",
+  });
 
   const handleSignup = async () => {
     try {
-      await postSignup({ email, password, username });
+      await postSignup({
+        email,
+        password,
+        name: userInfo.userId,
+        username: userInfo.username,
+      });
       router.push("/auth/login");
     } catch {}
   };
@@ -52,9 +63,8 @@ export default function SignupScreen() {
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       Animated.timing(inputTranslateY, {
-        toValue: -e.endCoordinates.height * 0.45,
-        duration: e.duration || 250,
-        easing: Easing.out(Easing.ease),
+        toValue: -80,
+        duration: Platform.OS === "ios" ? e.duration : 200,
         useNativeDriver: true,
       }).start();
     });
@@ -62,8 +72,7 @@ export default function SignupScreen() {
     const hideSub = Keyboard.addListener(hideEvent, (e) => {
       Animated.timing(inputTranslateY, {
         toValue: 0,
-        duration: e.duration || 250,
-        easing: Easing.out(Easing.ease),
+        duration: Platform.OS === "ios" ? e.duration : 200,
         useNativeDriver: true,
       }).start();
     });
@@ -123,8 +132,8 @@ export default function SignupScreen() {
 
               {step === 3 && (
                 <UsernameStep
-                  username={username}
-                  setUsername={setUsername}
+                  userInfo={userInfo}
+                  setUserInfo={setUserInfo}
                   inputTranslateY={inputTranslateY}
                   inputAreaHeight={inputAreaHeight}
                   onPrev={() => setStep(2)}
