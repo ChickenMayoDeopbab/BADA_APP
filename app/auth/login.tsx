@@ -9,7 +9,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Keyboard,
+  Platform,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   useWindowDimensions,
@@ -24,31 +26,33 @@ export default function LoginScreen() {
   const inputTop = Math.min(Math.max(height * 0.4, 260), 380);
   const headerHeight = 74;
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const inputAreaHeight = 82 * inputScale * 2 + 20;
+
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
 
+  const passwordRef = useRef<TextInput>(null);
   const inputTranslateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardWillShow", (e) => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
       Animated.timing(inputTranslateY, {
-        toValue: -e.endCoordinates.height * 0.5,
-        duration: e.duration,
+        toValue: -80,
+        duration: Platform.OS === "ios" ? e.duration : 200,
         useNativeDriver: true,
       }).start();
     });
 
-    const hideSub = Keyboard.addListener("keyboardWillHide", (e) => {
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
       Animated.timing(inputTranslateY, {
         toValue: 0,
-        duration: e.duration,
+        duration: Platform.OS === "ios" ? e.duration : 200,
         useNativeDriver: true,
       }).start();
     });
@@ -88,39 +92,41 @@ export default function LoginScreen() {
               아이디로 로그인
             </Text>
           </View>
+
           <View style={{ marginTop: formTopMargin }}>
             <Animated.View
-              style={{
-                minHeight: inputAreaHeight,
-                transform: [{ translateY: inputTranslateY }],
-              }}
+              className="mb-5"
+              style={{ transform: [{ translateY: inputTranslateY }] }}
             >
-              <View className="mb-5">
-                <CustomInput
-                  value={username}
-                  onChangeText={setUsername}
-                  label="아이디"
-                  textContentType="oneTimeCode"
-                />
-                <CustomInput
-                  value={password}
-                  onChangeText={setPassword}
-                  label="비밀번호"
-                  secureTextEntry={!isPasswordVisible}
-                  textContentType="oneTimeCode"
-                  rightIcon={
-                    <TouchableOpacity
-                      onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                    >
-                      <Ionicons
-                        name={isPasswordVisible ? "eye-off-sharp" : "eye"}
-                        size={20}
-                        color="#BDBEBE"
-                      />
-                    </TouchableOpacity>
-                  }
-                />
-              </View>
+              <CustomInput
+                value={username}
+                onChangeText={setUsername}
+                label="아이디"
+                textContentType="oneTimeCode"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+              />
+              <CustomInput
+                ref={passwordRef}
+                value={password}
+                onChangeText={setPassword}
+                label="비밀번호"
+                secureTextEntry={!isPasswordVisible}
+                textContentType="oneTimeCode"
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+                rightIcon={
+                  <TouchableOpacity
+                    onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                  >
+                    <Ionicons
+                      name={isPasswordVisible ? "eye-off-sharp" : "eye"}
+                      size={20}
+                      color="#BDBEBE"
+                    />
+                  </TouchableOpacity>
+                }
+              />
             </Animated.View>
 
             <TouchableOpacity
@@ -144,7 +150,6 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* 버튼은 고정 */}
             <View className="gap-y-3">
               <CustomButton
                 label="로그인"
