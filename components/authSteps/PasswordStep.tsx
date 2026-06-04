@@ -1,10 +1,11 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Animated,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -22,62 +23,52 @@ export default function PasswordStep({
   password,
   setPassword,
   inputTranslateY,
-  inputAreaHeight,
   onPrev,
   onNext,
 }: PasswordProps) {
   const [confirmPassword, setConfirmPassword] = useState<string>("");
-
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
-    useState<boolean>(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState<boolean>(false);
+
+  const confirmRef = useRef<TextInput>(null);
+
   return (
     <View>
       <Animated.View
-        style={{
-          minHeight: inputAreaHeight,
-          transform: [{ translateY: inputTranslateY }],
-        }}
+      className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
       >
         <CustomInput
           value={password}
           onChangeText={setPassword}
           label="비밀번호"
           secureTextEntry={!isPasswordVisible}
+          returnKeyType="next"
+          onSubmitEditing={() => confirmRef.current?.focus()}
           rightIcon={
-            <TouchableOpacity
-              onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-            >
-              <Ionicons
-                name={isPasswordVisible ? "eye-off-sharp" : "eye"}
-                size={20}
-                color="#BDBEBE"
-              />
+            <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+              <Ionicons name={isPasswordVisible ? "eye-off-sharp" : "eye"} size={20} color="#BDBEBE" />
             </TouchableOpacity>
           }
         />
-
         <CustomInput
+          ref={confirmRef}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           placeholder="비밀번호를 다시 입력하세요."
           label="비밀번호 확인"
           secureTextEntry={!isConfirmPasswordVisible}
+          returnKeyType="done"
+          onSubmitEditing={onNext}
           rightIcon={
-            <TouchableOpacity
-              onPress={() =>
-                setIsConfirmPasswordVisible(!isConfirmPasswordVisible)
-              }
-            >
-              <Ionicons
-                name={isPasswordVisible ? "eye-off-sharp" : "eye"}
-                size={20}
-                color="#BDBEBE"
-              />
+            <TouchableOpacity onPress={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}>
+              <Ionicons name={isConfirmPasswordVisible ? "eye-off-sharp" : "eye"} size={20} color="#BDBEBE" />
             </TouchableOpacity>
           }
         />
       </Animated.View>
+      
+      <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
