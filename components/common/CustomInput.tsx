@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { forwardRef, ReactNode, useState } from "react";
 import { Text, TextInput, TextInputProps, useWindowDimensions, View } from "react-native";
 
 interface InputFieldProps extends TextInputProps {
@@ -22,7 +22,7 @@ function getJosa(word: string): string {
   return (code - 0xAC00) % 28 > 0 ? "을" : "를";
 }
 
-export default function CustomInput({
+const CustomInput = forwardRef<TextInput, InputFieldProps>(({
   label,
   variant = "standard",
   error = "",
@@ -32,7 +32,7 @@ export default function CustomInput({
   value,
   placeholder,
   ...props
-}: InputFieldProps) {
+}, ref) => {
   const { width } = useWindowDimensions();
   const scale = Math.min(Math.max(width / 393, 0.94), width >= 600 ? 1.06 : 1);
   const [isFocused, setIsFocused] = useState(false);
@@ -70,6 +70,7 @@ export default function CustomInput({
         style={{ minHeight: 44 * scale }}
       >
         <TextInput
+          ref={ref}
           className="flex-1 p-0 text-lg font-medium text-[#0D0D0E] outline-none"
           placeholderTextColor="#BDBEBE"
           placeholder={
@@ -100,4 +101,6 @@ export default function CustomInput({
       </Text>
     </View>
   );
-}
+});
+
+export default CustomInput;
