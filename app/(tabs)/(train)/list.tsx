@@ -57,6 +57,11 @@ export default function List() {
   const paddedData: (Scenario | null)[] =
     filtered.length % 2 !== 0 ? [...filtered, null] : filtered;
 
+  /** 시나리오 카드 클릭 시 상세 페이지로 이동 */
+  const handleScenarioPress = (id: string) => {
+    router.push(`/(tabs)/(train)/detail/${id}`);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-[#FEFEFE] px-8">
       <Text className="text-xl font-bold text-[#3B3D3E] mt-10 mb-7 text-center">훈련하기</Text>
@@ -111,6 +116,7 @@ export default function List() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 className="flex-1 rounded-2xl overflow-hidden bg-[#F5F5F5]"
+                onPress={() => handleScenarioPress(item.id)}
               >
                 <Image
                   source={item.image}
