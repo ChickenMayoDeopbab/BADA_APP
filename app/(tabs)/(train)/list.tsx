@@ -1,6 +1,7 @@
 import SearchBox from "@/components/common/SearchBox";
 import CustomButton from "@/components/common/CustomButton";
 import DropdownArrow from "@/assets/dropdownArrow.svg";
+import { router } from "expo-router";
 import { useRef, useState } from "react";
 import {
   FlatList,
@@ -85,6 +86,7 @@ export default function List() {
               backgroundColor="#0AE365"
               color="white"
               variant="md"
+              onPress={() => router.push("/(tabs)/(train)/create")}
             />
           </View>
         </View>
