@@ -146,9 +146,7 @@ export default function Detail() {
           label="선택하기"
           backgroundColor="#0AE365"
           color="white"
-          onPress={() => {
-            // TODO: 훈련 시작 화면으로 라우팅
-          }}
+          onPress={() => router.push("/(tabs)/(train)/start")}
         />
       </View>
     </View>
