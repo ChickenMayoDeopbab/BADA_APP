@@ -38,6 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen name="(train)/create" options={{ href: null }} />
       <Tabs.Screen name="(train)/detail/[id]" options={{ href: null }} />
       <Tabs.Screen name="(train)/start" options={{ href: null }} />
+      <Tabs.Screen name="(train)/train" options={{ href: null, tabBarStyle: { display: "none" } }} />
       <Tabs.Screen name="(record)/record/index" options={{
         title: '기록',
         tabBarIcon: ({ color, size }) => (

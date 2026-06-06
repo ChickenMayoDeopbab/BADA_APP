@@ -146,7 +146,7 @@ export default function Detail() {
           label="선택하기"
           backgroundColor="#0AE365"
           color="white"
-          onPress={() => router.push("/(tabs)/(train)/start")}
+          onPress={() => router.push({ pathname: "/(tabs)/(train)/start", params: { id } })}
         />
       </View>
     </View>

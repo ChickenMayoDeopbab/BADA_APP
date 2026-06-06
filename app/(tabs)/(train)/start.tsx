@@ -1,8 +1,8 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { PanResponder, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type FlowStep = "difficulty" | "time";
@@ -116,7 +116,17 @@ function TimeInput({ value, onDecrement, onIncrement }: TimeInputProps) {
 
 export default function Start() {
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
-  const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
+  const [difficulty, setDifficulty] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setFlowStep("difficulty");
+      setDifficulty(0);
+      setAttitude(0);
+      setTimeFrom(0);
+      setTimeTo(0);
+    }, [])
+  ); // 상(0) 중(1) 하(2)
   const [attitude, setAttitude] = useState(0); // 친절(0) 보통(1) 까다로움(2) 진상(3)
   const [timeFrom, setTimeFrom] = useState(0);
   const [timeTo, setTimeTo] = useState(0);
@@ -207,9 +217,7 @@ export default function Start() {
           label="완료하기"
           backgroundColor="#0AE365"
           color="white"
-          onPress={() => {
-            // TODO: 훈련 시작 API 연결
-          }}
+          onPress={() => router.push("/(tabs)/(train)/train")}
         />
       </View>
     </View>
