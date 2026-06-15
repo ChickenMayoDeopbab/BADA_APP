@@ -1,15 +1,10 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { RegisterFormValues } from "@/constants/auth";
+import { Controller, useFormContext } from "react-hook-form";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 
-interface UserInfo {
-  username: string;
-  userId: string;
-}
-
 type UsernameProps = {
-  userInfo: UserInfo;
-  setUserInfo: React.Dispatch<React.SetStateAction<UserInfo>>;
   inputTranslateY: Animated.Value;
   inputAreaHeight: number;
   onPrev: () => void;
@@ -17,41 +12,62 @@ type UsernameProps = {
 };
 
 export default function UsernameStep({
-  userInfo,
-  setUserInfo,
   inputTranslateY,
   onPrev,
   onNext,
 }: UsernameProps) {
+  const {
+    control,
+    trigger,
+    formState: { errors },
+  } = useFormContext<RegisterFormValues>();
+
+  const handleNext = async () => {
+    const isValid = await trigger(["userId", "username"]);
+    if (isValid) onNext();
+  };
+
   return (
     <View>
       <Animated.View
         className="mb-5"
         style={{ transform: [{ translateY: inputTranslateY }] }}
       >
-        <CustomInput
-          value={userInfo.userId}
-          onChangeText={(text) =>
-            setUserInfo((prev) => ({
-              ...prev,
-              username: text,
-            }))
-          }
-          label="아이디"
-          returnKeyType="next"
-          onSubmitEditing={onNext}
+        <Controller
+          control={control}
+          name="userId"
+          rules={{
+            required: "아이디를 입력해주세요.",
+            minLength: { value: 2, message: "아이디는 2자 이상이어야 합니다." },
+          }}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              value={value}
+              onChangeText={onChange}
+              label="아이디"
+              returnKeyType="next"
+              onSubmitEditing={handleNext}
+              error={errors.userId?.message}
+            />
+          )}
         />
-        <CustomInput
-          value={userInfo.username}
-          onChangeText={(text) =>
-            setUserInfo((prev) => ({
-              ...prev,
-              userId: text,
-            }))
-          }
-          label="이름"
-          returnKeyType="done"
-          onSubmitEditing={onNext}
+        <Controller
+          control={control}
+          name="username"
+          rules={{
+            required: "이름을 입력해주세요.",
+            minLength: { value: 2, message: "이름은 2자 이상이어야 합니다." },
+          }}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              value={value}
+              onChangeText={onChange}
+              label="이름"
+              returnKeyType="done"
+              onSubmitEditing={handleNext}
+              error={errors.username?.message}
+            />
+          )}
         />
       </Animated.View>
 
@@ -62,7 +78,7 @@ export default function UsernameStep({
           label="회원가입"
           color="#F6F6F6"
           backgroundColor="#0AE365"
-          onPress={onNext}
+          onPress={handleNext}
         />
       </View>
 
