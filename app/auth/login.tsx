@@ -6,6 +6,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   Animated,
   Keyboard,
@@ -19,6 +20,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+type LoginFormValues = {
+  username: string;
+  password: string;
+};
+
 export default function LoginScreen() {
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
@@ -27,19 +33,19 @@ export default function LoginScreen() {
   const headerHeight = 74;
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
 
-  const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
-  const [isChecked, setIsChecked] = useState<boolean>(false);
-  const [username, setUsername] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
+  const { control, trigger, getValues, formState: { errors } } = useForm<LoginFormValues>({
+    defaultValues: { username: "", password: "" },
+  });
+
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isChecked, setIsChecked] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
   const inputTranslateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       Animated.timing(inputTranslateY, {
@@ -64,7 +70,10 @@ export default function LoginScreen() {
   }, [inputTranslateY]);
 
   const handleLogin = async () => {
+    const isValid = await trigger(["username", "password"]);
+    if (!isValid) return;
     try {
+      const { username, password } = getValues();
       const response = await postLogin({ username, password });
       await AsyncStorage.setItem("accessToken", response.data.accessToken);
       await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
@@ -98,34 +107,48 @@ export default function LoginScreen() {
               className="mb-5"
               style={{ transform: [{ translateY: inputTranslateY }] }}
             >
-              <CustomInput
-                value={username}
-                onChangeText={setUsername}
-                label="아이디"
-                textContentType="oneTimeCode"
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
+              <Controller
+                control={control}
+                name="username"
+                rules={{ required: "아이디를 입력해주세요." }}
+                render={({ field: { value, onChange }, fieldState: { error } }) => (
+                  <CustomInput
+                    value={value}
+                    onChangeText={onChange}
+                    label="아이디"
+                    textContentType="oneTimeCode"
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    error={error?.message}
+                  />
+                )}
               />
-              <CustomInput
-                ref={passwordRef}
-                value={password}
-                onChangeText={setPassword}
-                label="비밀번호"
-                secureTextEntry={!isPasswordVisible}
-                textContentType="oneTimeCode"
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-                rightIcon={
-                  <TouchableOpacity
-                    onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                  >
-                    <Ionicons
-                      name={isPasswordVisible ? "eye-off-sharp" : "eye"}
-                      size={20}
-                      color="#BDBEBE"
-                    />
-                  </TouchableOpacity>
-                }
+              <Controller
+                control={control}
+                name="password"
+                rules={{ required: "비밀번호를 입력해주세요." }}
+                render={({ field: { value, onChange }, fieldState: { error } }) => (
+                  <CustomInput
+                    ref={passwordRef}
+                    value={value}
+                    onChangeText={onChange}
+                    label="비밀번호"
+                    secureTextEntry={!isPasswordVisible}
+                    textContentType="oneTimeCode"
+                    returnKeyType="done"
+                    onSubmitEditing={handleLogin}
+                    error={error?.message}
+                    rightIcon={
+                      <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+                        <Ionicons
+                          name={isPasswordVisible ? "eye-off-sharp" : "eye"}
+                          size={20}
+                          color="#BDBEBE"
+                        />
+                      </TouchableOpacity>
+                    }
+                  />
+                )}
               />
             </Animated.View>
 
@@ -135,17 +158,13 @@ export default function LoginScreen() {
             >
               <View>
                 <Ionicons
-                  name={
-                    isChecked ? "checkmark-circle" : "checkmark-circle-outline"
-                  }
+                  name={isChecked ? "checkmark-circle" : "checkmark-circle-outline"}
                   size={24}
                   style={{ width: 24, height: 24 }}
                   color={isChecked ? "#0AE365" : "#BDBEBE"}
                 />
               </View>
-              <Text
-                className={`text-base ${isChecked ? "text-[#0D0D0E]" : "text-[#BDBEBE]"}`}
-              >
+              <Text className={`text-base ${isChecked ? "text-[#0D0D0E]" : "text-[#BDBEBE]"}`}>
                 로그인 상태 유지
               </Text>
             </TouchableOpacity>
