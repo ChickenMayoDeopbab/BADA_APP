@@ -1,7 +1,7 @@
 import { postEmailCheck, postEmailSend } from "@/api/authApi";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
-import { RegisterFormValues } from "@/constants/auth";
+import { RegisterFormValues } from "@/types/auth";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";

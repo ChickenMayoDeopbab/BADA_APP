@@ -1,6 +1,6 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
-import { RegisterFormValues } from "@/constants/auth";
+import { RegisterFormValues } from "@/types/auth";
 import { Controller, useFormContext } from "react-hook-form";
 import {
   Animated,
