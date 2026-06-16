@@ -2,7 +2,13 @@ import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import { RegisterFormValues } from "@/constants/auth";
 import { Controller, useFormContext } from "react-hook-form";
-import { Animated, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
 type UsernameProps = {
   inputTranslateY: Animated.Value;
@@ -16,6 +22,8 @@ export default function UsernameStep({
   onPrev,
   onNext,
 }: UsernameProps) {
+  const { width } = useWindowDimensions();
+  const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
   const {
     control,
     trigger,
@@ -23,7 +31,7 @@ export default function UsernameStep({
   } = useFormContext<RegisterFormValues>();
 
   const handleNext = async () => {
-    const isValid = await trigger(["userId", "username"]);
+    const isValid = await trigger(["username", "userId"]);
     if (isValid) onNext();
   };
 
@@ -33,24 +41,6 @@ export default function UsernameStep({
         className="mb-5"
         style={{ transform: [{ translateY: inputTranslateY }] }}
       >
-        <Controller
-          control={control}
-          name="userId"
-          rules={{
-            required: "아이디를 입력해주세요.",
-            minLength: { value: 2, message: "아이디는 2자 이상이어야 합니다." },
-          }}
-          render={({ field: { value, onChange } }) => (
-            <CustomInput
-              value={value}
-              onChangeText={onChange}
-              label="아이디"
-              returnKeyType="next"
-              onSubmitEditing={handleNext}
-              error={errors.userId?.message}
-            />
-          )}
-        />
         <Controller
           control={control}
           name="username"
@@ -63,12 +53,45 @@ export default function UsernameStep({
               value={value}
               onChangeText={onChange}
               label="이름"
-              returnKeyType="done"
+              returnKeyType="next"
               onSubmitEditing={handleNext}
-              error={errors.username?.message}
+              error={errors.userId?.message}
             />
           )}
         />
+        <View className="flex-row items-start gap-x-3">
+          <View className="flex-1">
+            <Controller
+              control={control}
+              name="userId"
+              rules={{
+                required: "아이디를 입력해주세요.",
+                minLength: {
+                  value: 2,
+                  message: "아이디를 2자 이상이어야 합니다.",
+                },
+              }}
+              render={({ field: { value, onChange } }) => (
+                <CustomInput
+                  value={value}
+                  onChangeText={onChange}
+                  label="아이디"
+                  returnKeyType="done"
+                  onSubmitEditing={handleNext}
+                  error={errors.username?.message}
+                />
+              )}
+            />
+          </View>
+          <View style={{ marginTop: 18, width: codeButtonWidth }}>
+            <CustomButton
+              label="중복 확인"
+              variant="lg"
+              backgroundColor="#0AE365"
+              onPress={() => {}}
+            />
+          </View>
+        </View>
       </Animated.View>
 
       <View style={{ height: 24 }} className="mb-6" />
