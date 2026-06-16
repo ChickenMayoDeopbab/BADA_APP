@@ -1,6 +1,6 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
-import { RegisterFormValues } from "@/constants/auth";
+import { RegisterFormValues } from "@/types/auth";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
