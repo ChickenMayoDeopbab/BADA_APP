@@ -3,8 +3,10 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
+import { RegisterFormValues } from "@/constants/auth";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { FormProvider, useForm } from "react-hook-form";
 import {
   Animated,
   Keyboard,
@@ -32,25 +34,21 @@ export default function SignupScreen() {
   const [step, setStep] = useState<number>(1);
   const inputTranslateY = useRef(new Animated.Value(0)).current;
 
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-
-  const [userInfo, setUserInfo] = useState<{
-    userId: string;
-    username: string;
-  }>({
-    username: "",
-    userId: "",
+  const methods = useForm<RegisterFormValues>({
+    defaultValues: {
+      email: "",
+      authNum: "",
+      password: "",
+      confirmPassword: "",
+      userId: "",
+      username: "",
+    },
   });
 
   const handleSignup = async () => {
+    const { email, password, userId, username } = methods.getValues();
     try {
-      await postSignup({
-        email,
-        password,
-        name: userInfo.userId,
-        username: userInfo.username,
-      });
+      await postSignup({ email, password, name: userId, username });
       router.push("/auth/login");
     } catch {}
   };
@@ -103,43 +101,37 @@ export default function SignupScreen() {
           >
             <View>
               <BadaLogo width={70} height={32} />
-              <Text className=" text-3xl font-bold text-[#0D0D0E]">
+              <Text className="text-3xl font-bold text-[#0D0D0E]">
                 회원가입
               </Text>
             </View>
 
             <View style={{ marginTop: formTopMargin }}>
-              {step === 1 && (
-                <EmailStep
-                  email={email}
-                  setEmail={setEmail}
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
-                  onNext={() => setStep(2)}
-                />
-              )}
-
-              {step === 2 && (
-                <PasswordStep
-                  password={password}
-                  setPassword={setPassword}
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
-                  onPrev={() => setStep(1)}
-                  onNext={() => setStep(3)}
-                />
-              )}
-
-              {step === 3 && (
-                <UsernameStep
-                  userInfo={userInfo}
-                  setUserInfo={setUserInfo}
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
-                  onPrev={() => setStep(2)}
-                  onNext={handleSignup}
-                />
-              )}
+              <FormProvider {...methods}>
+                {step === 1 && (
+                  <EmailStep
+                    inputTranslateY={inputTranslateY}
+                    inputAreaHeight={inputAreaHeight}
+                    onNext={() => setStep(2)}
+                  />
+                )}
+                {step === 2 && (
+                  <PasswordStep
+                    inputTranslateY={inputTranslateY}
+                    inputAreaHeight={inputAreaHeight}
+                    onPrev={() => setStep(1)}
+                    onNext={() => setStep(3)}
+                  />
+                )}
+                {step === 3 && (
+                  <UsernameStep
+                    inputTranslateY={inputTranslateY}
+                    inputAreaHeight={inputAreaHeight}
+                    onPrev={() => setStep(2)}
+                    onNext={handleSignup}
+                  />
+                )}
+              </FormProvider>
             </View>
           </View>
         </ScrollView>
