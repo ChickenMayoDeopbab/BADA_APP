@@ -1,7 +1,9 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
+import { createSession } from "@/api/trainApi";
+import { Difficulty, Personality } from "@/api/types";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { PanResponder, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -9,6 +11,10 @@ type FlowStep = "difficulty" | "time";
 
 const difficultyLevels = ["상", "중", "하"];
 const attitudeLevels = ["친절", "보통", "까다로움", "진상"];
+
+// UI 인덱스 → API 값 매핑
+const difficultyMap: Difficulty[] = ["high", "medium", "low"];
+const personalityMap: Personality[] = ["kind", "neutral", "tough", "rude"];
 
 interface StepSliderProps {
   steps: string[];
@@ -115,11 +121,19 @@ function TimeInput({ value, onDecrement, onIncrement }: TimeInputProps) {
 }
 
 export default function Start() {
+  // id: 프리셋 시나리오 ID / sessionId + isCustom: 커스텀 세션 이미 생성됨
+  const { id, sessionId, isCustom } = useLocalSearchParams<{
+    id?: string;
+    sessionId?: string;
+    isCustom?: string;
+  }>();
+
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
   const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
   const [attitude, setAttitude] = useState(0); // 친절(0) 보통(1) 까다로움(2) 진상(3)
   const [timeFrom, setTimeFrom] = useState(0);
   const [timeTo, setTimeTo] = useState(0);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -128,6 +142,7 @@ export default function Start() {
       setAttitude(0);
       setTimeFrom(0);
       setTimeTo(0);
+      setIsCreatingSession(false);
     }, [])
   );
 
@@ -137,6 +152,35 @@ export default function Start() {
       setFlowStep("difficulty");
     } else {
       router.back();
+    }
+  };
+
+  /** 훈련 시작: 프리셋이면 세션 생성 후 이동, 커스텀이면 기존 세션으로 이동 */
+  const handleComplete = async () => {
+    if (isCustom === "true" && sessionId) {
+      router.push({
+        pathname: "/(tabs)/(train)/train",
+        params: { sessionId },
+      });
+      return;
+    }
+
+    if (!id) return;
+
+    setIsCreatingSession(true);
+    try {
+      const session = await createSession({
+        scenario_id: parseInt(id, 10),
+        personality: personalityMap[attitude],
+        difficulty: difficultyMap[difficulty],
+      });
+      router.push({
+        pathname: "/(tabs)/(train)/train",
+        params: { sessionId: String(session.session_id) },
+      });
+    } catch {
+      // 세션 생성 실패 시 버튼 재활성화
+      setIsCreatingSession(false);
     }
   };
 
@@ -214,10 +258,11 @@ export default function Start() {
 
       <View className="px-8 pb-10 pt-4">
         <CustomButton
-          label="완료하기"
+          label={isCreatingSession ? "처리 중..." : "완료하기"}
           backgroundColor="#0AE365"
           color="white"
-          onPress={() => router.push("/(tabs)/(train)/train")}
+          disabled={isCreatingSession}
+          onPress={handleComplete}
         />
       </View>
     </View>

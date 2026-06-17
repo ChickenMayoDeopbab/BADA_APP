@@ -1,5 +1,7 @@
+import { useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import { useAudio } from "@/hooks/useAudio";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -50,12 +52,41 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
+  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const insets = useSafeAreaInsets();
+
+  const {
+    requestPermission,
+    startSendingAudio,
+    stopSendingAudio,
+    receivePcmChunk,
+    clearAudioBuffer,
+    playReceivedAudio,
+  } = useAudio();
+
+  const { isConnected, isAiSpeaking, sendEndCall, sendBinary } = useTrainWebSocket({
+    sessionId: sessionId ?? null,
+    enabled: step === "training",
+    onBinaryMessage: receivePcmChunk,
+    onSpeakingEnd: () => {
+      playReceivedAudio();
+    },
+    onEmotion: () => {
+      // AI 발화 시작 — 버퍼 초기화 후 새 청크 수집
+      clearAudioBuffer();
+    },
+    onEnd: () => handleEndCall(),
+    onError: (code) => {
+      console.warn("WS error:", code);
+      handleEndCall();
+    },
+  });
 
   useEffect(() => {
     if (step !== "training") return;
@@ -78,23 +109,39 @@ export default function Train() {
       setIsScriptVisible(false);
       setSeconds(0);
       if (timerRef.current) clearInterval(timerRef.current);
-    }, [])
+      stopSendingAudio();
+      clearAudioBuffer();
+    }, [stopSendingAudio, clearAudioBuffer])
   );
 
   const handleAccept = () => setIsMeditationVisible(true);
   const handleDecline = () => router.back();
+  /** 훈련 시작: 마이크 권한 확인 후 녹음 시작 */
+  const startTraining = useCallback(async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      setStep("training");
+      startSendingAudio(sendBinary);
+    } else {
+      // 권한 거부 시에도 훈련 진행 (마이크 없이)
+      setStep("training");
+    }
+  }, [requestPermission, sendBinary, startSendingAudio]);
+
   /** 명상 건너뛰기: 다이얼로그 닫고 훈련 시작 */
   const handleMeditationSkip = () => {
     setIsMeditationVisible(false);
-    setStep("training");
+    startTraining();
   };
   const handleMeditationStart = () => {
     setIsMeditationVisible(false);
     // TODO: 명상 화면 연결
-    setStep("training");
+    startTraining();
   };
-  /** 통화 종료: 타이머 정리 후 종료 단계로 전환 */
+  /** 통화 종료: WS end 메시지 전송, 녹음 중지, 타이머 정리 */
   const handleEndCall = () => {
+    sendEndCall();
+    stopSendingAudio();
     if (timerRef.current) clearInterval(timerRef.current);
     setStep("end");
   };
@@ -129,20 +176,23 @@ export default function Train() {
   }
 
   const isEnd = step === "end";
-  const timerColor = isEnd ? "#FF3B30" : "#5C5E5E";
+  const timerColor = isEnd ? "#FF3B30" : isAiSpeaking ? "#0AE365" : "#5C5E5E";
 
   return (
     <View className="flex-1 bg-white" style={safeArea}>
       <View className="flex-row items-center justify-center gap-x-1 mt-6">
         <Ionicons name="call" size={14} color={timerColor} />
         <Text style={[styles.timerText, { color: timerColor }]}>
-          {formatTime(seconds)}{isEnd ? "  훈련종료" : ""}
+          {formatTime(seconds)}{isEnd ? "  훈련종료" : isAiSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
       <View className="flex-1 items-center pt-8">
         <Text className="text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
         <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 010-0000-0000</Text>
-        <View style={styles.avatar} />
+        <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
+        {!isConnected && step === "training" && (
+          <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>
+        )}
       </View>
       {!isEnd && !isScriptVisible && (
         <View style={styles.gridContainer}>
@@ -203,6 +253,9 @@ const styles = StyleSheet.create({
     borderRadius: 65,
     backgroundColor: "#E0E0E0",
     marginTop: 32,
+  },
+  avatarSpeaking: {
+    backgroundColor: "#B8F5D4",
   },
   receiveCallButton: {
     width: 70,
