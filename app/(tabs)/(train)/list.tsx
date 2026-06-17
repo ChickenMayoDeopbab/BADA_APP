@@ -1,9 +1,12 @@
 import SearchBox from "@/components/common/SearchBox";
 import CustomButton from "@/components/common/CustomButton";
 import DropdownArrow from "@/assets/dropdownArrow.svg";
+import { getScenarios } from "@/api/trainApi";
+import { ScenarioInfo } from "@/api/types";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   ImageSourcePropType,
@@ -17,25 +20,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const sortOptions = ["제목 순", "난이도 순"]; // 정렬 옵션 목록
 
-type Scenario = {
-  id: string;
-  title: string;
-  image: ImageSourcePropType;
+// 카테고리별 썸네일 (scenario_image 없을 때 폴백)
+const categoryImageMap: Record<string, ImageSourcePropType> = {
+  restaurant: require("@/assets/Q1_s.png"),
+  hospital: require("@/assets/Q2_s.png"),
+  complaint: require("@/assets/Q3_s.png"),
+  delivery: require("@/assets/Q4_s.png"),
+  bank: require("@/assets/Q5_s.png"),
+  custom: require("@/assets/Q6_s.png"),
 };
+const fallbackImage: ImageSourcePropType = require("@/assets/Q1_s.png");
 
-const dummyScenarios: Scenario[] = [
-  { id: "1", title: "피자 주문하기", image: require("@/assets/Q1_s.png") },
-  { id: "2", title: "병원 예약하기", image: require("@/assets/Q2_s.png") },
-  { id: "3", title: "피자 주문하기", image: require("@/assets/Q1_s.png") },
-  { id: "4", title: "주문 정정하기", image: require("@/assets/Q3_s.png") },
-  { id: "5", title: "피자 주문하기", image: require("@/assets/Q1_s.png") },
-  { id: "6", title: "피자 주문하기", image: require("@/assets/Q2_s.png") },
-  { id: "7", title: "변성우한테 전화하기", image: require("@/assets/Q2_s.png") },
-  { id: "8", title: "변성우한테 전화하기", image: require("@/assets/Q2_s.png") },
-  { id: "9", title: "변성우한테 전화하기", image: require("@/assets/Q2_s.png") },
-  { id: "10", title: "변성우한테 전화하기", image: require("@/assets/Q2_s.png") },
-  { id: "11", title: "변성우한테 전화하기", image: require("@/assets/Q2_s.png") },
-];
+/** 시나리오 카테고리에 맞는 로컬 이미지 반환 */
+function getLocalImage(category: string): ImageSourcePropType {
+  return categoryImageMap[category] ?? fallbackImage;
+}
 
 export default function List() {
   const [search, setSearch] = useState(""); // 검색어
@@ -43,8 +42,28 @@ export default function List() {
   const [selectedSort, setSelectedSort] = useState("제목 순"); // 선택된 정렬 옵션
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 }); // 드롭다운 절대 위치
   const [isScrollTopVisible, setIsScrollTopVisible] = useState(false); // 상단 이동 버튼 표시 여부
+  const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<TouchableOpacity>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    fetchScenarios();
+  }, []);
+
+  const fetchScenarios = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await getScenarios();
+      setScenarios(result.scenarios);
+    } catch {
+      setError("시나리오 목록을 불러오지 못했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   /** 드롭다운 버튼 레이아웃 측정 후 위치 저장 */
   const handleDropdownLayout = () => {
@@ -53,13 +72,26 @@ export default function List() {
     });
   };
 
-  const filtered = dummyScenarios.filter((s) => s.title.includes(search));
-  const paddedData: (Scenario | null)[] =
-    filtered.length % 2 !== 0 ? [...filtered, null] : filtered;
+  const filtered = scenarios.filter((s) => s.title.includes(search));
+  const sorted =
+    selectedSort === "제목 순"
+      ? [...filtered].sort((a, b) => a.title.localeCompare(b.title))
+      : filtered;
+  const paddedData: (ScenarioInfo | null)[] =
+    sorted.length % 2 !== 0 ? [...sorted, null] : sorted;
 
   /** 시나리오 카드 클릭 시 상세 페이지로 이동 */
-  const handleScenarioPress = (id: string) => {
-    router.push(`/(tabs)/(train)/detail/${id}`);
+  const handleScenarioPress = (scenario: ScenarioInfo) => {
+    router.push({
+      pathname: `/(tabs)/(train)/detail/${scenario.scenario_id}` as any,
+      params: {
+        title: scenario.title,
+        content: scenario.content,
+        isCustom: String(scenario.is_custom),
+        scenarioImage: scenario.scenario_image ?? "",
+        category: scenario.category,
+      },
+    });
   };
 
   return (
@@ -98,44 +130,70 @@ export default function List() {
 
         <View className="border-b border-[#EBEBEC]" />
 
-        <FlatList
-          ref={flatListRef}
-          data={paddedData}
-          keyExtractor={(item, index) => item?.id ?? `placeholder-${index}`}
-          numColumns={2}
-          columnWrapperStyle={{ gap: 12 }}
-          contentContainerStyle={{ gap: 12, paddingTop: 16 }}
-          showsVerticalScrollIndicator={false}
-          onScroll={({ nativeEvent }) =>
-            setIsScrollTopVisible(nativeEvent.contentOffset.y > 200)
-          }
-          scrollEventThrottle={16}
-          renderItem={({ item }) => {
-            if (!item) return <View className="flex-1" />;
-            return (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                className="flex-1 rounded-2xl overflow-hidden bg-[#F5F5F5]"
-                onPress={() => handleScenarioPress(item.id)}
-              >
-                <Image
-                  source={item.image}
-                  className="w-full"
-                  style={{ height: 140 }}
-                  resizeMode="cover"
-                />
-                <View className="justify-center" style={{ height: 50 }}>
-                  <Text
-                    className="text-base px-3 text-[#3B3D3E]"
-                    style={{ fontWeight: "bold" }}
-                  >
-                    {item.title}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
+        {isLoading && (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#0AE365" />
+          </View>
+        )}
+
+        {error && !isLoading && (
+          <View className="flex-1 items-center justify-center gap-y-4">
+            <Text className="text-base text-[#5C5E5E] text-center">{error}</Text>
+            <CustomButton
+              label="다시 시도"
+              backgroundColor="#0AE365"
+              color="white"
+              variant="md"
+              onPress={fetchScenarios}
+            />
+          </View>
+        )}
+
+        {!isLoading && !error && (
+          <FlatList
+            ref={flatListRef}
+            data={paddedData}
+            keyExtractor={(item, index) =>
+              item ? String(item.scenario_id) : `placeholder-${index}`
+            }
+            numColumns={2}
+            columnWrapperStyle={{ gap: 12 }}
+            contentContainerStyle={{ gap: 12, paddingTop: 16 }}
+            showsVerticalScrollIndicator={false}
+            onScroll={({ nativeEvent }) =>
+              setIsScrollTopVisible(nativeEvent.contentOffset.y > 200)
+            }
+            scrollEventThrottle={16}
+            renderItem={({ item }) => {
+              if (!item) return <View className="flex-1" />;
+              const imageSource: ImageSourcePropType = item.scenario_image
+                ? { uri: item.scenario_image }
+                : getLocalImage(item.category);
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  className="flex-1 rounded-2xl overflow-hidden bg-[#F5F5F5]"
+                  onPress={() => handleScenarioPress(item)}
+                >
+                  <Image
+                    source={imageSource}
+                    className="w-full"
+                    style={{ height: 140 }}
+                    resizeMode="cover"
+                  />
+                  <View className="justify-center" style={{ height: 50 }}>
+                    <Text
+                      className="text-base px-3 text-[#3B3D3E]"
+                      style={{ fontWeight: "bold" }}
+                    >
+                      {item.title}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )}
       </View>
 
       {/* 스크롤이 200px 이상일 때 표시 */}

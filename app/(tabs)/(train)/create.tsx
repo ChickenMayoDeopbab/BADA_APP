@@ -2,8 +2,9 @@ import AnimatedCheck from "@/components/common/AnimatedCheck";
 import CustomButton from "@/components/common/CustomButton";
 import Loading from "@/components/common/Loading";
 import Top from "@/components/common/Top";
+import { createCustomSession } from "@/api/trainApi";
 import { router, useFocusEffect } from "expo-router";
-import { ReactNode, useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -36,11 +37,13 @@ export default function Create() {
     purpose: "",
     callee: "",
   });
+  const createdSessionIdRef = useRef<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       setStep("write");
       setForm({ title: "", purpose: "", callee: "" });
+      createdSessionIdRef.current = null;
     }, [])
   );
 
@@ -50,12 +53,27 @@ export default function Create() {
     form.callee.trim().length > 0;
 
   useEffect(() => {
-    if (step === "loading") {
-      // TODO: API 연결 시 아래 setTimeout을 API 호출로 교체
-      // const result = await createCustomScenario(form);
-      const timer = setTimeout(() => setStep("done"), 2000);
-      return () => clearTimeout(timer);
-    }
+    if (step !== "loading") return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const result = await createCustomSession({
+          call_target: form.callee,
+          call_purpose: `${form.title}: ${form.purpose}`,
+        });
+        if (cancelled) return;
+        createdSessionIdRef.current = result.session_id;
+        setStep("done");
+      } catch {
+        if (cancelled) return;
+        setStep("fail");
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
   }, [step]);
 
   if (step === "fail") {
@@ -79,16 +97,12 @@ export default function Create() {
             label="다시 시도하기"
             backgroundColor="#0AE365"
             color="white"
-            onPress={() => {
-              // TODO: 재시도 연결
-            }}
+            onPress={() => setStep("write")}
           />
           <CustomButton
             label="홈으로 돌아가기"
             color="#3B3D3E"
-            onPress={() => {
-              // TODO: 홈 라우팅 연결
-            }}
+            onPress={() => router.push("/(tabs)/(train)/list")}
           />
         </View>
       </View>
@@ -124,14 +138,20 @@ export default function Create() {
             label="훈련 바로 시작하기"
             backgroundColor="#0AE365"
             color="white"
-            onPress={() => {
-              // TODO: 훈련 시작 화면으로 라우팅
-            }}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/(train)/start",
+                params: {
+                  sessionId: String(createdSessionIdRef.current),
+                  isCustom: "true",
+                },
+              })
+            }
           />
           <CustomButton
             label="시나리오 보러가기"
             color="#3B3D3E"
-            onPress={() => router.back()}
+            onPress={() => router.push("/(tabs)/(train)/list")}
           />
         </View>
       </View>
