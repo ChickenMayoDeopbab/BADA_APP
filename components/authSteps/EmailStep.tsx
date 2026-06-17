@@ -1,65 +1,86 @@
 import { postEmailCheck, postEmailSend } from "@/api/authApi";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { RegisterFormValues } from "@/types/auth";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Controller, useFormContext } from "react-hook-form";
 import {
+  Animated,
   Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
 
 type EmailProps = {
-  email: string;
-  setEmail: React.Dispatch<React.SetStateAction<string>>;
+  inputTranslateY: Animated.Value;
+  inputAreaHeight: number;
   onNext: () => void;
 };
 
-export default function EmailStep({ email, setEmail, onNext }: EmailProps) {
+export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
   const { width } = useWindowDimensions();
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
   const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
 
-  const [verificationCode, setVerificationCode] = useState<string>("");
+  const { control, getValues } = useFormContext<RegisterFormValues>();
   const [isSent, setIsSent] = useState<boolean>(false);
+  const verificationRef = useRef<TextInput>(null);
 
   const handleEmailSend = async () => {
     try {
-      const response = await postEmailSend({ email });
+      const email = getValues("email");
+      await postEmailSend({ email });
       setIsSent(true);
-    } catch (error) {}
+    } catch {}
   };
 
   const handleEmailCheck = async () => {
     try {
-      const response = await postEmailCheck({
-        email,
-        authNum: verificationCode,
-      });
+      const email = getValues("email");
+      const authNum = getValues("authNum");
+      await postEmailCheck({ email, authNum });
       onNext();
-    } catch (error) {
-      console.log(error);
-    }
+    } catch (error) {}
   };
+
   return (
     <View>
-      <View style={{ minHeight: fieldAreaHeight }}>
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
-            <CustomInput
-              value={email}
-              onChangeText={setEmail}
-              label="이메일"
-              autoCapitalize="none"
-              error={isSent ? "인증코드가 전송됐습니다." : ""}
+            <Controller
+              control={control}
+              name="email"
+              rules={{
+                required: "이메일을 입력해주세요.",
+                pattern: {
+                  value: /^[a-zA-Z0-9+-_.]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
+                  message: "올바른 이메일 형식이 아닙니다.",
+                },
+              }}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <CustomInput
+                  value={value}
+                  onChangeText={onChange}
+                  label="이메일"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  error={error?.message}
+                  success={isSent ? "인증코드가 전송됐습니다." : ""}
+                  returnKeyType="next"
+                  onSubmitEditing={() => verificationRef.current?.focus()}
+                />
+              )}
             />
           </View>
-
           <View style={{ marginTop: 18, width: codeButtonWidth }}>
             <CustomButton
               label="인증코드 전송"
@@ -70,13 +91,24 @@ export default function EmailStep({ email, setEmail, onNext }: EmailProps) {
           </View>
         </View>
 
-        <CustomInput
-          value={verificationCode}
-          onChangeText={setVerificationCode}
-          placeholder="인증코드를 입력하세요."
-          label="인증코드"
+        <Controller
+          control={control}
+          name="authNum"
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              ref={verificationRef}
+              value={value}
+              onChangeText={onChange}
+              placeholder="인증코드를 입력하세요."
+              label="인증코드"
+              returnKeyType="done"
+              onSubmitEditing={handleEmailCheck}
+            />
+          )}
         />
-      </View>
+      </Animated.View>
+
+      <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
@@ -88,11 +120,7 @@ export default function EmailStep({ email, setEmail, onNext }: EmailProps) {
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
-        <TouchableOpacity
-          onPress={() => {
-            router.replace("/auth");
-          }}
-        >
+        <TouchableOpacity onPress={() => router.replace("/auth")}>
           <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
         </TouchableOpacity>
       </View>
