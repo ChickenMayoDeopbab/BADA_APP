@@ -3,7 +3,7 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
-import { RegisterFormValues } from "@/constants/auth";
+import { RegisterFormValues } from "@/types/auth";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
