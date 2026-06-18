@@ -14,7 +14,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -84,7 +83,6 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View
           className="flex-1 px-8"
           style={{
@@ -194,7 +192,6 @@ export default function LoginScreen() {
             </View>
           </View>
         </View>
-      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }
