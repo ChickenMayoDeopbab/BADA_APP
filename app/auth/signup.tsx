@@ -40,15 +40,15 @@ export default function SignupScreen() {
       authNum: "",
       password: "",
       confirmPassword: "",
-      userId: "",
+      name: "",
       username: "",
     },
   });
 
   const handleSignup = async () => {
-    const { email, password, userId, username } = methods.getValues();
+    const { email, password, name, username } = methods.getValues();
     try {
-      await postSignup({ email, password, name: userId, username });
+      await postSignup({ username, password, email, name });
       router.push("/auth/login");
     } catch {}
   };
