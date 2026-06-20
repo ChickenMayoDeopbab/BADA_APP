@@ -31,7 +31,7 @@ export default function UsernameStep({
   } = useFormContext<RegisterFormValues>();
 
   const handleNext = async () => {
-    const isValid = await trigger(["username", "userId"]);
+    const isValid = await trigger(["name", "username"]);
     if (isValid) onNext();
   };
 
@@ -43,7 +43,7 @@ export default function UsernameStep({
       >
         <Controller
           control={control}
-          name="username"
+          name="name"
           rules={{
             required: "이름을 입력해주세요.",
             minLength: { value: 2, message: "이름은 2자 이상이어야 합니다." },
@@ -55,7 +55,7 @@ export default function UsernameStep({
               label="이름"
               returnKeyType="next"
               onSubmitEditing={handleNext}
-              error={errors.userId?.message}
+              error={errors.name?.message}
             />
           )}
         />
@@ -63,7 +63,7 @@ export default function UsernameStep({
           <View className="flex-1">
             <Controller
               control={control}
-              name="userId"
+              name="username"
               rules={{
                 required: "아이디를 입력해주세요.",
                 minLength: {
