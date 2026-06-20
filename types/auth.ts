@@ -3,6 +3,6 @@ export type RegisterFormValues = {
   authNum: string;
   password: string;
   confirmPassword: string;
-  userId: string;
+  name: string;
   username: string;
 };
