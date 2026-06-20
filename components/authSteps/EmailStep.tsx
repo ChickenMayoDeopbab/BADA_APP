@@ -29,12 +29,12 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
   const verificationRef = useRef<TextInput>(null);
 
   const handleEmailSend = async () => {
-    try {
-      const email = getValues("email");
-      await postEmailSend({ email });
-      setIsSent(true);
-    } catch {}
-  };
+  try {
+    const email = getValues("email");
+    const res = await postEmailSend({ email });
+    setIsSent(true);
+  } catch (err) {}
+};
 
   const handleEmailCheck = async () => {
     try {
