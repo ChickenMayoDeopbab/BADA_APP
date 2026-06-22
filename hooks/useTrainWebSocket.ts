@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 const getWsBaseUrl = () =>
   (process.env.EXPO_PUBLIC_AI_API_URL ?? '')
@@ -11,9 +12,11 @@ export type WsEndReason = 'SCENARIO_DONE' | 'USER_END' | 'TIMEOUT' | 'CRISIS' | 
 
 interface UseTrainWebSocketProps {
   sessionId: string | null;
+  wsUrl: string | null; // Spring이 반환한 WS URL (토큰 미포함)
   enabled: boolean; // training 단계에서만 true
   onEmotion?: (emotion: string) => void;
   onSpeakingEnd?: () => void;
+  onInterrupt?: () => void; // barge-in: 재생 버퍼 비우기
   onEnd?: (reason: WsEndReason) => void;
   onError?: (code: string) => void;
   onBinaryMessage?: (data: ArrayBuffer) => void;
@@ -30,9 +33,11 @@ export interface UseTrainWebSocketReturn {
 /** 훈련 WebSocket 연결 및 이벤트 처리 훅 */
 export function useTrainWebSocket({
   sessionId,
+  wsUrl,
   enabled,
   onEmotion,
   onSpeakingEnd,
+  onInterrupt,
   onEnd,
   onError,
   onBinaryMessage,
@@ -44,14 +49,18 @@ export function useTrainWebSocket({
 
   const onEmotionRef = useRef(onEmotion);
   const onSpeakingEndRef = useRef(onSpeakingEnd);
+  const onInterruptRef = useRef(onInterrupt);
   const onEndRef = useRef(onEnd);
   const onErrorRef = useRef(onError);
   const onBinaryMessageRef = useRef(onBinaryMessage);
   onEmotionRef.current = onEmotion;
   onSpeakingEndRef.current = onSpeakingEnd;
+  onInterruptRef.current = onInterrupt;
   onEndRef.current = onEnd;
   onErrorRef.current = onError;
   onBinaryMessageRef.current = onBinaryMessage;
+
+  const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const disconnect = useCallback(() => {
     if (pingIntervalRef.current) {
@@ -71,6 +80,7 @@ export function useTrainWebSocket({
     const token = await AsyncStorage.getItem('accessToken');
     if (!token) return;
 
+    // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
     const url = `${getWsBaseUrl()}/ws/voice/${sessionId}?token=${token}`;
     const ws = new WebSocket(url);
     // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
@@ -101,8 +111,8 @@ export function useTrainWebSocket({
               onSpeakingEndRef.current?.();
               break;
             case 'interrupt':
-              // barge-in 현재 비활성 — 핸들러만 유지
               setIsAiSpeaking(false);
+              onInterruptRef.current?.();
               break;
             case 'end':
               onEndRef.current?.(msg.reason);
@@ -119,6 +129,7 @@ export function useTrainWebSocket({
       } else {
         // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
         if (event.data instanceof ArrayBuffer) {
+          console.log('[WS] AI 오디오 수신:', event.data.byteLength, 'bytes');
           onBinaryMessageRef.current?.(event.data);
         }
       }
@@ -131,16 +142,53 @@ export function useTrainWebSocket({
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
       }
-      // close code 1008: 인증 오류 (TOKEN_EXPIRED 등)
       if (event.code === 1008) {
-        onErrorRef.current?.(`WS_CLOSE_${event.reason}`);
+        if (event.reason === 'TOKEN_EXPIRED') {
+          // 토큰 재발급 후 재연결
+          (async () => {
+            try {
+              const accessToken = await AsyncStorage.getItem('accessToken');
+              const refreshToken = await AsyncStorage.getItem('refreshToken');
+              if (!refreshToken) throw new Error('no refresh token');
+
+              // 만료된 access token의 payload에서 userId 추출 (RefreshRequest 필수 필드)
+              let userId: number | null = null;
+              if (accessToken) {
+                try {
+                  const b64 = accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                  const claims = JSON.parse(atob(b64));
+                  userId = claims.sub != null ? Number(claims.sub) : null;
+                } catch {}
+              }
+              if (userId == null) throw new Error('no userId');
+
+              const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+              const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken, userId }),
+              });
+              if (!res.ok) throw new Error('refresh failed');
+              const json = await res.json();
+              await AsyncStorage.setItem('accessToken', json.data.accessToken);
+              await AsyncStorage.setItem('refreshToken', json.data.refreshToken);
+              connectRef.current();
+            } catch {
+              onErrorRef.current?.('WS_CLOSE_TOKEN_EXPIRED');
+            }
+          })();
+        } else {
+          onErrorRef.current?.(`WS_CLOSE_${event.reason}`);
+        }
       }
     };
 
     ws.onerror = () => {
       setIsConnected(false);
     };
-  }, [sessionId]);
+  }, [sessionId, wsUrl]);
+
+  connectRef.current = connect;
 
   useEffect(() => {
     if (!enabled) {

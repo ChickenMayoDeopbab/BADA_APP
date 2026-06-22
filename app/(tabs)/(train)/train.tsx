@@ -8,8 +8,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type TrainStep = "receive" | "training" | "end";
 
-const gridButtonLabels = ["스크립트 보기", "버튼명", "버튼명", "버튼명", "버튼명", "버튼명"];
-
 const dummyScript = [
   { speaker: "상대", text: "죄송하지만, 페퍼로니 피자의 재료가 소진되었습니다." },
   { speaker: "나", text: "저는 페퍼로니 피자가 아니면 먹지 못합니다." },
@@ -52,7 +50,7 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const { sessionId, wsUrl } = useLocalSearchParams<{ sessionId: string; wsUrl: string }>();
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
@@ -61,32 +59,39 @@ export default function Train() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const insets = useSafeAreaInsets();
 
+  const [isMuted, setIsMuted] = useState(false);
+  const permissionGrantedRef = useRef(false);
+
   const {
     requestPermission,
     startSendingAudio,
     stopSendingAudio,
-    receivePcmChunk,
-    clearAudioBuffer,
-    playReceivedAudio,
+    streamPcmChunk,
+    resetStream,
   } = useAudio();
 
-  const { isConnected, isAiSpeaking, sendEndCall, sendBinary } = useTrainWebSocket({
+  const { isConnected, isAiSpeaking, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
     sessionId: sessionId ?? null,
+    wsUrl: wsUrl ?? null,
     enabled: step === "training",
-    onBinaryMessage: receivePcmChunk,
-    onSpeakingEnd: () => {
-      playReceivedAudio();
-    },
-    onEmotion: () => {
-      // AI 발화 시작 — 버퍼 초기화 후 새 청크 수집
-      clearAudioBuffer();
-    },
+    onBinaryMessage: streamPcmChunk,
+    onSpeakingEnd: () => {},
+    onEmotion: () => resetStream(),
+    onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
     onError: (code) => {
       console.warn("WS error:", code);
       handleEndCall();
     },
   });
+
+  // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
+  useEffect(() => {
+    if (isConnected && step === "training" && permissionGrantedRef.current) {
+      permissionGrantedRef.current = false;
+      startSendingAudio(sendBinary);
+    }
+  }, [isConnected, step, startSendingAudio, sendBinary]);
 
   useEffect(() => {
     if (step !== "training") return;
@@ -108,25 +113,28 @@ export default function Train() {
       setIsMeditationVisible(false);
       setIsScriptVisible(false);
       setSeconds(0);
+      setIsMuted(false);
+      permissionGrantedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
       stopSendingAudio();
-      clearAudioBuffer();
-    }, [stopSendingAudio, clearAudioBuffer])
+      resetStream();
+    }, [stopSendingAudio, resetStream])
   );
 
   const handleAccept = () => setIsMeditationVisible(true);
   const handleDecline = () => router.back();
-  /** 훈련 시작: 마이크 권한 확인 후 녹음 시작 */
+  const handleToggleMute = useCallback(() => {
+    const next = !isMuted;
+    setIsMuted(next);
+    sendMute(next);
+  }, [isMuted, sendMute]);
+
+  /** 훈련 시작: 마이크 권한 확인 후 WS 연결 대기, 연결 완료 시 오디오 스트리밍 시작 */
   const startTraining = useCallback(async () => {
     const granted = await requestPermission();
-    if (granted) {
-      setStep("training");
-      startSendingAudio(sendBinary);
-    } else {
-      // 권한 거부 시에도 훈련 진행 (마이크 없이)
-      setStep("training");
-    }
-  }, [requestPermission, sendBinary, startSendingAudio]);
+    if (granted) permissionGrantedRef.current = true;
+    setStep("training");
+  }, [requestPermission]);
 
   /** 명상 건너뛰기: 다이얼로그 닫고 훈련 시작 */
   const handleMeditationSkip = () => {
@@ -138,10 +146,11 @@ export default function Train() {
     // TODO: 명상 화면 연결
     startTraining();
   };
-  /** 통화 종료: WS end 메시지 전송, 녹음 중지, 타이머 정리 */
+  /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
   const handleEndCall = () => {
     sendEndCall();
     stopSendingAudio();
+    resetStream();
     if (timerRef.current) clearInterval(timerRef.current);
     setStep("end");
   };
@@ -196,14 +205,29 @@ export default function Train() {
       </View>
       {!isEnd && !isScriptVisible && (
         <View style={styles.gridContainer}>
-          {gridButtonLabels.map((label, index) => (
+          {[
+            { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: null, active: false },
+            { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted },
+            { label: "버튼명", onPress: undefined, icon: null, active: false },
+            { label: "버튼명", onPress: undefined, icon: null, active: false },
+            { label: "버튼명", onPress: undefined, icon: null, active: false },
+            { label: "버튼명", onPress: undefined, icon: null, active: false },
+          ].map((btn, index) => (
             <View key={index} style={styles.gridItem}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.gridButton}
-                onPress={index === 0 ? () => setIsScriptVisible(true) : undefined}
-              />
-              <Text className="text-xs text-[#5C5E5E] mt-2">{label}</Text>
+                style={[styles.gridButton, btn.active && styles.gridButtonActive]}
+                onPress={btn.onPress}
+              >
+                {btn.icon && (
+                  <Ionicons
+                    name={btn.icon as any}
+                    size={24}
+                    color={btn.active ? "#FF3B30" : "#3B3D3E"}
+                  />
+                )}
+              </TouchableOpacity>
+              <Text className="text-xs text-[#5C5E5E] mt-2">{btn.label}</Text>
             </View>
           ))}
         </View>
@@ -296,6 +320,11 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  gridButtonActive: {
+    backgroundColor: "#FFE5E5",
   },
   endButton: {
     width: 72,

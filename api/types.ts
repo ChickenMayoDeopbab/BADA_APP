@@ -73,7 +73,10 @@ export interface MyPageResponse {
 export type Personality = 'kind' | 'neutral' | 'tough' | 'rude';
 export type Difficulty = 'high' | 'medium' | 'low';
 export type ScenarioCategory = 'restaurant' | 'hospital' | 'complaint' | 'delivery' | 'bank' | 'custom';
-export type SessionType = 'warmup' | 'training';
+
+// Spring 서버 전용 타입 (대문자 enum, neutral → NORMAL)
+export type SpringSessionType = 'SCENARIO' | 'CUSTOM' | 'WARMUP';
+export type SpringPersonality = 'KIND' | 'NORMAL' | 'TOUGH' | 'RUDE';
 
 export interface ScenarioInfo {
   scenario_id: number;
@@ -81,7 +84,7 @@ export interface ScenarioInfo {
   content: string;
   category: ScenarioCategory;
   difficulties: Difficulty[];
-  personalities: Personality[];
+  personalities: SpringPersonality[];
   scenario_image: string | null;
   tts_voice_id: string | null;
   ai_prompt: string;
@@ -92,29 +95,32 @@ export interface ScenarioListResponse {
   scenarios: ScenarioInfo[];
 }
 
+// Spring POST /api/v1/session
 export interface CreateSessionRequest {
-  scenario_id: number;
-  session_type?: SessionType;
-  personality?: Personality;
+  scenarioId?: number;
+  type: SpringSessionType;
+  aiPersonality?: SpringPersonality;
   difficulty?: Difficulty;
+  maxDurationSeconds?: number;
 }
 
 export interface CreateSessionResponse {
-  session_id: number;
-  scenario_id: number;
-  session_type: SessionType;
-  personality: Personality;
-  difficulty: Difficulty;
-  ai_prompt: string;
-  tts_voice_id: string | null;
-  created_at: string;
-  message: string;
+  sessionId: string;
+  wsUrl: string;
 }
 
+export interface ScriptTurnContext {
+  step: number;
+  aiGoal: string;
+  hint?: string;
+}
+
+// AI 서버 POST /api/v1/scenario/custom
 export interface CustomSessionRequest {
+  title: string;
   call_target: string;
   call_purpose: string;
-  personality?: Personality;
+  personality?: SpringPersonality;
   difficulty?: Difficulty;
 }
 
@@ -124,13 +130,12 @@ export interface GenerateDetailScenario {
   content: string;
   ai_prompt: string;
   tts_voice_id: string | null;
+  script: ScriptTurnContext[];
 }
 
-export interface CustomSessionResponse {
-  session_id: number;
+// POST /api/v1/scenario/custom (AI 서버) 응답
+export interface CustomScenarioResponse {
   scenario: GenerateDetailScenario;
-  personality: Personality;
-  difficulty: Difficulty;
   created_at: string;
   message: string;
 }

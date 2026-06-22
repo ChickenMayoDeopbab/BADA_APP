@@ -2,7 +2,7 @@ import AnimatedCheck from "@/components/common/AnimatedCheck";
 import CustomButton from "@/components/common/CustomButton";
 import Loading from "@/components/common/Loading";
 import Top from "@/components/common/Top";
-import { createCustomSession } from "@/api/trainApi";
+import { createCustomScenario } from "@/api/trainApi";
 import { router, useFocusEffect } from "expo-router";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -37,13 +37,13 @@ export default function Create() {
     purpose: "",
     callee: "",
   });
-  const createdSessionIdRef = useRef<number | null>(null);
+  const createdScenarioIdRef = useRef<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       setStep("write");
       setForm({ title: "", purpose: "", callee: "" });
-      createdSessionIdRef.current = null;
+      createdScenarioIdRef.current = null;
     }, [])
   );
 
@@ -59,12 +59,13 @@ export default function Create() {
 
     const run = async () => {
       try {
-        const result = await createCustomSession({
+        const result = await createCustomScenario({
+          title: form.title,
           call_target: form.callee,
-          call_purpose: `${form.title}: ${form.purpose}`,
+          call_purpose: form.purpose,
         });
         if (cancelled) return;
-        createdSessionIdRef.current = result.session_id;
+        createdScenarioIdRef.current = result.scenario.scenario_id;
         setStep("done");
       } catch {
         if (cancelled) return;
@@ -142,7 +143,7 @@ export default function Create() {
               router.push({
                 pathname: "/(tabs)/(train)/start",
                 params: {
-                  sessionId: String(createdSessionIdRef.current),
+                  id: String(createdScenarioIdRef.current),
                   isCustom: "true",
                 },
               })

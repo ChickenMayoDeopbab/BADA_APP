@@ -1,7 +1,7 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { createSession } from "@/api/trainApi";
-import { Difficulty, Personality } from "@/api/types";
+import { Difficulty, SpringPersonality } from "@/api/types";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -14,7 +14,8 @@ const attitudeLevels = ["친절", "보통", "까다로움", "진상"];
 
 // UI 인덱스 → API 값 매핑
 const difficultyMap: Difficulty[] = ["high", "medium", "low"];
-const personalityMap: Personality[] = ["kind", "neutral", "tough", "rude"];
+// Spring: 대문자, neutral → NORMAL
+const springPersonalityMap: SpringPersonality[] = ["KIND", "NORMAL", "TOUGH", "RUDE"];
 
 interface StepSliderProps {
   steps: string[];
@@ -121,12 +122,7 @@ function TimeInput({ value, onDecrement, onIncrement }: TimeInputProps) {
 }
 
 export default function Start() {
-  // id: 프리셋 시나리오 ID / sessionId + isCustom: 커스텀 세션 이미 생성됨
-  const { id, sessionId, isCustom } = useLocalSearchParams<{
-    id?: string;
-    sessionId?: string;
-    isCustom?: string;
-  }>();
+  const { id, isCustom } = useLocalSearchParams<{ id?: string; isCustom?: string }>();
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
   const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
@@ -155,28 +151,20 @@ export default function Start() {
     }
   };
 
-  /** 훈련 시작: 프리셋이면 세션 생성 후 이동, 커스텀이면 기존 세션으로 이동 */
   const handleComplete = async () => {
-    if (isCustom === "true" && sessionId) {
-      router.push({
-        pathname: "/(tabs)/(train)/train",
-        params: { sessionId },
-      });
-      return;
-    }
-
     if (!id) return;
 
     setIsCreatingSession(true);
     try {
       const session = await createSession({
-        scenario_id: parseInt(id, 10),
-        personality: personalityMap[attitude],
+        scenarioId: parseInt(id, 10),
+        type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
+        aiPersonality: springPersonalityMap[attitude],
         difficulty: difficultyMap[difficulty],
       });
       router.push({
         pathname: "/(tabs)/(train)/train",
-        params: { sessionId: String(session.session_id) },
+        params: { sessionId: session.sessionId, wsUrl: session.wsUrl },
       });
     } catch {
       // 세션 생성 실패 시 버튼 재활성화
