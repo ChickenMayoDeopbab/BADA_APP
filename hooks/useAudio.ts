@@ -61,28 +61,46 @@ export interface UseAudioReturn {
   requestPermission: () => Promise<boolean>;
   startSendingAudio: (sendFn: (data: ArrayBuffer) => void) => Promise<void>;
   stopSendingAudio: () => Promise<void>;
-  receivePcmChunk: (data: ArrayBuffer) => void;
-  clearAudioBuffer: () => void;
-  playReceivedAudio: () => Promise<void>;
+  /** AI 음성 PCM chunk를 수신 즉시 스트리밍 재생 */
+  streamPcmChunk: (data: ArrayBuffer) => void;
+  /** 현재 재생 중인 오디오와 버퍼를 모두 지움 (emotion/interrupt 수신 시 호출) */
+  resetStream: () => void;
 }
 
-/** 마이크 실시간 PCM 전송 + AI 음성 수신 재생 훅 */
+/** 마이크 실시간 PCM 전송 + AI 음성 스트리밍 재생 훅 */
 export function useAudio(): UseAudioReturn {
   const isSendingRef = useRef(false);
-  const pcmBufferRef = useRef<Uint8Array[]>([]);
-  const currentSoundRef = useRef<Audio.Sound | null>(null);
 
-  // Web Audio API 전용 ref (any 타입: RN tsconfig에 DOM lib 미포함)
+  // Web Audio: 녹음 전용
   const audioContextRef = useRef<any>(null);
   const mediaStreamRef = useRef<any>(null);
   const processorRef = useRef<any>(null);
-  const webAudioRef = useRef<any>(null);
+
+  // Web Audio: 재생 전용 (AudioContext 스케줄링으로 즉시 스트리밍)
+  const playbackCtxRef = useRef<any>(null);
+  const nextPlayTimeRef = useRef(0);
+
+  // Native: 순차 재생 큐
+  const currentSoundRef = useRef<Audio.Sound | null>(null);
+  const chunkQueueRef = useRef<Uint8Array[]>([]);
+  const isNativePlayingRef = useRef(false);
+  const chunkCounterRef = useRef(0);
+  const playNextChunkRef = useRef<() => void>(() => {});
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === 'web') {
       try {
         const stream = await (navigator.mediaDevices as any).getUserMedia({ audio: true });
         (stream as any).getTracks().forEach((t: any) => t.stop());
+        // 유저 제스처 컨텍스트에서 재생용/녹음용 AudioContext 미리 생성 (브라우저 autoplay 정책 대응)
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (!playbackCtxRef.current || playbackCtxRef.current.state === 'closed') {
+          playbackCtxRef.current = new AudioContextClass({ sampleRate: SAMPLE_RATE });
+          nextPlayTimeRef.current = 0;
+        }
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+          audioContextRef.current = new AudioContextClass({ sampleRate: SAMPLE_RATE });
+        }
         return true;
       } catch {
         return false;
@@ -105,28 +123,31 @@ export function useAudio(): UseAudioReturn {
       });
       mediaStreamRef.current = stream;
 
-      // Safari: webkitAudioContext 폴백
+      // requestPermission에서 미리 생성된 컨텍스트 재사용, 없으면 새로 생성
       const AudioContextClass =
         (window as any).AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
-      audioContextRef.current = ctx;
+      let ctx = audioContextRef.current;
+      if (!ctx || ctx.state === 'closed') {
+        ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
+        audioContextRef.current = ctx;
+      }
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
 
       const source = ctx.createMediaStreamSource(stream);
-      // ScriptProcessorNode: Float32 샘플 → Int16 PCM 변환 후 WebSocket 전송
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
-      processor.onaudioprocess = (e: any) => {
+      // AudioWorkletNode: Float32 샘플 → Int16 PCM 변환 후 WebSocket 전송
+      await ctx.audioWorklet.addModule('/pcm-processor.js');
+      const workletNode = new AudioWorkletNode(ctx, 'pcm-processor');
+      workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
         if (!isSendingRef.current) return;
-        const float32: Float32Array = e.inputBuffer.getChannelData(0);
-        const int16 = new Int16Array(float32.length);
-        for (let i = 0; i < float32.length; i++) {
-          int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
-        }
-        sendFn(int16.buffer.slice(0) as ArrayBuffer);
+        sendFn(e.data);
       };
-      source.connect(processor);
-      processor.connect(ctx.destination);
-      processorRef.current = processor;
+      source.connect(workletNode);
+      workletNode.connect(ctx.destination);
+      processorRef.current = workletNode;
       isSendingRef.current = true;
+      console.log('[Audio] 마이크 스트리밍 시작 (16kHz PCM → WS)');
       return;
     }
 
@@ -151,6 +172,7 @@ export function useAudio(): UseAudioReturn {
     if (Platform.OS === 'web') {
       isSendingRef.current = false;
       if (processorRef.current) {
+        processorRef.current.port?.close();
         processorRef.current.disconnect();
         processorRef.current = null;
       }
@@ -171,78 +193,99 @@ export function useAudio(): UseAudioReturn {
     await AudioRecord.stop();
   }, []);
 
-  const receivePcmChunk = useCallback((data: ArrayBuffer) => {
-    pcmBufferRef.current.push(new Uint8Array(data));
-  }, []);
+  /**
+   * Web: AudioContext BufferSource 스케줄링으로 끊김 없이 즉시 재생
+   * Native: WAV 파일 큐에 추가 후 순차 재생
+   */
+  const streamPcmChunk = useCallback((data: ArrayBuffer) => {
+    if (Platform.OS === 'web') {
+      let ctx = playbackCtxRef.current;
+      if (!ctx || ctx.state === 'closed') {
+        const AudioContextClass =
+          (window as any).AudioContext || (window as any).webkitAudioContext;
+        ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
+        playbackCtxRef.current = ctx;
+        nextPlayTimeRef.current = 0;
+      }
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
 
-  const clearAudioBuffer = useCallback(() => {
-    pcmBufferRef.current = [];
-  }, []);
+      const int16 = new Int16Array(data);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 32768;
+      }
 
-  const playReceivedAudio = useCallback(async () => {
-    const chunks = [...pcmBufferRef.current];
-    pcmBufferRef.current = [];
-    if (chunks.length === 0) return;
+      const audioBuffer = ctx.createBuffer(1, float32.length, SAMPLE_RATE);
+      audioBuffer.getChannelData(0).set(float32);
 
-    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-    const pcm = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      pcm.set(chunk, offset);
-      offset += chunk.length;
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+
+      const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+      source.start(startAt);
+      nextPlayTimeRef.current = startAt + audioBuffer.duration;
+    } else {
+      chunkQueueRef.current.push(new Uint8Array(data));
+      playNextChunkRef.current();
     }
+  }, []);
 
+  const playNextChunk = useCallback(async () => {
+    if (isNativePlayingRef.current || chunkQueueRef.current.length === 0) return;
+    isNativePlayingRef.current = true;
+
+    const pcm = chunkQueueRef.current.shift()!;
     const header = buildWavHeader(pcm.length);
     const wav = new Uint8Array(header.length + pcm.length);
     wav.set(header, 0);
     wav.set(pcm, header.length);
 
-    if (Platform.OS === 'web') {
-      // Blob URL로 HTMLAudioElement 재생
-      const blob = new Blob([wav], { type: 'audio/wav' });
-      const url = URL.createObjectURL(blob);
-      if (webAudioRef.current) {
-        (webAudioRef.current as HTMLAudioElement).pause();
-        webAudioRef.current = null;
-      }
-      const audio = new (window as any).Audio(url) as HTMLAudioElement;
-      webAudioRef.current = audio;
-      audio.onended = () => {
-        URL.revokeObjectURL(url);
-        if (webAudioRef.current === audio) webAudioRef.current = null;
-      };
-      await audio.play();
-      return;
-    }
+    const uri = `${cacheDirectory ?? ''}ai_chunk_${chunkCounterRef.current++}.wav`;
+    await writeAsStringAsync(uri, bytesToBase64(wav), { encoding: EncodingType.Base64 });
 
-    const tempUri = `${cacheDirectory ?? ''}ai_audio_${Date.now()}.wav`;
-    await writeAsStringAsync(tempUri, bytesToBase64(wav), {
-      encoding: EncodingType.Base64,
-    });
-
-    if (currentSoundRef.current) {
-      try { await currentSoundRef.current.unloadAsync(); } catch {}
-      currentSoundRef.current = null;
-    }
-
-    const { sound } = await Audio.Sound.createAsync({ uri: tempUri });
+    const { sound } = await Audio.Sound.createAsync({ uri });
     currentSoundRef.current = sound;
+
     sound.setOnPlaybackStatusUpdate(async (status) => {
       if (status.isLoaded && status.didJustFinish) {
+        isNativePlayingRef.current = false;
         try { await sound.unloadAsync(); } catch {}
-        await deleteAsync(tempUri, { idempotent: true });
+        await deleteAsync(uri, { idempotent: true });
         if (currentSoundRef.current === sound) currentSoundRef.current = null;
+        // 큐에 남은 chunk가 있으면 바로 다음 재생
+        playNextChunkRef.current();
       }
     });
+
     await sound.playAsync();
+  }, []);
+
+  playNextChunkRef.current = playNextChunk;
+
+  const resetStream = useCallback(() => {
+    if (Platform.OS === 'web') {
+      // AudioContext를 닫지 않고 재생 타임라인만 리셋
+      // 닫으면 새 컨텍스트가 유저 제스처 밖에서 생성되어 autoplay 정책에 걸림
+      nextPlayTimeRef.current = 0;
+    } else {
+      chunkQueueRef.current = [];
+      isNativePlayingRef.current = false;
+      const s = currentSoundRef.current;
+      currentSoundRef.current = null;
+      if (s) {
+        s.stopAsync().catch(() => {}).finally(() => s.unloadAsync().catch(() => {}));
+      }
+    }
   }, []);
 
   return {
     requestPermission,
     startSendingAudio,
     stopSendingAudio,
-    receivePcmChunk,
-    clearAudioBuffer,
-    playReceivedAudio,
+    streamPcmChunk,
+    resetStream,
   };
 }
