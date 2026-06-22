@@ -83,7 +83,6 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
@@ -135,7 +134,6 @@ export default function SignupScreen() {
             </View>
           </View>
         </ScrollView>
-      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }
