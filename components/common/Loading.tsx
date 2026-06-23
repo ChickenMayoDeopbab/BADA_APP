@@ -26,8 +26,6 @@ interface LoadingProps {
   errorSubText?: string;
 }
 
-const AnimatedSandClock = Animated.createAnimatedComponent(SandClock);
-
 export default function Loading({
   status,
   title ,
@@ -63,7 +61,9 @@ export default function Loading({
     if (status === "loading") {
       return (
         <>
-          <AnimatedSandClock style={animatedStyle} />
+          <Animated.View style={animatedStyle}>
+            <SandClock />
+          </Animated.View>
           <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
             {loadingText}
           </Text>
