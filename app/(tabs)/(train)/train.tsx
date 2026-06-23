@@ -32,16 +32,16 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
   return (
     <View style={styles.overlay}>
       <View style={styles.dialogCard}>
-        <Text style={styles.dialogTitle}>훈련 전 명상을 할까요?</Text>
-        <Text style={styles.dialogDesc}>
+        <Text className="text-xl font-bold text-[#3B3D3E] mb-2">훈련 전 명상을 할까요?</Text>
+        <Text className="text-sm text-[#5C5E5E] mb-6" style={{ lineHeight: 22 }}>
           명상은 통화 전 마음을 안정시키는 데 도움이 돼요.
         </Text>
         <View style={styles.dialogButtonRow}>
           <TouchableOpacity onPress={onSkip} activeOpacity={0.8} style={styles.skipButton}>
-            <Text style={styles.skipButtonText}>건너뛰기</Text>
+            <Text className="text-base font-bold text-[#3B3D3E]">건너뛰기</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={onMeditate} activeOpacity={0.8} style={styles.meditateButton}>
-            <Text style={styles.meditateButtonText}>명상하기</Text>
+            <Text className="text-base font-bold text-white">명상하기</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -191,7 +191,7 @@ export default function Train() {
     <View className="flex-1 bg-white" style={safeArea}>
       <View className="flex-row items-center justify-center gap-x-1 mt-6">
         <Ionicons name="call" size={14} color={timerColor} />
-        <Text style={[styles.timerText, { color: timerColor }]}>
+        <Text className="text-sm font-medium" style={{ color: timerColor }}>
           {formatTime(seconds)}{isEnd ? "  훈련종료" : isAiSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
@@ -239,19 +239,19 @@ export default function Train() {
             activeOpacity={0.8}
             style={styles.scriptHideButton}
           >
-            <Text style={styles.scriptHideText}>스크립트 가리기</Text>
+            <Text className="text-sm text-[#3B3D3E] font-medium">스크립트 가리기</Text>
           </TouchableOpacity>
           <View style={styles.scriptContainer}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {dummyScript.map((line, index) => (
-                <Text key={index} style={styles.scriptLine}>
-                  <Text style={styles.scriptSpeaker}>{line.speaker} : </Text>
+                <Text key={index} className="text-sm text-[#3B3D3E] mb-2" style={{ lineHeight: 22 }}>
+                  <Text className="font-semibold">{line.speaker} : </Text>
                   {line.text}
                 </Text>
               ))}
             </ScrollView>
             <View style={styles.scriptDivider} />
-            <Text style={styles.scriptRecommend}>
+            <Text className="text-sm font-bold text-[#3B3D3E]" style={{ lineHeight: 22 }}>
               추천 : {dummyRecommendation}
             </Text>
           </View>
@@ -296,10 +296,6 @@ const styles = StyleSheet.create({
   },
   rotatedIcon: {
     transform: [{ rotate: "135deg" }],
-  },
-  timerText: {
-    fontSize: 14,
-    fontWeight: "500",
   },
   gridContainer: {
     flexDirection: "row",
@@ -350,36 +346,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#EBEBEC",
     marginBottom: 16,
   },
-  scriptHideText: {
-    fontSize: 14,
-    color: "#3B3D3E",
-    fontWeight: "500",
-  },
   scriptContainer: {
     borderWidth: 1,
     borderColor: "#EBEBEC",
     borderRadius: 16,
     padding: 16,
   },
-  scriptLine: {
-    fontSize: 14,
-    color: "#3B3D3E",
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  scriptSpeaker: {
-    fontWeight: "600",
-  },
   scriptDivider: {
     height: 1,
     backgroundColor: "#EBEBEC",
     marginVertical: 12,
-  },
-  scriptRecommend: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#3B3D3E",
-    lineHeight: 22,
   },
   overlay: {
     flex: 1,
@@ -391,18 +367,6 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 20,
     padding: 24,
-  },
-  dialogTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#3B3D3E",
-    marginBottom: 8,
-  },
-  dialogDesc: {
-    fontSize: 14,
-    color: "#5C5E5E",
-    lineHeight: 22,
-    marginBottom: 24,
   },
   dialogButtonRow: {
     flexDirection: "row",
@@ -416,11 +380,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  skipButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#3B3D3E",
-  },
   meditateButton: {
     flex: 1,
     height: 50,
@@ -428,10 +387,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#0AE365",
     justifyContent: "center",
     alignItems: "center",
-  },
-  meditateButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
   },
 });

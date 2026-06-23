@@ -1,7 +1,7 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { createSession } from "@/api/trainApi";
-import { Difficulty, SpringPersonality } from "@/api/types";
+import { ATTITUDE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_MAP, SPRING_PERSONALITY_MAP } from "@/constants/train";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -9,16 +9,8 @@ import { PanResponder, StyleSheet, Text, TouchableOpacity, View } from "react-na
 
 type FlowStep = "difficulty" | "time";
 
-const difficultyLevels = ["상", "중", "하"];
-const attitudeLevels = ["친절", "보통", "까다로움", "진상"];
-
-// UI 인덱스 → API 값 매핑
-const difficultyMap: Difficulty[] = ["high", "medium", "low"];
-// Spring: 대문자, neutral → NORMAL
-const springPersonalityMap: SpringPersonality[] = ["KIND", "NORMAL", "TOUGH", "RUDE"];
-
 interface StepSliderProps {
-  steps: string[];
+  steps: readonly string[];
   value: number;
   onChange: (index: number) => void;
 }
@@ -159,8 +151,8 @@ export default function Start() {
       const session = await createSession({
         scenarioId: parseInt(id, 10),
         type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
-        aiPersonality: springPersonalityMap[attitude],
-        difficulty: difficultyMap[difficulty],
+        aiPersonality: SPRING_PERSONALITY_MAP[attitude],
+        difficulty: DIFFICULTY_MAP[difficulty],
       });
       router.push({
         pathname: "/(tabs)/(train)/train",
@@ -183,7 +175,7 @@ export default function Start() {
               <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
             </View>
             <StepSlider
-              steps={difficultyLevels}
+              steps={DIFFICULTY_LABELS}
               value={difficulty}
               onChange={setDifficulty}
             />
@@ -195,7 +187,7 @@ export default function Start() {
               <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
             </View>
             <StepSlider
-              steps={attitudeLevels}
+              steps={ATTITUDE_LABELS}
               value={attitude}
               onChange={setAttitude}
             />
