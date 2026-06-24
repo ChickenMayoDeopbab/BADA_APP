@@ -1,6 +1,6 @@
 import { writeAsStringAsync, deleteAsync, cacheDirectory, EncodingType } from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 const SAMPLE_RATE = 16000;
@@ -118,36 +118,49 @@ export function useAudio(): UseAudioReturn {
 
   const startSendingAudio = useCallback(async (sendFn: (data: ArrayBuffer) => void) => {
     if (Platform.OS === 'web') {
-      const stream = await (navigator.mediaDevices as any).getUserMedia({
-        audio: { sampleRate: SAMPLE_RATE, channelCount: CHANNELS, echoCancellation: true },
-      });
-      mediaStreamRef.current = stream;
+      try {
+        const stream = await (navigator.mediaDevices as any).getUserMedia({
+          audio: { sampleRate: SAMPLE_RATE, channelCount: CHANNELS, echoCancellation: true },
+        });
+        mediaStreamRef.current = stream;
 
-      // requestPermission에서 미리 생성된 컨텍스트 재사용, 없으면 새로 생성
-      const AudioContextClass =
-        (window as any).AudioContext || (window as any).webkitAudioContext;
-      let ctx = audioContextRef.current;
-      if (!ctx || ctx.state === 'closed') {
-        ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
-        audioContextRef.current = ctx;
-      }
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+        // requestPermission에서 미리 생성된 컨텍스트 재사용, 없으면 새로 생성
+        const AudioContextClass =
+          (window as any).AudioContext || (window as any).webkitAudioContext;
+        let ctx = audioContextRef.current;
+        if (!ctx || ctx.state === 'closed') {
+          ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
+          audioContextRef.current = ctx;
+        }
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
 
-      const source = ctx.createMediaStreamSource(stream);
-      // AudioWorkletNode: Float32 샘플 → Int16 PCM 변환 후 WebSocket 전송
-      await ctx.audioWorklet.addModule('/pcm-processor.js');
-      const workletNode = new AudioWorkletNode(ctx, 'pcm-processor');
-      workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-        if (!isSendingRef.current) return;
-        sendFn(e.data);
-      };
-      source.connect(workletNode);
-      workletNode.connect(ctx.destination);
-      processorRef.current = workletNode;
-      isSendingRef.current = true;
-      console.log('[Audio] 마이크 스트리밍 시작 (16kHz PCM → WS)');
+        const source = ctx.createMediaStreamSource(stream);
+        // AudioWorkletNode: Float32 샘플 → Int16 PCM 변환 후 WebSocket 전송
+        await ctx.audioWorklet.addModule('/pcm-processor.js');
+        const workletNode = new AudioWorkletNode(ctx, 'pcm-processor');
+        workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
+          if (!isSendingRef.current) return;
+          sendFn(e.data);
+        };
+        source.connect(workletNode);
+        workletNode.connect(ctx.destination);
+        processorRef.current = workletNode;
+        isSendingRef.current = true;
+        console.log('[Audio] 마이크 스트리밍 시작 (16kHz PCM → WS)');
+      } catch (e) {
+        console.warn('[Audio] 마이크 스트리밍 시작 실패:', e);
+        isSendingRef.current = false;
+        if (processorRef.current) {
+          try { processorRef.current.disconnect(); } catch {}
+          processorRef.current = null;
+        }
+        if (mediaStreamRef.current) {
+          try { mediaStreamRef.current.getTracks().forEach((t: any) => t.stop()); } catch {}
+          mediaStreamRef.current = null;
+        }
+      }
       return;
     }
 
@@ -180,9 +193,10 @@ export function useAudio(): UseAudioReturn {
         mediaStreamRef.current.getTracks().forEach((t: any) => t.stop());
         mediaStreamRef.current = null;
       }
-      if (audioContextRef.current) {
-        await audioContextRef.current.close();
-        audioContextRef.current = null;
+      const ctx = audioContextRef.current;
+      audioContextRef.current = null;
+      if (ctx && ctx.state !== 'closed') {
+        try { await ctx.close(); } catch {}
       }
       return;
     }
@@ -279,6 +293,22 @@ export function useAudio(): UseAudioReturn {
         s.stopAsync().catch(() => {}).finally(() => s.unloadAsync().catch(() => {}));
       }
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (Platform.OS !== 'web') return;
+      const rec = audioContextRef.current;
+      audioContextRef.current = null;
+      if (rec && rec.state !== 'closed') {
+        rec.close().catch(() => {});
+      }
+      const play = playbackCtxRef.current;
+      playbackCtxRef.current = null;
+      if (play && play.state !== 'closed') {
+        play.close().catch(() => {});
+      }
+    };
   }, []);
 
   return {
