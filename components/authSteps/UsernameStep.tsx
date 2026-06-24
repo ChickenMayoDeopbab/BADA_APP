@@ -1,48 +1,107 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { RegisterFormValues } from "@/types/auth";
+import { Controller, useFormContext } from "react-hook-form";
 import {
+  Animated,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 type UsernameProps = {
-  username: string;
-  setUsername: React.Dispatch<React.SetStateAction<string>>;
+  inputTranslateY: Animated.Value;
+  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => void;
 };
 
 export default function UsernameStep({
-  username,
-  setUsername,
+  inputTranslateY,
   onPrev,
   onNext,
 }: UsernameProps) {
   const { width } = useWindowDimensions();
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
+  const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
+  const {
+    control,
+    trigger,
+    formState: { errors },
+  } = useFormContext<RegisterFormValues>();
+
+  const handleNext = async () => {
+    const isValid = await trigger(["name", "username"]);
+    if (isValid) onNext();
+  };
 
   return (
     <View>
-      <View style={{ minHeight: fieldAreaHeight }}>
-        <CustomInput
-          value={username}
-          onChangeText={setUsername}
-          label="닉네임"
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
+        <Controller
+          control={control}
+          name="name"
+          rules={{
+            required: "이름을 입력해주세요.",
+            minLength: { value: 2, message: "이름은 2자 이상이어야 합니다." },
+          }}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              value={value}
+              onChangeText={onChange}
+              label="이름"
+              returnKeyType="next"
+              onSubmitEditing={handleNext}
+              error={errors.name?.message}
+            />
+          )}
         />
-      </View>
+        <View className="flex-row items-start gap-x-3">
+          <View className="flex-1">
+            <Controller
+              control={control}
+              name="username"
+              rules={{
+                required: "아이디를 입력해주세요.",
+                minLength: {
+                  value: 2,
+                  message: "아이디를 2자 이상이어야 합니다.",
+                },
+              }}
+              render={({ field: { value, onChange } }) => (
+                <CustomInput
+                  value={value}
+                  onChangeText={onChange}
+                  label="아이디"
+                  returnKeyType="done"
+                  onSubmitEditing={handleNext}
+                  error={errors.username?.message}
+                />
+              )}
+            />
+          </View>
+          <View style={{ marginTop: 18, width: codeButtonWidth }}>
+            <CustomButton
+              label="중복 확인"
+              variant="lg"
+              backgroundColor="#0AE365"
+              onPress={() => {}}
+            />
+          </View>
+        </View>
+      </Animated.View>
+
+      <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
           label="회원가입"
           color="#F6F6F6"
           backgroundColor="#0AE365"
-          onPress={onNext}
+          onPress={handleNext}
         />
       </View>
 

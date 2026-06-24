@@ -1,87 +1,134 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { RegisterFormValues } from "@/types/auth";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Controller, useFormContext } from "react-hook-form";
 import {
+  Animated,
   Text,
+  TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 
 type PasswordProps = {
-  password: string;
-  setPassword: React.Dispatch<React.SetStateAction<string>>;
+  inputTranslateY: Animated.Value;
+  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => void;
 };
 
 export default function PasswordStep({
-  password,
-  setPassword,
+  inputTranslateY,
   onPrev,
   onNext,
 }: PasswordProps) {
-  const { width } = useWindowDimensions();
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const fieldAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
-  const [confirmPassword, setConfirmPassword] = useState<string>("");
-
-  const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
+  const {
+    control,
+    getValues,
+    trigger,
+    formState: { errors },
+  } = useFormContext<RegisterFormValues>();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
-    useState<boolean>(false);
+    useState(false);
+  const confirmRef = useRef<TextInput>(null);
+
+  const handleNext = async () => {
+    const isValid = await trigger(["password", "confirmPassword"]);
+    if (isValid) onNext();
+  };
+
   return (
     <View>
-      <View style={{ minHeight: fieldAreaHeight }}>
-        <CustomInput
-          value={password}
-          onChangeText={setPassword}
-          label="비밀번호"
-          secureTextEntry={!isPasswordVisible}
-          rightIcon={
-            <TouchableOpacity
-              onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-            >
-              <Ionicons
-                name={isPasswordVisible ? "eye-off-sharp" : "eye"}
-                size={20}
-                color="#BDBEBE"
-              />
-            </TouchableOpacity>
-          }
-        />
-
-        <CustomInput
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="비밀번호를 다시 입력하세요."
-          label="비밀번호 확인"
-          secureTextEntry={!isConfirmPasswordVisible}
-          rightIcon={
-            <TouchableOpacity
-              onPress={() =>
-                setIsConfirmPasswordVisible(!isConfirmPasswordVisible)
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
+        <Controller
+          control={control}
+          name="password"
+          rules={{
+            required: "비밀번호를 입력해주세요.",
+            minLength: {
+              value: 8,
+              message: "비밀번호는 8자 이상이어야 합니다.",
+            },
+            pattern: {
+              value: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/,
+              message: "영문, 숫자를 포함해야 합니다.",
+            },
+          }}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              value={value}
+              onChangeText={onChange}
+              label="비밀번호"
+              secureTextEntry={!isPasswordVisible}
+              returnKeyType="next"
+              onSubmitEditing={() => confirmRef.current?.focus()}
+              error={errors.password?.message}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                >
+                  <Ionicons
+                    name={isPasswordVisible ? "eye-off-sharp" : "eye"}
+                    size={20}
+                    color="#BDBEBE"
+                  />
+                </TouchableOpacity>
               }
-            >
-              <Ionicons
-                name={isPasswordVisible ? "eye-off-sharp" : "eye"}
-                size={20}
-                color="#BDBEBE"
-              />
-            </TouchableOpacity>
-          }
+            />
+          )}
         />
-      </View>
+        <Controller
+          control={control}
+          name="confirmPassword"
+          rules={{
+            required: "비밀번호 확인을 입력해주세요.",
+            validate: (value) =>
+              value === getValues("password") ||
+              "비밀번호가 일치하지 않습니다.",
+          }}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              ref={confirmRef}
+              value={value}
+              onChangeText={onChange}
+              placeholder="비밀번호를 다시 입력하세요."
+              label="비밀번호 확인"
+              secureTextEntry={!isConfirmPasswordVisible}
+              returnKeyType="done"
+              onSubmitEditing={onNext}
+              error={errors.confirmPassword?.message}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() =>
+                    setIsConfirmPasswordVisible(!isConfirmPasswordVisible)
+                  }
+                >
+                  <Ionicons
+                    name={isConfirmPasswordVisible ? "eye-off-sharp" : "eye"}
+                    size={20}
+                    color="#BDBEBE"
+                  />
+                </TouchableOpacity>
+              }
+            />
+          )}
+        />
+      </Animated.View>
+
+      <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
           label="다음으로"
           color="#F6F6F6"
           backgroundColor="#0AE365"
-          onPress={onNext}
+          onPress={handleNext}
         />
       </View>
 
