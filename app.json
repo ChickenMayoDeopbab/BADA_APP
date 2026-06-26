@@ -44,8 +44,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1fc1f3be-0134-43cb-8e0b-a4b445a7dc0c"
+        "projectId": "33067ca7-058a-404f-ba9f-ec559e3fc16b"
       }
-    }
+    },
+    "owner": "bong1100"
   }
 }
