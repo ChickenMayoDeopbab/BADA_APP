@@ -196,19 +196,48 @@ export function useAudio(): UseAudioReturn {
 
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const AudioRecord = require("react-native-audio-record").default;
+      AudioRecord.eventEmitter?.removeAllListeners?.("data");
       isSendingRef.current = true;
+
+      console.log("[Audio][STEP1] AudioRecord.init", AUDIO_RECORD_OPTIONS);
       AudioRecord.init(AUDIO_RECORD_OPTIONS);
+
+      let dataEventCount = 0;
+
       AudioRecord.on("data", (b64: string) => {
+        dataEventCount++;
+        console.log(
+          `[Audio][STEP2] data #${dataEventCount} | len=${b64?.length ?? 0} | sending=${isSendingRef.current} | muted=${isMutedRef.current}`,
+        );
+
         if (!isSendingRef.current) return;
-        if (!isMutedRef.current) return;
+
+        // muted(AI 응답 재생 중)일 때만 차단. 평상시(false)에는 전송되어야 함.
+        if (isMutedRef.current) {
+          console.log(
+            "[Audio][STEP2-B] muted=true → AI 응답 재생 중, 마이크 차단",
+          );
+          return;
+        }
+
         const bytes = base64ToBytes(b64);
-        if (bytes.length === 0) return;
+        if (bytes.length === 0) {
+          console.warn("[Audio][STEP3-WARN] PCM 길이 0");
+          return;
+        }
+
         const buf = bytes.buffer.slice(
           bytes.byteOffset,
           bytes.byteOffset + bytes.byteLength,
         ) as ArrayBuffer;
+
+        console.log(
+          `[Audio][STEP4] sendFn 호출 | byteLength=${buf.byteLength}`,
+        );
         sendFn(buf);
       });
+
+      console.log("[Audio][STEP6] AudioRecord.start()");
       AudioRecord.start();
     },
     [],
