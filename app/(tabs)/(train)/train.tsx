@@ -50,7 +50,7 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId, wsUrl, isWarmup } = useLocalSearchParams<{ sessionId: string; wsUrl: string; isWarmup?: string }>();
+  const { sessionId, wsUrl, isWarmup, scenarioId } = useLocalSearchParams<{ sessionId: string; wsUrl: string; isWarmup?: string, scenarioId: string }>();
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
@@ -119,7 +119,7 @@ export default function Train() {
     const timeout = setTimeout(
       () => router.replace({
         pathname: "/(tabs)/(train)/report",
-        params: { mode: isWarmup === "true" ? "warmUp" : "scenario" },
+        params: { mode: isWarmup === "true" ? "warmUp" : "scenario", scenarioId: scenarioId },
       }),
       2500
     );
@@ -215,8 +215,8 @@ export default function Train() {
         </Text>
       </View>
       <View className="items-center flex-1 pt-8">
-        <Text className="text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
-        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 {generatedPhoneNumber}</Text>
+        <Text className="text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
+        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 010-0000-0000</Text>
         <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
         {!isConnected && step === "training" && (
           <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>

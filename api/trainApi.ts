@@ -6,6 +6,7 @@ import {
   CreateSessionResponse,
   CustomScenarioResponse,
   CustomSessionRequest,
+  Feedback,
   ScenarioCategory,
   ScenarioListResponse,
 } from "./types";
@@ -31,5 +32,12 @@ export const createCustomScenario = async (
   data: CustomSessionRequest
 ): Promise<CustomScenarioResponse> => {
   const response = await aiApiClient.post<CustomScenarioResponse>('/api/v1/scenario/custom', data);
+  return response.data;
+};
+
+export const getFeedback = async (scenarioId: string): Promise<Feedback> => {
+  const response = await apiClient.get<Feedback>(`/api/v1/training-records/feedback`, {
+    params: { scenarioId },
+  });
   return response.data;
 };

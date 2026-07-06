@@ -94,18 +94,18 @@ function TimeInput({ value, onDecrement, onIncrement }: TimeInputProps) {
   return (
     <View className="flex-row items-end gap-x-2" style={styles.timeInputWrapper}>
       <Text className="text-2xl font-bold text-[#3B3D3E] pb-1">{value}분 후</Text>
-      <View className="flex-row gap-x-1 pb-1">
+      <View className="flex-row pb-1 gap-x-1">
         <TouchableOpacity
           onPress={onDecrement}
           activeOpacity={0.7}
-          className="w-7 h-7 items-center justify-center"
+          className="items-center justify-center w-7 h-7"
         >
           <Text className="text-lg font-medium text-[#3B3D3E]">—</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onIncrement}
           activeOpacity={0.7}
-          className="w-7 h-7 items-center justify-center"
+          className="items-center justify-center w-7 h-7"
         >
           <Text className="text-lg font-medium text-[#3B3D3E]">+</Text>
         </TouchableOpacity>
@@ -187,7 +187,7 @@ export default function Start() {
         <Top title="훈련 설정" back onBack={handleBack} />
         <View className="flex-1 px-8 pt-4">
           <View className="mb-10">
-            <View className="flex-row items-center gap-x-2 mb-8">
+            <View className="flex-row items-center mb-8 gap-x-2">
               <Text className="text-xl font-bold text-[#3B3D3E]">난이도</Text>
               <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
             </View>
@@ -199,7 +199,7 @@ export default function Start() {
           </View>
 
           <View>
-            <View className="flex-row items-center gap-x-2 mb-8">
+            <View className="flex-row items-center mb-8 gap-x-2">
               <Text className="text-xl font-bold text-[#3B3D3E]">상대의 태도</Text>
               <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
             </View>
@@ -211,7 +211,7 @@ export default function Start() {
           </View>
         </View>
 
-        <View className="px-8 pb-10 pt-4">
+        <View className="px-8 pt-4 pb-10">
           <CustomButton
             label="다음으로"
             backgroundColor="#0AE365"
@@ -253,7 +253,7 @@ export default function Start() {
         </View>
       </View>
 
-      <View className="px-8 pb-10 pt-4">
+      <View className="px-8 pt-4 pb-10">
         <CustomButton
           label={isCreatingSession ? "처리 중..." : "완료하기"}
           backgroundColor="#0AE365"

@@ -211,3 +211,20 @@ export interface TrainingFeedbackResponse {
   goodSegments: GoodSegment[];
   recordingUrl: string;
 }
+
+export interface Feedback {
+  sessionType: string,
+  scenarioName: string,
+  trainingTime: {
+    hour: number,
+    minute: number,
+    second: number,
+    nano: number
+  },
+  goodSegments: {
+      start: number,
+      end: number,
+      good_point: string
+    }[],
+  recordingUrl: string
+}
