@@ -1,4 +1,4 @@
-import { useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { useAudio } from "@/hooks/useAudio";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -9,12 +9,9 @@ import { ResizeMode, Video } from "expo-av";
 
 type TrainStep = "receive" | "training" | "end";
 
-const dummyScript = [
-  { speaker: "상대", text: "죄송하지만, 페퍼로니 피자의 재료가 소진되었습니다." },
-  { speaker: "나", text: "저는 페퍼로니 피자가 아니면 먹지 못합니다." },
-  { speaker: "상대", text: "손님 죄송합니다만 다른 메뉴로 주문 부탁드립니다." },
-];
-const dummyRecommendation = "그러면 (메뉴명)으로 주문하겠습니다.";
+/** WebSocket transcript role → 화면 표시 이름 (user=나, ai=상대) */
+const roleToSpeaker = (role: string): string =>
+  role === "user" ? "나" : "상대";
 
 /** 경과 시간을 MM:SS 형식으로 변환 */
 const formatTime = (totalSeconds: number): string => {
@@ -57,8 +54,10 @@ export default function Train() {
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
   const [isMeditationVideoVisible, setIsMeditationVideoVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
+  const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
 
   const [isMuted, setIsMuted] = useState(false);
@@ -87,6 +86,7 @@ export default function Train() {
     enabled: step === "training",
     onBinaryMessage: streamPcmChunk,
     onSpeakingEnd: () => {},
+    onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
     onEmotion: () => resetStream(),
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
@@ -134,6 +134,7 @@ export default function Train() {
       setIsMeditationVisible(false);
       setIsMeditationVideoVisible(false);
       setIsScriptVisible(false);
+      setTranscript([]);
       setSeconds(0);
       setIsMuted(false);
       permissionGrantedRef.current = false;
@@ -305,19 +306,27 @@ export default function Train() {
           >
             <Text className="text-sm text-[#3B3D3E] font-medium">스크립트 가리기</Text>
           </TouchableOpacity>
-          <View style={styles.scriptContainer}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {dummyScript.map((line, index) => (
-                <Text key={index} className="text-sm text-[#3B3D3E] mb-2" style={{ lineHeight: 22 }}>
-                  <Text className="font-semibold">{line.speaker} : </Text>
-                  {line.text}
-                </Text>
-              ))}
-            </ScrollView>
-            <View style={styles.scriptDivider} />
-            <Text className="text-sm font-bold text-[#3B3D3E]" style={{ lineHeight: 22 }}>
-              추천 : {dummyRecommendation}
-            </Text>
+          <View style={[styles.scriptContainer, { flex: 1 }]}>
+            {transcript.length === 0 ? (
+              <View className="items-center justify-center flex-1">
+                <Text className="text-sm text-[#BDBEBE]">아직 대화 내용이 없어요.</Text>
+              </View>
+            ) : (
+              <ScrollView
+                ref={scriptScrollRef}
+                showsVerticalScrollIndicator={false}
+                onContentSizeChange={() =>
+                  scriptScrollRef.current?.scrollToEnd({ animated: true })
+                }
+              >
+                {transcript.map((line, index) => (
+                  <Text key={index} className="text-sm text-[#3B3D3E] mb-2" style={{ lineHeight: 22 }}>
+                    <Text className="font-semibold">{roleToSpeaker(line.role)} : </Text>
+                    {line.text}
+                  </Text>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
       )}
@@ -420,11 +429,6 @@ const styles = StyleSheet.create({
     borderColor: "#EBEBEC",
     borderRadius: 16,
     padding: 16,
-  },
-  scriptDivider: {
-    height: 1,
-    backgroundColor: "#EBEBEC",
-    marginVertical: 12,
   },
   overlay: {
     flex: 1,

@@ -14,6 +14,12 @@ export type WsEndReason =
   | "CRISIS"
   | "END_CALL";
 
+/** 실시간 대화 스크립트 한 줄 (role: "user"=나 / "ai"=상대) */
+export interface TranscriptTurn {
+  role: string;
+  text: string;
+}
+
 interface UseTrainWebSocketProps {
   sessionId: string | null;
   wsUrl: string | null; // Spring이 반환한 WS URL (토큰 미포함)
@@ -24,6 +30,7 @@ interface UseTrainWebSocketProps {
   onEnd?: (reason: WsEndReason) => void;
   onError?: (code: string) => void;
   onBinaryMessage?: (data: ArrayBuffer) => void;
+  onTranscript?: (turn: TranscriptTurn) => void; // 실시간 대화 스크립트 수신
 }
 
 export interface UseTrainWebSocketReturn {
@@ -46,6 +53,7 @@ export function useTrainWebSocket({
   onEnd,
   onError,
   onBinaryMessage,
+  onTranscript,
 }: UseTrainWebSocketProps): UseTrainWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -59,6 +67,7 @@ export function useTrainWebSocket({
   const onEndRef = useRef(onEnd);
   const onErrorRef = useRef(onError);
   const onBinaryMessageRef = useRef(onBinaryMessage);
+  const onTranscriptRef = useRef(onTranscript);
   const aiSpeakingRef = useRef(false);
   onEmotionRef.current = onEmotion;
   onSpeakingEndRef.current = onSpeakingEnd;
@@ -66,6 +75,7 @@ export function useTrainWebSocket({
   onEndRef.current = onEnd;
   onErrorRef.current = onError;
   onBinaryMessageRef.current = onBinaryMessage;
+  onTranscriptRef.current = onTranscript;
 
   const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
@@ -134,6 +144,14 @@ export function useTrainWebSocket({
             case "interrupt":
               setIsAiSpeaking(false);
               onInterruptRef.current?.();
+              break;
+            case "transcript":
+              if (typeof msg.text === "string" && msg.text.trim()) {
+                onTranscriptRef.current?.({
+                  role: typeof msg.role === "string" ? msg.role : "",
+                  text: msg.text,
+                });
+              }
               break;
             case "end":
               onEndRef.current?.(msg.reason);
