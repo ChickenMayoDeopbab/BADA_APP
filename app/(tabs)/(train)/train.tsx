@@ -103,7 +103,13 @@ export default function Train() {
 
   useEffect(() => {
     if (step !== "end") return;
-    const timeout = setTimeout(() => router.replace("/(tabs)/(train)/report"), 2500);
+    const timeout = setTimeout(
+      () => router.replace({
+        pathname: "/(tabs)/(train)/report",
+        params: { mode: isWarmup === "true" ? "warmUp" : "scenario" },
+      }),
+      2500
+    );
     return () => clearTimeout(timeout);
   }, [step]);
 
