@@ -122,6 +122,7 @@ export interface CustomSessionRequest {
   call_purpose: string;
   personality?: SpringPersonality;
   difficulty?: Difficulty;
+  is_warmup?: boolean;
 }
 
 export interface GenerateDetailScenario {

@@ -50,7 +50,7 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId, wsUrl } = useLocalSearchParams<{ sessionId: string; wsUrl: string }>();
+  const { sessionId, wsUrl, isWarmup } = useLocalSearchParams<{ sessionId: string; wsUrl: string; isWarmup?: string }>();
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
@@ -103,7 +103,13 @@ export default function Train() {
 
   useEffect(() => {
     if (step !== "end") return;
-    const timeout = setTimeout(() => router.replace("/(tabs)/(train)/report"), 2500);
+    const timeout = setTimeout(
+      () => router.replace({
+        pathname: "/(tabs)/(train)/report",
+        params: { mode: isWarmup === "true" ? "warmUp" : "scenario" },
+      }),
+      2500
+    );
     return () => clearTimeout(timeout);
   }, [step]);
 
@@ -206,7 +212,10 @@ export default function Train() {
       {!isEnd && !isScriptVisible && (
         <View style={styles.gridContainer}>
           {[
-            { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: null, active: false },
+            /* 워밍업에서는 스크립트 보기 비활성화 */
+            isWarmup === "true"
+              ? { label: "버튼명", onPress: undefined, icon: null, active: false }
+              : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: null, active: false },
             { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted },
             { label: "버튼명", onPress: undefined, icon: null, active: false },
             { label: "버튼명", onPress: undefined, icon: null, active: false },
