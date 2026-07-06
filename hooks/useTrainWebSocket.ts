@@ -1,14 +1,18 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const getWsBaseUrl = () =>
-  (process.env.EXPO_PUBLIC_AI_API_URL ?? '')
-    .replace(/\/$/, '')
-    .replace(/^https/, 'wss')
-    .replace(/^http/, 'ws');
+  (process.env.EXPO_PUBLIC_AI_API_URL ?? "")
+    .replace(/\/$/, "")
+    .replace(/^https/, "wss")
+    .replace(/^http/, "ws");
 
-export type WsEndReason = 'SCENARIO_DONE' | 'USER_END' | 'TIMEOUT' | 'CRISIS' | 'END_CALL';
+export type WsEndReason =
+  | "SCENARIO_DONE"
+  | "USER_END"
+  | "TIMEOUT"
+  | "CRISIS"
+  | "END_CALL";
 
 interface UseTrainWebSocketProps {
   sessionId: string | null;
@@ -53,6 +57,7 @@ export function useTrainWebSocket({
   const onEndRef = useRef(onEnd);
   const onErrorRef = useRef(onError);
   const onBinaryMessageRef = useRef(onBinaryMessage);
+  const aiSpeakingRef = useRef(false);
   onEmotionRef.current = onEmotion;
   onSpeakingEndRef.current = onSpeakingEnd;
   onInterruptRef.current = onInterrupt;
@@ -63,6 +68,7 @@ export function useTrainWebSocket({
   const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const disconnect = useCallback(() => {
+    aiSpeakingRef.current = false;
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
@@ -77,14 +83,14 @@ export function useTrainWebSocket({
 
   const connect = useCallback(async () => {
     if (!sessionId) return;
-    const token = await AsyncStorage.getItem('accessToken');
+    const token = await AsyncStorage.getItem("accessToken");
     if (!token) return;
 
     // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
     const url = `${getWsBaseUrl()}/ws/voice/${sessionId}?token=${token}`;
     const ws = new WebSocket(url);
     // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
-    ws.binaryType = 'arraybuffer';
+    ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -92,35 +98,40 @@ export function useTrainWebSocket({
       // keep-alive ping 30초마다
       pingIntervalRef.current = setInterval(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ type: 'ping' }));
+          wsRef.current.send(JSON.stringify({ type: "ping" }));
         }
       }, 30000);
     };
 
     ws.onmessage = (event) => {
-      if (typeof event.data === 'string') {
+      if (typeof event.data === "string") {
         try {
           const msg = JSON.parse(event.data as string);
           switch (msg.type) {
-            case 'emotion':
+            case "emotion":
+              aiSpeakingRef.current = true;
               setIsAiSpeaking(true);
               onEmotionRef.current?.(msg.value);
               break;
-            case 'speaking_end':
-              setIsAiSpeaking(false);
+            case "speaking_end":
+              setTimeout(() => {
+                aiSpeakingRef.current = false;
+                setIsAiSpeaking(false);
+              }, 300);
+
               onSpeakingEndRef.current?.();
               break;
-            case 'interrupt':
+            case "interrupt":
               setIsAiSpeaking(false);
               onInterruptRef.current?.();
               break;
-            case 'end':
+            case "end":
               onEndRef.current?.(msg.reason);
               break;
-            case 'error':
+            case "error":
               onErrorRef.current?.(msg.code);
               break;
-            case 'pong':
+            case "pong":
               break;
           }
         } catch {
@@ -129,7 +140,7 @@ export function useTrainWebSocket({
       } else {
         // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
         if (event.data instanceof ArrayBuffer) {
-          console.log('[WS] AI 오디오 수신:', event.data.byteLength, 'bytes');
+          console.log("[WS] AI 오디오 수신:", event.data.byteLength, "bytes");
           onBinaryMessageRef.current?.(event.data);
         }
       }
@@ -143,38 +154,47 @@ export function useTrainWebSocket({
         pingIntervalRef.current = null;
       }
       if (event.code === 1008) {
-        if (event.reason === 'TOKEN_EXPIRED') {
+        if (event.reason === "TOKEN_EXPIRED") {
           // 토큰 재발급 후 재연결
           (async () => {
             try {
-              const accessToken = await AsyncStorage.getItem('accessToken');
-              const refreshToken = await AsyncStorage.getItem('refreshToken');
-              if (!refreshToken) throw new Error('no refresh token');
+              const accessToken = await AsyncStorage.getItem("accessToken");
+              const refreshToken = await AsyncStorage.getItem("refreshToken");
+              if (!refreshToken) throw new Error("no refresh token");
 
               // 만료된 access token의 payload에서 userId 추출 (RefreshRequest 필수 필드)
               let userId: number | null = null;
               if (accessToken) {
                 try {
-                  const b64 = accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                  const b64 = accessToken
+                    .split(".")[1]
+                    .replace(/-/g, "+")
+                    .replace(/_/g, "/");
                   const claims = JSON.parse(atob(b64));
                   userId = claims.sub != null ? Number(claims.sub) : null;
                 } catch {}
               }
-              if (userId == null) throw new Error('no userId');
+              if (userId == null) throw new Error("no userId");
 
-              const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+              const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(
+                /\/$/,
+                "",
+              );
               const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ refreshToken, userId }),
               });
-              if (!res.ok) throw new Error('refresh failed');
+              if (!res.ok) throw new Error("refresh failed");
               const json = await res.json();
-              await AsyncStorage.setItem('accessToken', json.data.accessToken);
-              await AsyncStorage.setItem('refreshToken', json.data.refreshToken);
+              await AsyncStorage.setItem("accessToken", json.data.accessToken);
+              await AsyncStorage.setItem(
+                "refreshToken",
+                json.data.refreshToken,
+              );
               connectRef.current();
             } catch {
-              onErrorRef.current?.('WS_CLOSE_TOKEN_EXPIRED');
+              onErrorRef.current?.("WS_CLOSE_TOKEN_EXPIRED");
             }
           })();
         } else {
@@ -203,21 +223,29 @@ export function useTrainWebSocket({
 
   const sendEndCall = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'end' }));
+      wsRef.current.send(JSON.stringify({ type: "end" }));
     }
   }, []);
 
   const sendMute = useCallback((muted: boolean) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'mute', muted }));
+      wsRef.current.send(JSON.stringify({ type: "mute", muted }));
     }
   }, []);
 
-  const sendBinary = useCallback((data: ArrayBuffer) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(data);
-    }
-  }, []);
+  const sendBinary = useCallback(
+    (data: ArrayBuffer) => {
+      if (isAiSpeaking) {
+        console.log("[Audio] dropped because AI speaking");
+        return;
+      }
+
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(data);
+      }
+    },
+    [isAiSpeaking],
+  );
 
   return { isConnected, isAiSpeaking, sendEndCall, sendMute, sendBinary };
 }
