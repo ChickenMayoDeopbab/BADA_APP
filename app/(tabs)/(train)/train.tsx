@@ -2,7 +2,7 @@ import { useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { useAudio } from "@/hooks/useAudio";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -61,6 +61,15 @@ export default function Train() {
 
   const [isMuted, setIsMuted] = useState(false);
   const permissionGrantedRef = useRef(false);
+  const generatedPhoneNumber = useMemo(() => {
+    const source = sessionId ?? "";
+    const hash = Array.from(source).reduce((acc, char) => {
+      return (acc * 31 + char.charCodeAt(0)) % 900000;
+    }, 0);
+    const first = String((hash % 900) + 100);
+    const second = String(((Math.floor(hash / 900) % 900) + 100));
+    return `010-${first}-${second}`;
+  }, [sessionId]);
 
   const {
     requestPermission,
@@ -70,7 +79,7 @@ export default function Train() {
     resetStream,
   } = useAudio();
 
-  const { isConnected, isAiSpeaking, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
+  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training",
@@ -84,6 +93,10 @@ export default function Train() {
       handleEndCall();
     },
   });
+  useEffect(() => {
+    console.log("[Train] displayName 변경", displayName);
+  }, [displayName]);
+  const roleName = displayName ?? "연결 중...";
 
   // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
   useEffect(() => {
@@ -111,7 +124,7 @@ export default function Train() {
       2500
     );
     return () => clearTimeout(timeout);
-  }, [step]);
+  }, [step, isWarmup]);
 
   useFocusEffect(
     useCallback(() => {
@@ -167,14 +180,14 @@ export default function Train() {
     return (
       <>
         <View className="flex-1 bg-[#F0F0F0]" style={safeArea}>
-          <View className="flex-1 items-center pt-10">
+          <View className="items-center flex-1 pt-10">
             <Text className="text-sm text-[#5C5E5E]">바다 시나리오 훈련</Text>
-            <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
+            <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
             <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화</Text>
-            <Text className="text-sm text-[#5C5E5E]">010-0000-0000</Text>
+            <Text className="text-sm text-[#5C5E5E]">{generatedPhoneNumber}</Text>
             <View style={styles.avatar} />
           </View>
-          <View className="flex-row justify-around items-center pb-14">
+          <View className="flex-row items-center justify-around pb-14">
             <TouchableOpacity onPress={handleAccept} activeOpacity={0.8} style={styles.receiveCallButton}>
               <Ionicons name="call" size={28} color="#0AE365" />
             </TouchableOpacity>
@@ -195,15 +208,15 @@ export default function Train() {
 
   return (
     <View className="flex-1 bg-white" style={safeArea}>
-      <View className="flex-row items-center justify-center gap-x-1 mt-6">
+      <View className="flex-row items-center justify-center mt-6 gap-x-1">
         <Ionicons name="call" size={14} color={timerColor} />
         <Text className="text-sm font-medium" style={{ color: timerColor }}>
           {formatTime(seconds)}{isEnd ? "  훈련종료" : isAiSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
-      <View className="flex-1 items-center pt-8">
-        <Text className="text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
-        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 010-0000-0000</Text>
+      <View className="items-center flex-1 pt-8">
+        <Text className="text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
+        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 {generatedPhoneNumber}</Text>
         <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
         {!isConnected && step === "training" && (
           <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>
