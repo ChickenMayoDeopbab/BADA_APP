@@ -39,8 +39,7 @@ export default function RecordScreen() {
   const flatListRef = useRef<FlatList<TrainingRecordItem>>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [selectedSort, setSelectedSort] = useState<string>("최신 순");
-  const [isScrollTopVisible, setIsScrollTopVisible] =
-    useState<boolean>(false);
+  const [isScrollTopVisible, setIsScrollTopVisible] = useState<boolean>(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDatePickerVisible, setIsDatePickerVisible] =
@@ -66,8 +65,15 @@ export default function RecordScreen() {
   });
 
   const records: TrainingRecordItem[] = useMemo(() => {
-    return data?.pages.flatMap((page) => page.content) ?? [];
-  }, [data]);
+    const flat = data?.pages.flatMap((page) => page.content) ?? [];
+
+    const sorted = [...flat].sort((a, b) =>
+      selectedSort === "최신 순"
+        ? b.recordId - a.recordId
+        : a.recordId - b.recordId,
+    );
+    return sorted;
+  }, [data, selectedSort]);
 
   const handleEndReached = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -75,15 +81,11 @@ export default function RecordScreen() {
     }
   };
 
-  const handleScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const shouldShow =
       event.nativeEvent.contentOffset.y >= SCROLL_TOP_VISIBLE_OFFSET;
 
-    setIsScrollTopVisible((prev) =>
-      prev === shouldShow ? prev : shouldShow,
-    );
+    setIsScrollTopVisible((prev) => (prev === shouldShow ? prev : shouldShow));
   };
 
   const handleScrollTopPress = () => {
