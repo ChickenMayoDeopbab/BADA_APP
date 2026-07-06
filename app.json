@@ -9,11 +9,18 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bada.app"
+      "bundleIdentifier": "com.bada.app",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "predictiveBackGestureEnabled": false,
-      "package": "com.bada.app"
+      "package": "com.bada.app",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static"
@@ -35,7 +42,9 @@
       "expo-font",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
