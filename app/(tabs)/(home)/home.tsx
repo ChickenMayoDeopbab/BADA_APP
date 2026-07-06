@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AttendanceCalendar from "@/components/Calendar";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { router } from "expo-router";
 
 export default function Home() {
   return (
@@ -10,7 +11,7 @@ export default function Home() {
       <Top isMain/>
       <View className="flex flex-col gap-2">
         <Text className="text-xl font-bold">빠른 시작</Text>
-        <Pressable className="flex-row items-center justify-between p-4 rounded-xl bg-[#0AE365]">
+        <Pressable className="flex-row items-center justify-between p-4 rounded-xl bg-[#0AE365]" onPress={() => router.push("/(tabs)/(train)/list")}>
           <Ionicons name="call" size={22} color="white" />
           <Text className="text-lg font-bold text-white">커스텀 훈련 바로 시작하기</Text>
         </Pressable>
