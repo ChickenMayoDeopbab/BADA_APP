@@ -2,6 +2,7 @@ import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { createSession } from "@/api/trainApi";
 import { ATTITUDE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_MAP, SPRING_PERSONALITY_MAP } from "@/constants/train";
+import { usePendingCall } from "@/context/PendingCallContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -115,6 +116,7 @@ function TimeInput({ value, onDecrement, onIncrement }: TimeInputProps) {
 
 export default function Start() {
   const { id, isCustom } = useLocalSearchParams<{ id?: string; isCustom?: string }>();
+  const { schedule } = usePendingCall();
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
   const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
@@ -146,22 +148,37 @@ export default function Start() {
   const handleComplete = async () => {
     if (!id) return;
 
-    setIsCreatingSession(true);
-    try {
-      const session = await createSession({
-        scenarioId: parseInt(id, 10),
-        type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
-        aiPersonality: SPRING_PERSONALITY_MAP[attitude],
-        difficulty: DIFFICULTY_MAP[difficulty],
-      });
-      router.push({
-        pathname: "/(tabs)/(train)/train",
-        params: { sessionId: session.sessionId, wsUrl: session.wsUrl },
-      });
-    } catch {
-      // 세션 생성 실패 시 버튼 재활성화
-      setIsCreatingSession(false);
+    const sessionConfig = {
+      scenarioId: parseInt(id, 10),
+      type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
+      aiPersonality: SPRING_PERSONALITY_MAP[attitude],
+      difficulty: DIFFICULTY_MAP[difficulty],
+    } as const;
+
+    // 발신 시간이 모두 0이면 즉시 세션 생성 후 훈련 시작
+    if (timeFrom === 0 && timeTo === 0) {
+      setIsCreatingSession(true);
+      try {
+        const session = await createSession(sessionConfig);
+        router.push({
+          pathname: "/(tabs)/(train)/train",
+          params: { sessionId: session.sessionId, wsUrl: session.wsUrl },
+        });
+      } catch {
+        // 세션 생성 실패 시 버튼 재활성화
+        setIsCreatingSession(false);
+      }
+      return;
     }
+
+    // 발신 대기: timeFrom~timeTo 사이 랜덤 시간 후 발신 예약 후 홈으로 이동
+    const from = Math.min(timeFrom, timeTo);
+    const to = Math.max(timeFrom, timeTo);
+    const delayMinutes = from + Math.random() * (to - from);
+    const delayMs = Math.round(delayMinutes * 60 * 1000);
+
+    schedule(sessionConfig, delayMs);
+    router.push("/(tabs)/(home)/home");
   };
 
   if (flowStep === "difficulty") {
