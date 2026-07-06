@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { useAudioPlaybackGroup } from "./audio/AudioPlaybackGroup";
 
 type AudioUrlState = {
   isMissing: boolean;
@@ -94,10 +95,15 @@ function PlayingButton({ audioUrl }: { audioUrl?: string | null }) {
   );
   const player = useAudioPlayer(audioSource, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
+  const playbackGroup = useAudioPlaybackGroup();
   const statusError = (status as { error?: string | null } | null)?.error;
   const audioUrlState = useMemo(() => getUrlState(audioUrl), [audioUrl]);
   const loading = Boolean(normalizedAudioUrl && !status?.isLoaded);
   const disabled = !normalizedAudioUrl;
+
+  useEffect(() => {
+    return playbackGroup?.register(player.id, () => player.pause());
+  }, [playbackGroup, player]);
 
   useEffect(() => {
     console.log("[PlayingButton] Audio 생성 / load 시작", {
@@ -231,6 +237,7 @@ function PlayingButton({ audioUrl }: { audioUrl?: string | null }) {
           audioUrl: normalizedAudioUrl,
         });
       } else {
+        playbackGroup?.requestPlay(player.id);
         console.log("[PlayingButton] play 시작", {
           playerId: player.id,
           audioUrl: normalizedAudioUrl,

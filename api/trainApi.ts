@@ -8,6 +8,7 @@ import {
   CustomSessionRequest,
   Feedback,
   ScenarioCategory,
+  ExampleConversationResponse,
   ScenarioListResponse,
 } from "./types";
 
@@ -39,5 +40,14 @@ export const getFeedback = async (scenarioId: string): Promise<Feedback> => {
   const response = await apiClient.get<Feedback>(`/api/v1/training-records/feedback`, {
     params: { scenarioId },
   });
+  return response.data;
+};
+
+export const getScenarioExample = async (
+  scenarioId: string,
+): Promise<ExampleConversationResponse> => {
+  const response = await aiApiClient.get<ExampleConversationResponse>(
+    `/api/v1/scenario/${scenarioId}/example`,
+  );
   return response.data;
 };

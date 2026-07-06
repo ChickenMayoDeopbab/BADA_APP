@@ -95,6 +95,17 @@ export interface ScenarioListResponse {
   scenarios: ScenarioInfo[];
 }
 
+export interface ExampleTurn {
+  speaker: string;
+  text: string;
+}
+
+export interface ExampleConversationResponse {
+  scenario_id: string;
+  dialogue: ExampleTurn[];
+  audio_url: string | null;
+}
+
 // Spring POST /api/v1/session
 export interface CreateSessionRequest {
   scenarioId?: number;

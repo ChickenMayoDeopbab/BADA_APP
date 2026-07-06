@@ -83,6 +83,7 @@ export function useAudio(): UseAudioReturn {
   const audioContextRef = useRef<any>(null);
   const mediaStreamRef = useRef<any>(null);
   const processorRef = useRef<any>(null);
+  const muteReleaseTimerRef = useRef<any>(null);
 
   // Web Audio: 재생 전용 (AudioContext 스케줄링으로 즉시 스트리밍)
   const playbackCtxRef = useRef<any>(null);
@@ -168,13 +169,13 @@ export function useAudio(): UseAudioReturn {
           const workletNode = new AudioWorkletNode(ctx, "pcm-processor");
           workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
             if (!isSendingRef.current) return;
+            if (isMutedRef.current) return;
             sendFn(e.data);
           };
           source.connect(workletNode);
           workletNode.connect(ctx.destination);
           processorRef.current = workletNode;
           isSendingRef.current = true;
-          console.log("[Audio] 마이크 스트리밍 시작 (16kHz PCM → WS)");
         } catch (e) {
           console.warn("[Audio] 마이크 스트리밍 시작 실패:", e);
           isSendingRef.current = false;
@@ -199,24 +200,17 @@ export function useAudio(): UseAudioReturn {
       AudioRecord.eventEmitter?.removeAllListeners?.("data");
       isSendingRef.current = true;
 
-      console.log("[Audio][STEP1] AudioRecord.init", AUDIO_RECORD_OPTIONS);
       AudioRecord.init(AUDIO_RECORD_OPTIONS);
 
       let dataEventCount = 0;
 
       AudioRecord.on("data", (b64: string) => {
         dataEventCount++;
-        console.log(
-          `[Audio][STEP2] data #${dataEventCount} | len=${b64?.length ?? 0} | sending=${isSendingRef.current} | muted=${isMutedRef.current}`,
-        );
 
         if (!isSendingRef.current) return;
 
         // muted(AI 응답 재생 중)일 때만 차단. 평상시(false)에는 전송되어야 함.
         if (isMutedRef.current) {
-          console.log(
-            "[Audio][STEP2-B] muted=true → AI 응답 재생 중, 마이크 차단",
-          );
           return;
         }
 
@@ -230,14 +224,8 @@ export function useAudio(): UseAudioReturn {
           bytes.byteOffset,
           bytes.byteOffset + bytes.byteLength,
         ) as ArrayBuffer;
-
-        console.log(
-          `[Audio][STEP4] sendFn 호출 | byteLength=${buf.byteLength}`,
-        );
         sendFn(buf);
       });
-
-      console.log("[Audio][STEP6] AudioRecord.start()");
       AudioRecord.start();
     },
     [],
@@ -305,6 +293,19 @@ export function useAudio(): UseAudioReturn {
       const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
       source.start(startAt);
       nextPlayTimeRef.current = startAt + audioBuffer.duration;
+
+      isMutedRef.current = true;
+      if (muteReleaseTimerRef.current) {
+        clearTimeout(muteReleaseTimerRef.current);
+      }
+      const remainMs = Math.max(
+        0,
+        (nextPlayTimeRef.current - ctx.currentTime) * 1000,
+      );
+      muteReleaseTimerRef.current = setTimeout(() => {
+        isMutedRef.current = false;
+        muteReleaseTimerRef.current = null;
+      }, remainMs + 50);
     } else {
       chunkQueueRef.current.push(new Uint8Array(data));
       playNextChunkRef.current();
@@ -369,9 +370,12 @@ export function useAudio(): UseAudioReturn {
 
   const resetStream = useCallback(() => {
     if (Platform.OS === "web") {
-      // AudioContext를 닫지 않고 재생 타임라인만 리셋
-      // 닫으면 새 컨텍스트가 유저 제스처 밖에서 생성되어 autoplay 정책에 걸림
       nextPlayTimeRef.current = 0;
+      if (muteReleaseTimerRef.current) {
+        clearTimeout(muteReleaseTimerRef.current);
+        muteReleaseTimerRef.current = null;
+      }
+      isMutedRef.current = false;
     } else {
       chunkQueueRef.current = [];
       isNativePlayingRef.current = false;
@@ -388,6 +392,10 @@ export function useAudio(): UseAudioReturn {
   useEffect(() => {
     return () => {
       if (Platform.OS !== "web") return;
+      if (muteReleaseTimerRef.current) {
+        clearTimeout(muteReleaseTimerRef.current);
+        muteReleaseTimerRef.current = null;
+      }
       const rec = audioContextRef.current;
       audioContextRef.current = null;
       if (rec && rec.state !== "closed") {
