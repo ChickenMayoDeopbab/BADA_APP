@@ -1,65 +1,113 @@
-import CustomButton from "@/components/CustomButton";
-import CustomInput from "@/components/CustomInput";
-import { router } from "expo-router";
-import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import CustomButton from "@/components/common/CustomButton";
+import CustomInput from "@/components/common/CustomInput";
+import { RegisterFormValues } from "@/types/auth";
+import { Controller, useFormContext } from "react-hook-form";
+import {
+  Animated,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
-type StepProps = {
+type UsernameProps = {
+  inputTranslateY: Animated.Value;
+  inputAreaHeight: number;
+  onPrev: () => void;
   onNext: () => void;
-  onPrev?: () => void;
 };
 
-export default function UsernameStep({ onNext }: StepProps) {
-  const [email, setEmail] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
+export default function UsernameStep({
+  inputTranslateY,
+  onPrev,
+  onNext,
+}: UsernameProps) {
+  const { width } = useWindowDimensions();
+  const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
+  const {
+    control,
+    trigger,
+    formState: { errors },
+  } = useFormContext<RegisterFormValues>();
+
+  const handleNext = async () => {
+    const isValid = await trigger(["name", "username"]);
+    if (isValid) onNext();
+  };
+
   return (
     <View>
-      <View className="mb-5">
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
+        <Controller
+          control={control}
+          name="name"
+          rules={{
+            required: "이름을 입력해주세요.",
+            minLength: { value: 2, message: "이름은 2자 이상이어야 합니다." },
+          }}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              value={value}
+              onChangeText={onChange}
+              label="이름"
+              returnKeyType="next"
+              onSubmitEditing={handleNext}
+              error={errors.name?.message}
+            />
+          )}
+        />
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
-            <CustomInput
-              value={email}
-              onChangeText={setEmail}
-              label="이메일"
-              autoCapitalize="none"
+            <Controller
+              control={control}
+              name="username"
+              rules={{
+                required: "아이디를 입력해주세요.",
+                minLength: {
+                  value: 2,
+                  message: "아이디를 2자 이상이어야 합니다.",
+                },
+              }}
+              render={({ field: { value, onChange } }) => (
+                <CustomInput
+                  value={value}
+                  onChangeText={onChange}
+                  label="아이디"
+                  returnKeyType="done"
+                  onSubmitEditing={handleNext}
+                  error={errors.username?.message}
+                />
+              )}
             />
           </View>
-
-          <View className="mt-[18px] w-[105px]">
+          <View style={{ marginTop: 18, width: codeButtonWidth }}>
             <CustomButton
-              label="인증코드 전송"
+              label="중복 확인"
               variant="lg"
               backgroundColor="#0AE365"
+              onPress={() => {}}
             />
           </View>
         </View>
+      </Animated.View>
 
-        <CustomInput
-          value={verificationCode}
-          onChangeText={setVerificationCode}
-          placeholder="인증코드를 입력하세요."
-          label="인증코드"
-        />
-      </View>
-
-      <View className="h-6 mb-6" />
+      <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
-          label="인증하기"
+          label="회원가입"
           color="#F6F6F6"
           backgroundColor="#0AE365"
-          onPress={onNext}
+          onPress={handleNext}
         />
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
-        <TouchableOpacity
-          onPress={() => {
-            router.replace("/auth");
-          }}
-        >
-          <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
+        <TouchableOpacity onPress={onPrev}>
+          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>
