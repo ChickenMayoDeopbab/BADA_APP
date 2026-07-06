@@ -29,6 +29,7 @@ interface UseTrainWebSocketProps {
 export interface UseTrainWebSocketReturn {
   isConnected: boolean;
   isAiSpeaking: boolean;
+  displayName: string | null;
   sendEndCall: () => void;
   sendMute: (muted: boolean) => void;
   sendBinary: (data: ArrayBuffer) => void;
@@ -50,6 +51,7 @@ export function useTrainWebSocket({
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   const onEmotionRef = useRef(onEmotion);
   const onSpeakingEndRef = useRef(onSpeakingEnd);
@@ -79,6 +81,7 @@ export function useTrainWebSocket({
     }
     setIsConnected(false);
     setIsAiSpeaking(false);
+    setDisplayName(null);
   }, []);
 
   const connect = useCallback(async () => {
@@ -107,6 +110,13 @@ export function useTrainWebSocket({
       if (typeof event.data === "string") {
         try {
           const msg = JSON.parse(event.data as string);
+          if (
+            msg?.type === "scenario_info" &&
+            typeof msg?.aiRole === "string" &&
+            msg.aiRole.trim()
+          ) {
+            setDisplayName(msg.aiRole.trim());
+          }
           switch (msg.type) {
             case "emotion":
               aiSpeakingRef.current = true;
@@ -206,7 +216,7 @@ export function useTrainWebSocket({
     ws.onerror = () => {
       setIsConnected(false);
     };
-  }, [sessionId, wsUrl]);
+  }, [sessionId]);
 
   connectRef.current = connect;
 
@@ -247,5 +257,12 @@ export function useTrainWebSocket({
     [isAiSpeaking],
   );
 
-  return { isConnected, isAiSpeaking, sendEndCall, sendMute, sendBinary };
+  return {
+    isConnected,
+    isAiSpeaking,
+    displayName,
+    sendEndCall,
+    sendMute,
+    sendBinary,
+  };
 }

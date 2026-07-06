@@ -2,9 +2,10 @@ import { useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { useAudio } from "@/hooks/useAudio";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ResizeMode, Video } from "expo-av";
 
 type TrainStep = "receive" | "training" | "end";
 
@@ -50,10 +51,11 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId, wsUrl } = useLocalSearchParams<{ sessionId: string; wsUrl: string }>();
+  const { sessionId, wsUrl, isWarmup } = useLocalSearchParams<{ sessionId: string; wsUrl: string; isWarmup?: string }>();
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
+  const [isMeditationVideoVisible, setIsMeditationVideoVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -61,6 +63,15 @@ export default function Train() {
 
   const [isMuted, setIsMuted] = useState(false);
   const permissionGrantedRef = useRef(false);
+  const generatedPhoneNumber = useMemo(() => {
+    const source = sessionId ?? "";
+    const hash = Array.from(source).reduce((acc, char) => {
+      return (acc * 31 + char.charCodeAt(0)) % 900000;
+    }, 0);
+    const first = String((hash % 900) + 100);
+    const second = String(((Math.floor(hash / 900) % 900) + 100));
+    return `010-${first}-${second}`;
+  }, [sessionId]);
 
   const {
     requestPermission,
@@ -70,7 +81,7 @@ export default function Train() {
     resetStream,
   } = useAudio();
 
-  const { isConnected, isAiSpeaking, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
+  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training",
@@ -84,6 +95,10 @@ export default function Train() {
       handleEndCall();
     },
   });
+  useEffect(() => {
+    console.log("[Train] displayName 변경", displayName);
+  }, [displayName]);
+  const roleName = displayName ?? "연결 중...";
 
   // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
   useEffect(() => {
@@ -103,14 +118,21 @@ export default function Train() {
 
   useEffect(() => {
     if (step !== "end") return;
-    const timeout = setTimeout(() => router.replace("/(tabs)/(train)/report"), 2500);
+    const timeout = setTimeout(
+      () => router.replace({
+        pathname: "/(tabs)/(train)/report",
+        params: { mode: isWarmup === "true" ? "warmUp" : "scenario" },
+      }),
+      2500
+    );
     return () => clearTimeout(timeout);
-  }, [step]);
+  }, [step, isWarmup]);
 
   useFocusEffect(
     useCallback(() => {
       setStep("receive");
       setIsMeditationVisible(false);
+      setIsMeditationVideoVisible(false);
       setIsScriptVisible(false);
       setSeconds(0);
       setIsMuted(false);
@@ -141,9 +163,14 @@ export default function Train() {
     setIsMeditationVisible(false);
     startTraining();
   };
+  /** 명상하기: 다이얼로그 닫고 명상 영상 재생 */
   const handleMeditationStart = () => {
     setIsMeditationVisible(false);
-    // TODO: 명상 화면 연결
+    setIsMeditationVideoVisible(true);
+  };
+  /** 명상 영상 종료(건너뛰기 또는 재생 완료): 영상 닫고 훈련 시작 */
+  const handleMeditationVideoEnd = () => {
+    setIsMeditationVideoVisible(false);
     startTraining();
   };
   /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
@@ -161,14 +188,14 @@ export default function Train() {
     return (
       <>
         <View className="flex-1 bg-[#F0F0F0]" style={safeArea}>
-          <View className="flex-1 items-center pt-10">
+          <View className="items-center flex-1 pt-10">
             <Text className="text-sm text-[#5C5E5E]">바다 시나리오 훈련</Text>
-            <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
+            <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
             <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화</Text>
-            <Text className="text-sm text-[#5C5E5E]">010-0000-0000</Text>
+            <Text className="text-sm text-[#5C5E5E]">{generatedPhoneNumber}</Text>
             <View style={styles.avatar} />
           </View>
-          <View className="flex-row justify-around items-center pb-14">
+          <View className="flex-row items-center justify-around pb-14">
             <TouchableOpacity onPress={handleAccept} activeOpacity={0.8} style={styles.receiveCallButton}>
               <Ionicons name="call" size={28} color="#0AE365" />
             </TouchableOpacity>
@@ -180,6 +207,28 @@ export default function Train() {
         <Modal visible={isMeditationVisible} transparent animationType="fade">
           <MeditationDialog onSkip={handleMeditationSkip} onMeditate={handleMeditationStart} />
         </Modal>
+        <Modal visible={isMeditationVideoVisible} animationType="fade">
+          <View style={styles.meditationVideoContainer}>
+            <Video
+              source={require("@/assets/meditate.mp4")}
+              style={styles.meditationVideo}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              onPlaybackStatusUpdate={(status) => {
+                if (status.isLoaded && status.didJustFinish) handleMeditationVideoEnd();
+              }}
+            />
+            <View style={[styles.meditationSkipWrapper, { paddingBottom: insets.bottom + 24 }]}>
+              <TouchableOpacity
+                onPress={handleMeditationVideoEnd}
+                activeOpacity={0.8}
+                style={styles.meditationSkipButton}
+              >
+                <Text className="text-base font-bold text-white">건너뛰기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </>
     );
   }
@@ -189,15 +238,15 @@ export default function Train() {
 
   return (
     <View className="flex-1 bg-white" style={safeArea}>
-      <View className="flex-row items-center justify-center gap-x-1 mt-6">
+      <View className="flex-row items-center justify-center mt-6 gap-x-1">
         <Ionicons name="call" size={14} color={timerColor} />
         <Text className="text-sm font-medium" style={{ color: timerColor }}>
           {formatTime(seconds)}{isEnd ? "  훈련종료" : isAiSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
-      <View className="flex-1 items-center pt-8">
-        <Text className="text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
-        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 010-0000-0000</Text>
+      <View className="items-center flex-1 pt-8">
+        <Text className="text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
+        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 {generatedPhoneNumber}</Text>
         <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
         {!isConnected && step === "training" && (
           <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>
@@ -206,7 +255,10 @@ export default function Train() {
       {!isEnd && !isScriptVisible && (
         <View style={styles.gridContainer}>
           {[
-            { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: null, active: false },
+            /* 워밍업에서는 스크립트 보기 비활성화 */
+            isWarmup === "true"
+              ? { label: "버튼명", onPress: undefined, icon: null, active: false }
+              : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: null, active: false },
             { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted },
             { label: "버튼명", onPress: undefined, icon: null, active: false },
             { label: "버튼명", onPress: undefined, icon: null, active: false },
@@ -387,5 +439,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#0AE365",
     justifyContent: "center",
     alignItems: "center",
+  },
+  meditationVideoContainer: {
+    flex: 1,
+    backgroundColor: "black",
+  },
+  meditationVideo: {
+    flex: 1,
+  },
+  meditationSkipWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  meditationSkipButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
 });

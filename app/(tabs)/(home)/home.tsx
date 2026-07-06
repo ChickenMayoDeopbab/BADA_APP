@@ -15,7 +15,7 @@ export default function Home() {
           <Ionicons name="call" size={22} color="white" />
           <Text className="text-lg font-bold text-white">커스텀 훈련 바로 시작하기</Text>
         </Pressable>
-        <Pressable className="flex-row items-center justify-between p-4 rounded-xl bg-[#006FCC]">
+        <Pressable className="flex-row items-center justify-between p-4 rounded-xl bg-[#006FCC]" onPress={() => router.push("/(tabs)/(train)/warmup")}>
           <MaterialIcons name="local-fire-department" size={24} color="white" />
           <Text className="text-lg font-bold text-white">통화 전 워밍업 시작하기</Text>
         </Pressable>
