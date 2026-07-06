@@ -7,6 +7,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import { getFeedback } from "@/api/trainApi";
 import { Feedback } from "@/api/types";
 import BestPart from "@/components/report/BestPart";
+import { useLocalSearchParams } from "expo-router";
+
+// 훈련 타입
+type mode = 'scenario' | 'warmUp';
 
 export default function Report() {
   const { scenarioId } = useLocalSearchParams<{ scenarioId: string }>();
@@ -23,6 +27,9 @@ export default function Report() {
 
     fetchFeedback();
   }, [])
+  const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>();
+  const mode: mode = modeParam === 'warmUp' ? 'warmUp' : 'scenario';
+  const [isPlaying, setIsPlaying] = useState<boolean[]>([false, false, false]);
   
   return (
     <View className="flex-1 bg-white">
