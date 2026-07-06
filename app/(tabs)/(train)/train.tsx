@@ -5,6 +5,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ResizeMode, Video } from "expo-av";
 
 type TrainStep = "receive" | "training" | "end";
 
@@ -54,6 +55,7 @@ export default function Train() {
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
+  const [isMeditationVideoVisible, setIsMeditationVideoVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -130,6 +132,7 @@ export default function Train() {
     useCallback(() => {
       setStep("receive");
       setIsMeditationVisible(false);
+      setIsMeditationVideoVisible(false);
       setIsScriptVisible(false);
       setSeconds(0);
       setIsMuted(false);
@@ -160,9 +163,14 @@ export default function Train() {
     setIsMeditationVisible(false);
     startTraining();
   };
+  /** 명상하기: 다이얼로그 닫고 명상 영상 재생 */
   const handleMeditationStart = () => {
     setIsMeditationVisible(false);
-    // TODO: 명상 화면 연결
+    setIsMeditationVideoVisible(true);
+  };
+  /** 명상 영상 종료(건너뛰기 또는 재생 완료): 영상 닫고 훈련 시작 */
+  const handleMeditationVideoEnd = () => {
+    setIsMeditationVideoVisible(false);
     startTraining();
   };
   /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
@@ -198,6 +206,28 @@ export default function Train() {
         </View>
         <Modal visible={isMeditationVisible} transparent animationType="fade">
           <MeditationDialog onSkip={handleMeditationSkip} onMeditate={handleMeditationStart} />
+        </Modal>
+        <Modal visible={isMeditationVideoVisible} animationType="fade">
+          <View style={styles.meditationVideoContainer}>
+            <Video
+              source={require("@/assets/meditate.mp4")}
+              style={styles.meditationVideo}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              onPlaybackStatusUpdate={(status) => {
+                if (status.isLoaded && status.didJustFinish) handleMeditationVideoEnd();
+              }}
+            />
+            <View style={[styles.meditationSkipWrapper, { paddingBottom: insets.bottom + 24 }]}>
+              <TouchableOpacity
+                onPress={handleMeditationVideoEnd}
+                activeOpacity={0.8}
+                style={styles.meditationSkipButton}
+              >
+                <Text className="text-base font-bold text-white">건너뛰기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
       </>
     );
@@ -409,5 +439,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#0AE365",
     justifyContent: "center",
     alignItems: "center",
+  },
+  meditationVideoContainer: {
+    flex: 1,
+    backgroundColor: "black",
+  },
+  meditationVideo: {
+    flex: 1,
+  },
+  meditationSkipWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  meditationSkipButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
 });
