@@ -7,7 +7,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { getFeedback } from "@/api/trainApi";
 import { Feedback } from "@/api/types";
 import BestPart from "@/components/report/BestPart";
-import { useLocalSearchParams } from "expo-router";
 
 // 훈련 타입
 type mode = 'scenario' | 'warmUp';

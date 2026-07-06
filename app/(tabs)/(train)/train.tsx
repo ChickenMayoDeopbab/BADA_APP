@@ -51,7 +51,6 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 
 export default function Train() {
   const { sessionId, wsUrl, scenarioId, isWarmup } = useLocalSearchParams<{ sessionId: string; wsUrl: string, scenarioId: string, isWarmup?: string }>();
-
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
