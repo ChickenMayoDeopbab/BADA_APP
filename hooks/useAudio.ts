@@ -176,7 +176,6 @@ export function useAudio(): UseAudioReturn {
           workletNode.connect(ctx.destination);
           processorRef.current = workletNode;
           isSendingRef.current = true;
-          console.log("[Audio] 마이크 스트리밍 시작 (16kHz PCM → WS)");
         } catch (e) {
           console.warn("[Audio] 마이크 스트리밍 시작 실패:", e);
           isSendingRef.current = false;
@@ -201,24 +200,17 @@ export function useAudio(): UseAudioReturn {
       AudioRecord.eventEmitter?.removeAllListeners?.("data");
       isSendingRef.current = true;
 
-      console.log("[Audio][STEP1] AudioRecord.init", AUDIO_RECORD_OPTIONS);
       AudioRecord.init(AUDIO_RECORD_OPTIONS);
 
       let dataEventCount = 0;
 
       AudioRecord.on("data", (b64: string) => {
         dataEventCount++;
-        console.log(
-          `[Audio][STEP2] data #${dataEventCount} | len=${b64?.length ?? 0} | sending=${isSendingRef.current} | muted=${isMutedRef.current}`,
-        );
 
         if (!isSendingRef.current) return;
 
         // muted(AI 응답 재생 중)일 때만 차단. 평상시(false)에는 전송되어야 함.
         if (isMutedRef.current) {
-          console.log(
-            "[Audio][STEP2-B] muted=true → AI 응답 재생 중, 마이크 차단",
-          );
           return;
         }
 
@@ -232,14 +224,8 @@ export function useAudio(): UseAudioReturn {
           bytes.byteOffset,
           bytes.byteOffset + bytes.byteLength,
         ) as ArrayBuffer;
-
-        console.log(
-          `[Audio][STEP4] sendFn 호출 | byteLength=${buf.byteLength}`,
-        );
         sendFn(buf);
       });
-
-      console.log("[Audio][STEP6] AudioRecord.start()");
       AudioRecord.start();
     },
     [],

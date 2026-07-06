@@ -4,7 +4,7 @@ import DropdownArrow from "@/assets/dropdownArrow.svg";
 import { getScenarios } from "@/api/trainApi";
 import { ScenarioInfo } from "@/api/types";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { ElementRef, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -45,8 +45,8 @@ export default function List() {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dropdownRef = useRef<TouchableOpacity>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const dropdownRef = useRef<ElementRef<typeof TouchableOpacity>>(null);
+  const flatListRef = useRef<FlatList<ScenarioInfo | null>>(null);
 
   useEffect(() => {
     fetchScenarios();
