@@ -193,7 +193,9 @@ export default function Train() {
             <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
             <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화</Text>
             <Text className="text-sm text-[#5C5E5E]">{generatedPhoneNumber}</Text>
-            <View style={styles.avatar} />
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={72} color="#FFFFFF" />
+            </View>
           </View>
           <View className="flex-row items-center justify-around pb-14">
             <TouchableOpacity onPress={handleAccept} activeOpacity={0.8} style={styles.receiveCallButton}>
@@ -247,7 +249,9 @@ export default function Train() {
       <View className="items-center flex-1 pt-8">
         <Text className="text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
         <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 {generatedPhoneNumber}</Text>
-        <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
+        <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]}>
+          <Ionicons name="person" size={72} color="#FFFFFF" />
+        </View>
         {!isConnected && step === "training" && (
           <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>
         )}
@@ -337,6 +341,8 @@ const styles = StyleSheet.create({
     borderRadius: 65,
     backgroundColor: "#E0E0E0",
     marginTop: 32,
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarSpeaking: {
     backgroundColor: "#B8F5D4",
