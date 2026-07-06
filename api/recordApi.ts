@@ -36,7 +36,7 @@ export const getTrainingRecordFeedback = async (
   return response.data;
 };
 
-/** 세션 종료 후 생성된 기록을 찾아 피드백 조회 */
+
 export const getTrainingFeedbackBySessionId = async (
   sessionId: string,
 ): Promise<TrainingFeedbackResponse> => {
