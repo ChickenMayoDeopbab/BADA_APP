@@ -62,25 +62,27 @@ export default function AttendanceCalendar() {
 
   const renderDay = ({ date, state }: { date?: DateData; state?: string }) => {
     if (!date) return null;
-
-    const dayOfWeek = new Date(date.dateString).getDay();
+  
+    const dayOfWeek = new Date(date.dateString + 'T00:00:00').getDay(); 
     const isToday = date.dateString === getToday();
-
+  
     let textColor = '#1a1a1a';
     if (dayOfWeek === 0) textColor = '#E24B4A';
     if (dayOfWeek === 6) textColor = '#378ADD';
-
+  
     const isAttended = markedDates.includes(date.dateString);
-
+  
     return (
-      <View style={{
-        width: 33,
-        height: 33,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 20,
-        backgroundColor: isAttended ? '#0AE365' : isToday ? '#E8F4FD' : 'transparent',
-      }}>
+      <View
+        key={`${date.dateString}-${isAttended}`}  
+        style={{
+          width: 33,
+          height: 33,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 20,
+          backgroundColor: isAttended ? '#0AE365' : isToday ? '#E8F4FD' : 'transparent',
+        }}>
         <Text style={{
           fontSize: 16,
           color: isAttended ? '#ffffff' : state === 'disabled' ? '#ccc' : textColor,
