@@ -6,4 +6,9 @@ const GOOD_PARTS = [
 
 const SORT_OPTIONS = ["최신 순", "오래된 순"];
 
-export { GOOD_PARTS, SORT_OPTIONS };
+const SORT_PARAM_MAP: Record<string, string> = {
+  "최신 순": "trainedAt,desc",
+  "오래된 순": "trainedAt,asc",
+};
+
+export { GOOD_PARTS, SORT_OPTIONS, SORT_PARAM_MAP };
