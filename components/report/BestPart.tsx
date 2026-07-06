@@ -1,8 +1,5 @@
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { useEffect } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useAudioPlaybackGroup } from "../audio/AudioPlaybackGroup";
+import { Text, View } from "react-native";
+import AudioSegmentButton from "../audio/AudioSegmentButton";
 
 interface BestPartProps {
   summary: string;
@@ -24,36 +21,6 @@ export default function BestPart({
   endTime,
   url,
 }: BestPartProps) {
-  const player = useAudioPlayer({ uri: url }, { updateInterval: 100 });
-  const status = useAudioPlayerStatus(player);
-  const playbackGroup = useAudioPlaybackGroup();
-
-  useEffect(() => {
-    return playbackGroup?.register(player.id, () => player.pause());
-  }, [playbackGroup, player]);
-
-  useEffect(() => {
-    if (!status.playing || status.currentTime < endTime) return;
-
-    player.pause();
-    player.seekTo(startTime).catch((error) => {
-      console.error("[BestPart] 재생 위치 초기화 실패", error);
-    });
-  }, [endTime, player, startTime, status.currentTime, status.playing]);
-
-  const handlePress = async () => {
-    if (status.playing) {
-      player.pause();
-      return;
-    }
-
-    playbackGroup?.requestPlay(player.id);
-    if (status.currentTime < startTime || status.currentTime >= endTime) {
-      await player.seekTo(startTime);
-    }
-    player.play();
-  };
-
   return (
     <View className="flex-row items-center justify-between p-3 bg-white rounded-xl">
       <View className="flex-1 ml-[10px] mr-3">
@@ -64,17 +31,11 @@ export default function BestPart({
           {formatTime(startTime)} ~ {formatTime(endTime)}
         </Text>
       </View>
-      <TouchableOpacity disabled={!status.isLoaded} onPress={handlePress}>
-        {!status.isLoaded ? (
-          <ActivityIndicator size="small" color="#0AE365" />
-        ) : (
-          <Ionicons
-            name={status.playing ? "pause-circle" : "play-circle-sharp"}
-            size={40}
-            color="#0AE365"
-          />
-        )}
-      </TouchableOpacity>
+      <AudioSegmentButton
+        audioUrl={url}
+        startTime={startTime}
+        endTime={endTime}
+      />
     </View>
   );
 }
