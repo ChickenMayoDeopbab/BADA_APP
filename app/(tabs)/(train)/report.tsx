@@ -4,12 +4,14 @@ import { Text, TouchableOpacity, View } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import CustomButton from "@/components/common/CustomButton";
 import Clap from "@/assets/clap.svg";
+import { router, useLocalSearchParams } from "expo-router";
 
 // 훈련 타입
 type mode = 'scenario' | 'warmUp';
 
 export default function Report() {
-  const [mode, setMode] = useState<mode>('warmUp');
+  const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>();
+  const mode: mode = modeParam === 'warmUp' ? 'warmUp' : 'scenario';
   const [isPlaying, setIsPlaying] = useState<boolean[]>([false, false, false]);
   
   return (
@@ -65,7 +67,7 @@ export default function Report() {
             </View>
           </View>
         </View>
-        <CustomButton label="끝내기" backgroundColor="#0AE365" color="white"/>
+        <CustomButton label="끝내기" onPress={() => {router.push('/list')}} backgroundColor="#0AE365" color="white"/>
       </View>
     </View>
   )
