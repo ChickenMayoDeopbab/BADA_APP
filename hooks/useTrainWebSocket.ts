@@ -150,7 +150,6 @@ export function useTrainWebSocket({
       } else {
         // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
         if (event.data instanceof ArrayBuffer) {
-          console.log("[WS] AI 오디오 수신:", event.data.byteLength, "bytes");
           onBinaryMessageRef.current?.(event.data);
         }
       }
@@ -246,7 +245,6 @@ export function useTrainWebSocket({
   const sendBinary = useCallback(
     (data: ArrayBuffer) => {
       if (isAiSpeaking) {
-        console.log("[Audio] dropped because AI speaking");
         return;
       }
 

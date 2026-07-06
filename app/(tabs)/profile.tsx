@@ -30,13 +30,10 @@ function ProfileScreen() {
       try {
         const response = await getMyPage();
         setMyPage(response.data);
-      } catch (error) {
-        console.log(error);
-      }
+      } catch (error) {}
     };
     fetchMyPage();
   }, []);
-  
 
   const handleSignOut = async () => {
     await deleteSignout();
@@ -54,9 +51,7 @@ function ProfileScreen() {
           <Text className="mb-1 font-bold text-[#0D0D0E] text-2xl">
             {myPage?.username}
           </Text>
-          <Text className="text-[13px] text-[#8E8E8E]">
-            {myPage?.email}
-          </Text>
+          <Text className="text-[13px] text-[#8E8E8E]">{myPage?.email}</Text>
         </View>
         <MenuItem label="내 정보 수정" onPress={() => {}} />
         <MenuItem label="로그아웃" onPress={handleSignOut} />
