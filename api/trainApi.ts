@@ -7,6 +7,7 @@ import {
   CustomScenarioResponse,
   CustomSessionRequest,
   ScenarioCategory,
+  ExampleConversationResponse,
   ScenarioListResponse,
 } from "./types";
 
@@ -31,5 +32,14 @@ export const createCustomScenario = async (
   data: CustomSessionRequest
 ): Promise<CustomScenarioResponse> => {
   const response = await aiApiClient.post<CustomScenarioResponse>('/api/v1/scenario/custom', data);
+  return response.data;
+};
+
+export const getScenarioExample = async (
+  scenarioId: string,
+): Promise<ExampleConversationResponse> => {
+  const response = await aiApiClient.get<ExampleConversationResponse>(
+    `/api/v1/scenario/${scenarioId}/example`,
+  );
   return response.data;
 };
