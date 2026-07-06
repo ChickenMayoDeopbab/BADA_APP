@@ -257,29 +257,37 @@ export default function Train() {
           {[
             /* 워밍업에서는 스크립트 보기 비활성화 */
             isWarmup === "true"
-              ? { label: "버튼명", onPress: undefined, icon: null, active: false }
-              : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: null, active: false },
-            { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted },
-            { label: "버튼명", onPress: undefined, icon: null, active: false },
-            { label: "버튼명", onPress: undefined, icon: null, active: false },
-            { label: "버튼명", onPress: undefined, icon: null, active: false },
-            { label: "버튼명", onPress: undefined, icon: null, active: false },
+              ? { label: "스크립트 보기", onPress: undefined, icon: "document-text", active: false, disabled: true }
+              : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: "document-text", active: false, disabled: false },
+            { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted, disabled: false },
+            /* 아래 버튼들은 UI만 제공하며 실제 동작하지 않아 비활성화 처리 */
+            { label: "녹음", onPress: undefined, icon: "radio-button-on", active: false, disabled: true },
+            { label: "스피커", onPress: undefined, icon: "volume-high", active: false, disabled: true },
+            { label: "영상통화", onPress: undefined, icon: "videocam", active: false, disabled: true },
+            { label: "키패드", onPress: undefined, icon: "keypad", active: false, disabled: true },
           ].map((btn, index) => (
             <View key={index} style={styles.gridItem}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={[styles.gridButton, btn.active && styles.gridButtonActive]}
+                disabled={btn.disabled}
+                style={[
+                  styles.gridButton,
+                  btn.active && styles.gridButtonActive,
+                  btn.disabled && styles.gridButtonDisabled,
+                ]}
                 onPress={btn.onPress}
               >
                 {btn.icon && (
                   <Ionicons
                     name={btn.icon as any}
                     size={24}
-                    color={btn.active ? "#FF3B30" : "#3B3D3E"}
+                    color={btn.disabled ? "#C8C8C8" : btn.active ? "#FF3B30" : "#3B3D3E"}
                   />
                 )}
               </TouchableOpacity>
-              <Text className="text-xs text-[#5C5E5E] mt-2">{btn.label}</Text>
+              <Text className={`text-xs mt-2 ${btn.disabled ? "text-[#C8C8C8]" : "text-[#5C5E5E]"}`}>
+                {btn.label}
+              </Text>
             </View>
           ))}
         </View>
@@ -373,6 +381,9 @@ const styles = StyleSheet.create({
   },
   gridButtonActive: {
     backgroundColor: "#FFE5E5",
+  },
+  gridButtonDisabled: {
+    backgroundColor: "#EFEFEF",
   },
   endButton: {
     width: 72,
