@@ -95,9 +95,6 @@ export default function Train() {
       handleEndCall();
     },
   });
-  useEffect(() => {
-    console.log("[Train] displayName 변경", displayName);
-  }, [displayName]);
   const roleName = displayName ?? "연결 중...";
 
   // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
@@ -121,12 +118,15 @@ export default function Train() {
     const timeout = setTimeout(
       () => router.replace({
         pathname: "/(tabs)/(train)/report",
-        params: { mode: isWarmup === "true" ? "warmUp" : "scenario" },
+        params: {
+          sessionId,
+          mode: isWarmup === "true" ? "warmUp" : "scenario",
+        },
       }),
       2500
     );
     return () => clearTimeout(timeout);
-  }, [step, isWarmup]);
+  }, [step, isWarmup, sessionId]);
 
   useFocusEffect(
     useCallback(() => {
