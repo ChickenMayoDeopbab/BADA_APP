@@ -215,8 +215,8 @@ export default function Train() {
         </Text>
       </View>
       <View className="items-center flex-1 pt-8">
-        <Text className="text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
-        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 010-0000-0000</Text>
+        <Text className="text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
+        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 {generatedPhoneNumber}</Text>
         <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
         {!isConnected && step === "training" && (
           <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>
