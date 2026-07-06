@@ -139,3 +139,74 @@ export interface CustomScenarioResponse {
   created_at: string;
   message: string;
 }
+
+export interface GetTrainingRecordsParams {
+  page: number; 
+  size: number;
+  sort?: string;
+  date?: string; 
+}
+
+export interface PageData<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
+export interface TrainingRecordItem {
+  recordId: number;
+  sessionId: string;
+  trainedAt: string;
+  scenarioName: string;
+  sessionType: SpringSessionType;
+  durationSeconds: number;
+}
+
+export interface TranscriptTurn {
+  role: string;
+  text: string;
+}
+
+export interface PositiveFeedback {
+  startSecond: number;
+  endSecond: number;
+  good_point: string;
+  summary: string;
+  audioUrl: string;
+}
+
+export interface TrainingRecordDetail {
+  recordId: number;
+  sessionId: string;
+  trainedAt: string;
+  scenarioId: number;
+  scenarioName: string;
+  sessionType: SpringSessionType;
+  aiPersonality: SpringPersonality;
+  durationSeconds: number;
+  recordingUrl: string;
+  transcript: TranscriptTurn[];
+  positiveFeedbacks: PositiveFeedback[];
+}
+
+export interface TrainingTime {
+  hour: number;
+  minute: number;
+  second: number;
+  nano: number;
+}
+
+export interface GoodSegment {
+  start: number;
+  end: number;
+  good_point: string;
+}
+
+export interface TrainingFeedbackResponse {
+  sessionType: SpringSessionType;
+  scenarioName: string;
+  trainingTime: TrainingTime;
+  goodSegments: GoodSegment[];
+  recordingUrl: string;
+}
