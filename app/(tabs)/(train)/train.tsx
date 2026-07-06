@@ -50,7 +50,7 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId, wsUrl } = useLocalSearchParams<{ sessionId: string; wsUrl: string }>();
+  const { sessionId, wsUrl, scenarioId } = useLocalSearchParams<{ sessionId: string; wsUrl: string, scenarioId: string }>();
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
@@ -103,7 +103,10 @@ export default function Train() {
 
   useEffect(() => {
     if (step !== "end") return;
-    const timeout = setTimeout(() => router.replace("/(tabs)/(train)/report"), 2500);
+    const timeout = setTimeout(() => router.replace({
+      pathname: "/(tabs)/(train)/report", 
+      params: { scenarioId: scenarioId }
+    }), 2500);
     return () => clearTimeout(timeout);
   }, [step]);
 
@@ -161,14 +164,14 @@ export default function Train() {
     return (
       <>
         <View className="flex-1 bg-[#F0F0F0]" style={safeArea}>
-          <View className="flex-1 items-center pt-10">
+          <View className="items-center flex-1 pt-10">
             <Text className="text-sm text-[#5C5E5E]">바다 시나리오 훈련</Text>
             <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
             <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화</Text>
             <Text className="text-sm text-[#5C5E5E]">010-0000-0000</Text>
             <View style={styles.avatar} />
           </View>
-          <View className="flex-row justify-around items-center pb-14">
+          <View className="flex-row items-center justify-around pb-14">
             <TouchableOpacity onPress={handleAccept} activeOpacity={0.8} style={styles.receiveCallButton}>
               <Ionicons name="call" size={28} color="#0AE365" />
             </TouchableOpacity>
@@ -189,13 +192,13 @@ export default function Train() {
 
   return (
     <View className="flex-1 bg-white" style={safeArea}>
-      <View className="flex-row items-center justify-center gap-x-1 mt-6">
+      <View className="flex-row items-center justify-center mt-6 gap-x-1">
         <Ionicons name="call" size={14} color={timerColor} />
         <Text className="text-sm font-medium" style={{ color: timerColor }}>
           {formatTime(seconds)}{isEnd ? "  훈련종료" : isAiSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
-      <View className="flex-1 items-center pt-8">
+      <View className="items-center flex-1 pt-8">
         <Text className="text-4xl font-bold text-[#3B3D3E]">배준하 피자</Text>
         <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 010-0000-0000</Text>
         <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]} />
