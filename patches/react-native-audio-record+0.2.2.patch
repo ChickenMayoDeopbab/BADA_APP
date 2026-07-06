@@ -1,0 +1,502 @@
+diff --git a/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java b/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java
+index 11c5ad8..90851a6 100644
+--- a/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java
++++ b/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java
+@@ -3,6 +3,11 @@ package com.goodatlas.audiorecord;
+ import android.media.AudioFormat;
+ import android.media.AudioRecord;
+ import android.media.MediaRecorder.AudioSource;
++import android.media.audiofx.AcousticEchoCanceler;
++import android.media.audiofx.AutomaticGainControl;
++import android.media.audiofx.NoiseSuppressor;
++import android.os.Handler;
++import android.os.Looper;
+ import android.util.Base64;
+ import android.util.Log;
+ 
+@@ -32,11 +37,15 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+     private int bufferSize;
+     private boolean isRecording;
+ 
++    // 🔥 오디오 이펙트 변수 추가
++    private AcousticEchoCanceler echoCanceler;
++    private NoiseSuppressor noiseSuppressor;
++    private AutomaticGainControl autoGainControl;
++
+     private String tmpFile;
+     private String outFile;
+     private Promise stopRecordingPromise;
+ 
+-
+     public RNAudioRecordModule(ReactApplicationContext reactContext) {
+         super(reactContext);
+         this.reactContext = reactContext;
+@@ -47,6 +56,63 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+         return "RNAudioRecord";
+     }
+ 
++    // 🔥 오디오 이펙트 활성화 메서드 추가
++    private void enableAudioEffects() {
++        releaseAudioEffects();
++
++        if (recorder == null) {
++            Log.w(TAG, "enableAudioEffects: recorder is null");
++            return;
++        }
++
++        final int audioSessionId = recorder.getAudioSessionId();
++
++        if (audioSessionId == 0) {
++            Log.w(TAG, "invalid audioSessionId");
++            return;
++        }
++
++        if (AcousticEchoCanceler.isAvailable()) {
++            echoCanceler = AcousticEchoCanceler.create(audioSessionId);
++            if (echoCanceler != null) {
++                echoCanceler.setEnabled(true);
++                Log.d(TAG, "[AEC] AcousticEchoCanceler enabled");
++            }
++        }
++
++        if (NoiseSuppressor.isAvailable()) {
++            noiseSuppressor = NoiseSuppressor.create(audioSessionId);
++            if (noiseSuppressor != null) {
++                noiseSuppressor.setEnabled(true);
++                Log.d(TAG, "[NS] NoiseSuppressor enabled");
++            }
++        }
++
++        if (AutomaticGainControl.isAvailable()) {
++            autoGainControl = AutomaticGainControl.create(audioSessionId);
++            if (autoGainControl != null) {
++                autoGainControl.setEnabled(true);
++                Log.d(TAG, "[AGC] AutomaticGainControl enabled");
++            }
++        }
++    }
++
++    // 🔥 오디오 이펙트 해제 메서드 추가
++    private void releaseAudioEffects() {
++        if (echoCanceler != null) {
++            echoCanceler.release();
++            echoCanceler = null;
++        }
++        if (noiseSuppressor != null) {
++            noiseSuppressor.release();
++            noiseSuppressor = null;
++        }
++        if (autoGainControl != null) {
++            autoGainControl.release();
++            autoGainControl = null;
++        }
++    }
++
+     @ReactMethod
+     public void init(ReadableMap options) {
+         sampleRateInHz = 44100;
+@@ -68,7 +134,7 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+             }
+         }
+ 
+-        audioSource = AudioSource.VOICE_RECOGNITION;
++        audioSource = AudioSource.VOICE_RECOGNITION; // VOICE_RECOGNITION이 에코 캔슬링에 유리함
+         if (options.hasKey("audioSource")) {
+             audioSource = options.getInt("audioSource");
+         }
+@@ -91,9 +157,25 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+ 
+     @ReactMethod
+     public void start() {
++        if (recorder == null) {
++            Log.e(TAG, "recorder is null. Did you call init()?");
++            return;
++        }
++
+         isRecording = true;
+         recorder.startRecording();
+-        Log.d(TAG, "started recording");
++        
++        // 🔥 녹음 시작 직후 오디오 이펙트 켜기
++        enableAudioEffects();
++
++        // 🔥 일부 기기 AEC 지연 적용 방어
++        new Handler(Looper.getMainLooper()).postDelayed(() -> {
++            if (isRecording) {
++                enableAudioEffects();
++            }
++        }, 150);
++
++        Log.d(TAG, "started recording with audio effects");
+ 
+         Thread recordingThread = new Thread(new Runnable() {
+             public void run() {
+@@ -105,22 +187,45 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+                     FileOutputStream os = new FileOutputStream(tmpFile);
+ 
+                     while (isRecording) {
++                        // ⚠️ (3) recorder null 안전 (스레드 내부 방어)
++                        if (recorder == null) {
++                            Log.w(TAG, "recorder is null, breaking the loop");
++                            break;
++                        }
++
+                         bytesRead = recorder.read(buffer, 0, buffer.length);
+ 
++                        // ⚠️ (1) AudioRecord.read 방어 (-1, 0 튀는 기기 무시)
++                        if (bytesRead <= 0) {
++                            continue;
++                        }
++
+                         // skip first 2 buffers to eliminate "click sound"
+-                        if (bytesRead > 0 && ++count > 2) {
+-                            base64Data = Base64.encodeToString(buffer, Base64.NO_WRAP);
++                        if (++count > 2) {
++                            // ⚠️ (2) buffer base64 오염 방지 (읽어들인 만큼만 인코딩)
++                            base64Data = Base64.encodeToString(buffer, 0, bytesRead, Base64.NO_WRAP);
+                             eventEmitter.emit("data", base64Data);
++                            
++                            // 파일에도 읽은 만큼만 쓰기 (이건 원래 잘 되어 있었음)
+                             os.write(buffer, 0, bytesRead);
+                         }
+                     }
+ 
+-                    recorder.stop();
++                    // 루프를 빠져나온 후 안전하게 자원 해제
++                    if (recorder != null) {
++                        recorder.stop();
++                    }
+                     os.close();
+                     saveAsWav();
+-                    stopRecordingPromise.resolve(outFile);
++                    
++                    if (stopRecordingPromise != null) {
++                        stopRecordingPromise.resolve(outFile);
++                    }
+                 } catch (Exception e) {
+                     e.printStackTrace();
++                    if (stopRecordingPromise != null) {
++                        stopRecordingPromise.reject("RECORDING_ERROR", e);
++                    }
+                 }
+             }
+         });
+@@ -132,13 +237,23 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+     public void stop(Promise promise) {
+         isRecording = false;
+         stopRecordingPromise = promise;
++        
++        // 🔥 녹음 종료 시 오디오 이펙트 메모리 해제
++        releaseAudioEffects();
++    }
++
++    // 🔥 JS에서 호출하는 reassert (expo-av 등과 혼용 시 필요할 수 있음)
++    @ReactMethod
++    public void reassertAec() {
++        Log.d(TAG, "[AEC] reassert called");
++        enableAudioEffects();
+     }
+ 
+     private void saveAsWav() {
+         try {
+             FileInputStream in = new FileInputStream(tmpFile);
+             FileOutputStream out = new FileOutputStream(outFile);
+-            long totalAudioLen = in.getChannel().size();;
++            long totalAudioLen = in.getChannel().size();
+             long totalDataLen = totalAudioLen + 36;
+ 
+             addWavHeader(out, totalAudioLen, totalDataLen);
+@@ -170,47 +285,28 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+ 
+         byte[] header = new byte[44];
+ 
+-        header[0] = 'R';                                    // RIFF chunk
+-        header[1] = 'I';
+-        header[2] = 'F';
+-        header[3] = 'F';
+-        header[4] = (byte) (totalDataLen & 0xff);           // how big is the rest of this file
++        header[0] = 'R'; header[1] = 'I'; header[2] = 'F'; header[3] = 'F';
++        header[4] = (byte) (totalDataLen & 0xff);
+         header[5] = (byte) ((totalDataLen >> 8) & 0xff);
+         header[6] = (byte) ((totalDataLen >> 16) & 0xff);
+         header[7] = (byte) ((totalDataLen >> 24) & 0xff);
+-        header[8] = 'W';                                    // WAVE chunk
+-        header[9] = 'A';
+-        header[10] = 'V';
+-        header[11] = 'E';
+-        header[12] = 'f';                                   // 'fmt ' chunk
+-        header[13] = 'm';
+-        header[14] = 't';
+-        header[15] = ' ';
+-        header[16] = 16;                                    // 4 bytes: size of 'fmt ' chunk
+-        header[17] = 0;
+-        header[18] = 0;
+-        header[19] = 0;
+-        header[20] = 1;                                     // format = 1 for PCM
+-        header[21] = 0;
+-        header[22] = (byte) channels;                       // mono or stereo
+-        header[23] = 0;
+-        header[24] = (byte) (sampleRate & 0xff);            // samples per second
++        header[8] = 'W'; header[9] = 'A'; header[10] = 'V'; header[11] = 'E';
++        header[12] = 'f'; header[13] = 'm'; header[14] = 't'; header[15] = ' ';
++        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0;
++        header[20] = 1; header[21] = 0;
++        header[22] = (byte) channels; header[23] = 0;
++        header[24] = (byte) (sampleRate & 0xff);
+         header[25] = (byte) ((sampleRate >> 8) & 0xff);
+         header[26] = (byte) ((sampleRate >> 16) & 0xff);
+         header[27] = (byte) ((sampleRate >> 24) & 0xff);
+-        header[28] = (byte) (byteRate & 0xff);              // bytes per second
++        header[28] = (byte) (byteRate & 0xff);
+         header[29] = (byte) ((byteRate >> 8) & 0xff);
+         header[30] = (byte) ((byteRate >> 16) & 0xff);
+         header[31] = (byte) ((byteRate >> 24) & 0xff);
+-        header[32] = (byte) blockAlign;                     // bytes in one sample, for all channels
+-        header[33] = 0;
+-        header[34] = (byte) bitsPerSample;                  // bits in a sample
+-        header[35] = 0;
+-        header[36] = 'd';                                   // beginning of the data chunk
+-        header[37] = 'a';
+-        header[38] = 't';
+-        header[39] = 'a';
+-        header[40] = (byte) (totalAudioLen & 0xff);         // how big is this data chunk
++        header[32] = (byte) blockAlign; header[33] = 0;
++        header[34] = (byte) bitsPerSample; header[35] = 0;
++        header[36] = 'd'; header[37] = 'a'; header[38] = 't'; header[39] = 'a';
++        header[40] = (byte) (totalAudioLen & 0xff);
+         header[41] = (byte) ((totalAudioLen >> 8) & 0xff);
+         header[42] = (byte) ((totalAudioLen >> 16) & 0xff);
+         header[43] = (byte) ((totalAudioLen >> 24) & 0xff);
+@@ -220,6 +316,8 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+ 
+     private void deleteTempFile() {
+         File file = new File(tmpFile);
+-        file.delete();
++        if (file.exists()) {
++            file.delete();
++        }
+     }
+ }
+\ No newline at end of file
+diff --git a/node_modules/react-native-audio-record/ios/RNAudioRecord.m b/node_modules/react-native-audio-record/ios/RNAudioRecord.m
+index 7304653..8da4e1b 100644
+--- a/node_modules/react-native-audio-record/ios/RNAudioRecord.m
++++ b/node_modules/react-native-audio-record/ios/RNAudioRecord.m
+@@ -1,106 +1,139 @@
+ #import "RNAudioRecord.h"
+ 
++#import <AVFoundation/AVFoundation.h>
++
++#import <React/RCTLog.h>
++
++
++
+ @implementation RNAudioRecord
+ 
++
++
+ RCT_EXPORT_MODULE();
+ 
+-RCT_EXPORT_METHOD(init:(NSDictionary *) options) {
+-    RCTLogInfo(@"init");
+-    _recordState.mDataFormat.mSampleRate        = options[@"sampleRate"] == nil ? 44100 : [options[@"sampleRate"] doubleValue];
+-    _recordState.mDataFormat.mBitsPerChannel    = options[@"bitsPerSample"] == nil ? 16 : [options[@"bitsPerSample"] unsignedIntValue];
+-    _recordState.mDataFormat.mChannelsPerFrame  = options[@"channels"] == nil ? 1 : [options[@"channels"] unsignedIntValue];
+-    _recordState.mDataFormat.mBytesPerPacket    = (_recordState.mDataFormat.mBitsPerChannel / 8) * _recordState.mDataFormat.mChannelsPerFrame;
+-    _recordState.mDataFormat.mBytesPerFrame     = _recordState.mDataFormat.mBytesPerPacket;
+-    _recordState.mDataFormat.mFramesPerPacket   = 1;
+-    _recordState.mDataFormat.mReserved          = 0;
+-    _recordState.mDataFormat.mFormatID          = kAudioFormatLinearPCM;
+-    _recordState.mDataFormat.mFormatFlags       = _recordState.mDataFormat.mBitsPerChannel == 8 ? kLinearPCMFormatFlagIsPacked : (kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked);
+-
+-    
+-    _recordState.bufferByteSize = 2048;
+-    _recordState.mSelf = self;
+-    
+-    NSString *fileName = options[@"wavFile"] == nil ? @"audio.wav" : options[@"wavFile"];
+-    NSString *docDir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+-    _filePath = [NSString stringWithFormat:@"%@/%@", docDir, fileName];
++
++
++#pragma mark - 🔥 CORE AEC APPLY
++
++
++
++- (void)applyAecVoiceChatMode {
++
++    AVAudioSession *session = [AVAudioSession sharedInstance];
++
++
++
++    if (!session) return;
++
++
++
++    NSError *error = nil;
++
++
++
++    BOOL ok1 = [session setCategory:AVAudioSessionCategoryPlayAndRecord
++
++                        withOptions:(AVAudioSessionCategoryOptionDefaultToSpeaker |
++
++                                     AVAudioSessionCategoryOptionAllowBluetooth)
++
++                              error:&error];
++
++
++
++    if (!ok1) {
++
++        RCTLogInfo(@"setCategory error: %@", error);
++
++    }
++
++
++
++    NSError *modeError = nil;
++
++    BOOL ok2 = [session setMode:AVAudioSessionModeVoiceChat error:&modeError];
++
++
++
++    if (!ok2) {
++
++        RCTLogInfo(@"setMode error: %@", modeError);
++
++    }
++
++
++
++    NSError *activeError = nil;
++
++    BOOL ok3 = [session setActive:YES error:&activeError];
++
++
++
++    if (!ok3) {
++
++        RCTLogInfo(@"setActive error: %@", activeError);
++
++    }
++
++
++
++    RCTLogInfo(@"[AEC] VoiceChat mode applied");
++
+ }
+ 
++
++
++#pragma mark - START
++
++
++
+ RCT_EXPORT_METHOD(start) {
++
+     RCTLogInfo(@"start");
+ 
+-    // most audio players set session category to "Playback", record won't work in this mode
+-    // therefore set session category to "Record" before recording
+-    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryRecord error:nil];
++
++
++    [self applyAecVoiceChatMode];
++
++
+ 
+     _recordState.mIsRunning = true;
+-    _recordState.mCurrentPacket = 0;
+ 
+-    CFURLRef url = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)_filePath, NULL);
+-    AudioFileCreateWithURL(url, kAudioFileWAVEType, &_recordState.mDataFormat, kAudioFileFlags_EraseFile, &_recordState.mAudioFile);
+-    CFRelease(url);
++    _recordState.mCurrentPacket = 0;
+ 
+-    AudioQueueNewInput(&_recordState.mDataFormat, HandleInputBuffer, &_recordState, NULL, NULL, 0, &_recordState.mQueue);
+-    for (int i = 0; i < kNumberBuffers; i++) {
+-        AudioQueueAllocateBuffer(_recordState.mQueue, _recordState.bufferByteSize, &_recordState.mBuffers[i]);
+-        AudioQueueEnqueueBuffer(_recordState.mQueue, _recordState.mBuffers[i], 0, NULL);
+-    }
+-    AudioQueueStart(_recordState.mQueue, NULL);
+ }
+ 
+-RCT_EXPORT_METHOD(stop:(RCTPromiseResolveBlock)resolve
+-                  rejecter:(__unused RCTPromiseRejectBlock)reject) {
++
++
++#pragma mark - STOP
++
++
++
++RCT_EXPORT_METHOD(stop) {
++
+     RCTLogInfo(@"stop");
+-    if (_recordState.mIsRunning) {
+-        _recordState.mIsRunning = false;
+-        AudioQueueStop(_recordState.mQueue, true);
+-        AudioQueueDispose(_recordState.mQueue, true);
+-        AudioFileClose(_recordState.mAudioFile);
+-    }
+-    resolve(_filePath);
+-    unsigned long long fileSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:_filePath error:nil] fileSize];
+-    RCTLogInfo(@"file path %@", _filePath);
+-    RCTLogInfo(@"file size %llu", fileSize);
++
++
++
++    _recordState.mIsRunning = false;
++
+ }
+ 
+-void HandleInputBuffer(void *inUserData,
+-                       AudioQueueRef inAQ,
+-                       AudioQueueBufferRef inBuffer,
+-                       const AudioTimeStamp *inStartTime,
+-                       UInt32 inNumPackets,
+-                       const AudioStreamPacketDescription *inPacketDesc) {
+-    AQRecordState* pRecordState = (AQRecordState *)inUserData;
+ 
+-    if (!pRecordState->mIsRunning) {
+-        return;
+-    }
+ 
+-    if (AudioFileWritePackets(pRecordState->mAudioFile,
+-                              false,
+-                              inBuffer->mAudioDataByteSize,
+-                              inPacketDesc,
+-                              pRecordState->mCurrentPacket,
+-                              &inNumPackets,
+-                              inBuffer->mAudioData
+-                              ) == noErr) {
+-        pRecordState->mCurrentPacket += inNumPackets;
+-    }
++#pragma mark - 🔥 JS REASSERT HOOK (expo-av 방어)
+ 
+-    short *samples = (short *) inBuffer->mAudioData;
+-    long nsamples = inBuffer->mAudioDataByteSize;
+-    NSData *data = [NSData dataWithBytes:samples length:nsamples];
+-    NSString *str = [data base64EncodedStringWithOptions:0];
+-    [pRecordState->mSelf sendEventWithName:@"data" body:str];
+ 
+-    AudioQueueEnqueueBuffer(pRecordState->mQueue, inBuffer, 0, NULL);
+-}
+ 
+-- (NSArray<NSString *> *)supportedEvents {
+-    return @[@"data"];
+-}
++RCT_EXPORT_METHOD(reassertAecMode) {
++
++    RCTLogInfo(@"[AEC] reassert called");
++
++    [self applyAecVoiceChatMode];
+ 
+-- (void)dealloc {
+-    RCTLogInfo(@"dealloc");
+-    AudioQueueDispose(_recordState.mQueue, true);
+ }
+ 
++
++
+ @end
+\ No newline at end of file
