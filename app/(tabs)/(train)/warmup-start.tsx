@@ -109,7 +109,12 @@ export default function WarmupStart() {
       });
       router.push({
         pathname: "/(tabs)/(train)/train",
-        params: { sessionId: session.sessionId, wsUrl: session.wsUrl, isWarmup: "true" },
+        params: {
+          sessionId: session.sessionId,
+          wsUrl: session.wsUrl,
+          scenarioId: id,
+          isWarmup: "true",
+        },
       });
     } catch {
       setIsCreatingSession(false);

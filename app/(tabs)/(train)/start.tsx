@@ -162,7 +162,11 @@ export default function Start() {
         const session = await createSession(sessionConfig);
         router.push({
           pathname: "/(tabs)/(train)/train",
-          params: { sessionId: session.sessionId, wsUrl: session.wsUrl },
+          params: {
+            sessionId: session.sessionId,
+            wsUrl: session.wsUrl,
+            scenarioId: id,
+          },
         });
       } catch {
         // 세션 생성 실패 시 버튼 재활성화

@@ -28,12 +28,16 @@ export const getTrainingRecordDetail = async (
 
 export const getTrainingRecordFeedback = async (
   recordId: number,
-): Promise<ApiResponse<TrainingFeedbackResponse>> => {
-  const response = await apiClient.get<ApiResponse<TrainingFeedbackResponse>>(
-    "/api/v1/training-records/feedback",
-    { params: { recordId } },
-  );
-  return response.data;
+  scenarioId?: string,
+): Promise<TrainingFeedbackResponse> => {
+  const response = await apiClient.get<
+    ApiResponse<TrainingFeedbackResponse> | TrainingFeedbackResponse
+  >("/api/v1/training-records/feedback", {
+    params: { recordId, scenarioId },
+  });
+  const body = response.data;
+
+  return "data" in body ? body.data : body;
 };
 
 
@@ -58,10 +62,28 @@ export const getTrainingFeedbackBySessionId = async (
       }
 
       if (recordId != null) {
-        const feedbackResponse = await getTrainingRecordFeedback(recordId);
-        return feedbackResponse.data;
+        const detailResponse = await getTrainingRecordDetail(recordId);
+        const detail = detailResponse.data;
+        const totalSeconds = Math.max(0, Math.round(detail.durationSeconds));
+
+        return {
+          sessionType: detail.sessionType,
+          scenarioName: detail.scenarioName,
+          trainingTime: {
+            hour: Math.floor(totalSeconds / 3600),
+            minute: Math.floor((totalSeconds % 3600) / 60),
+            second: totalSeconds % 60,
+            nano: 0,
+          },
+          goodSegments: detail.positiveFeedbacks.map((part) => ({
+            start: part.startSecond,
+            end: part.endSecond,
+            good_point: part.good_point,
+          })),
+          recordingUrl: detail.recordingUrl,
+        };
       }
-    } catch (error) {}
+    } catch {}
 
     if (attempt < maxAttempts - 1) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
