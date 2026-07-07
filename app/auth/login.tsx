@@ -18,6 +18,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  isDiagnosisRequired,
+  setAuthenticatedUsername,
+} from "@/utils/diagnosisFlow";
 
 type LoginFormValues = {
   username: string;
@@ -77,7 +81,10 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("accessToken", response.data.accessToken);
       await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
       await AsyncStorage.setItem("autoLogin", isChecked ? "true" : "false");
-      router.push("/home");
+      await setAuthenticatedUsername(username);
+
+      const needsDiagnosis = await isDiagnosisRequired(username);
+      router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
     } catch {}
   };
 

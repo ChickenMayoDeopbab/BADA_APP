@@ -4,6 +4,7 @@ import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
 import { RegisterFormValues } from "@/types/auth";
+import { markDiagnosisRequired } from "@/utils/diagnosisFlow";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -49,7 +50,8 @@ export default function SignupScreen() {
     const { email, password, name, username } = methods.getValues();
     try {
       await postSignup({ username, password, email, name });
-      router.push("/auth/login");
+      await markDiagnosisRequired(username);
+      router.replace("/auth/login");
     } catch {}
   };
 
