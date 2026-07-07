@@ -6,11 +6,12 @@ import { useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Loading from "@/components/common/Loading";
 import { calculateLevel, getQuestion } from "@/api";
-import { Level, Question as QuestionType } from "@/api/types";
+import { Question as QuestionType } from "@/api/types";
 import { jwtDecode } from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
 
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
@@ -75,7 +76,6 @@ export default function Question() {
   const [answers, setAnswers] = useState<number[]>(Array(10).fill(3));
   const [status, setStatus] = useState<Status>(null);
   const [questionsList, setQusetionList] = useState<QuestionType[]>([]);
-  const [result, setResult] = useState<Level>();
 
   useEffect(() => {
     const getQuestionList = async () => {
@@ -98,8 +98,7 @@ export default function Question() {
 
   useEffect(() => {
     if (status === 'done') {
-      const timer = setTimeout(async () => {
-        await AsyncStorage.setItem('diagnosisResult', JSON.stringify(result));
+      const timer = setTimeout(() => {
         router.push('/diagnosis/result');
       }, 3000);
       return () => clearTimeout(timer);
@@ -123,7 +122,8 @@ export default function Question() {
         type: "SIGNUP",
         answers: answers,
       });
-      setResult(data.data);
+      await AsyncStorage.setItem('diagnosisResult', JSON.stringify(data.data));
+      await completeRequiredDiagnosis();
       setStatus('done');
     } catch (e) {
       console.log('레벨 계산 실패');
