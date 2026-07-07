@@ -1,5 +1,6 @@
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { useAudio } from "@/hooks/useAudio";
+import CustomButton from "@/components/common/CustomButton";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -48,7 +49,12 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId, wsUrl, isWarmup } = useLocalSearchParams<{ sessionId: string; wsUrl: string; isWarmup?: string }>();
+  const { sessionId, wsUrl, isWarmup, scenarioId } = useLocalSearchParams<{
+    sessionId: string;
+    wsUrl: string;
+    isWarmup?: string;
+    scenarioId?: string;
+  }>();
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
@@ -56,6 +62,7 @@ export default function Train() {
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
+  const [isReportReady, setIsReportReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -115,18 +122,10 @@ export default function Train() {
 
   useEffect(() => {
     if (step !== "end") return;
-    const timeout = setTimeout(
-      () => router.replace({
-        pathname: "/(tabs)/(train)/report",
-        params: {
-          sessionId,
-          mode: isWarmup === "true" ? "warmUp" : "scenario",
-        },
-      }),
-      2500
-    );
+    setIsReportReady(false);
+    const timeout = setTimeout(() => setIsReportReady(true), 3000);
     return () => clearTimeout(timeout);
-  }, [step, isWarmup, sessionId]);
+  }, [step]);
 
   useFocusEffect(
     useCallback(() => {
@@ -136,6 +135,7 @@ export default function Train() {
       setIsScriptVisible(false);
       setTranscript([]);
       setSeconds(0);
+      setIsReportReady(false);
       setIsMuted(false);
       permissionGrantedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
@@ -181,6 +181,18 @@ export default function Train() {
     resetStream();
     if (timerRef.current) clearInterval(timerRef.current);
     setStep("end");
+  };
+
+  const handleOpenReport = () => {
+    if (!isReportReady) return;
+    router.replace({
+      pathname: "/(tabs)/(train)/report",
+      params: {
+        sessionId,
+        scenarioId,
+        mode: isWarmup === "true" ? "warmUp" : "scenario",
+      },
+    });
   };
 
   const safeArea = { paddingTop: insets.top, paddingBottom: insets.bottom };
@@ -331,13 +343,30 @@ export default function Train() {
         </View>
       )}
       <View className="items-center pb-12 mt-6">
-        <TouchableOpacity
-          onPress={isEnd ? undefined : handleEndCall}
-          activeOpacity={isEnd ? 1 : 0.8}
-          style={isEnd ? styles.endButtonDimmed : styles.endButton}
-        >
-          <Ionicons name="call" size={32} color="white" style={styles.rotatedIcon} />
-        </TouchableOpacity>
+        {isEnd ? (
+          <View className="w-full px-8">
+            <CustomButton
+              label={isReportReady ? "다음" : "피드백 생성 중..."}
+              backgroundColor="#0AE365"
+              color="white"
+              disabled={!isReportReady}
+              onPress={handleOpenReport}
+            />
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={handleEndCall}
+            activeOpacity={0.8}
+            style={styles.endButton}
+          >
+            <Ionicons
+              name="call"
+              size={32}
+              color="white"
+              style={styles.rotatedIcon}
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -405,14 +434,6 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     backgroundColor: "#FF3B30",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  endButtonDimmed: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#FFBCBC",
     justifyContent: "center",
     alignItems: "center",
   },
