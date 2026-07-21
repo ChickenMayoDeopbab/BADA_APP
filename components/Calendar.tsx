@@ -13,36 +13,71 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 
 export default function AttendanceCalendar() {
-  const [markedDates, setMarkedDates] = useState<string[]>([]);
+  const [attendance, setAttendance] = useState<{
+    monthKey: string;
+    markedDates: string[];
+  } | null>(null);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
 
-  const getToday = () => new Date().toISOString().split('T')[0];
+  const getMonthKey = (year: number, month: number) => `${year}-${month}`;
 
-  const isMarkedToday = markedDates.includes(getToday());
+  const getToday = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
 
-  const getAttendance = async () => {
-    try {
-      const data = await getAttendantDays(currentYear, currentMonth);
-      setMarkedDates((data.data as unknown as { date: string }[]).map(d => d.date));
-    } catch (e) {
-      console.log("출석일 가져오기 실패", e);
-    }
+    return `${year}-${month}-${day}`;
   };
 
+  const currentMonthKey = getMonthKey(currentYear, currentMonth);
+  const markedDates = attendance?.monthKey === currentMonthKey
+    ? attendance.markedDates
+    : [];
+  const isAttendanceLoaded = attendance?.monthKey === currentMonthKey;
+  const isMarkedToday = markedDates.includes(getToday());
+
   useEffect(() => {
+    let isActive = true;
+
+    const getAttendance = async () => {
+      try {
+        const data = await getAttendantDays(currentYear, currentMonth);
+
+        if (isActive) {
+          setAttendance({
+            monthKey: currentMonthKey,
+            markedDates: (data.data as unknown as { date: string }[]).map(d => d.date),
+          });
+        }
+      } catch (e) {
+        console.log("출석일 가져오기 실패", e);
+      }
+    };
+
     getAttendance();
-  }, [currentYear, currentMonth]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentYear, currentMonth, currentMonthKey]);
 
   const handleAttendance = async (): Promise<void> => {
     const today = getToday();
-    setMarkedDates(prev => [...prev, today]);
+    setAttendance(prev => prev && prev.monthKey === currentMonthKey
+      ? { ...prev, markedDates: [...prev.markedDates, today] }
+      : prev
+    );
 
     try {
       await checkAttendance();
     } catch {
       console.log("출석 체크 실패");
-      setMarkedDates(prev => prev.filter(date => date !== today));
+      setAttendance(prev => prev && prev.monthKey === currentMonthKey
+        ? { ...prev, markedDates: prev.markedDates.filter(date => date !== today) }
+        : prev
+      );
     }
   };
 
@@ -109,7 +144,7 @@ export default function AttendanceCalendar() {
           }}
         />
       </View>
-      {!isMarkedToday && new Date().getFullYear() === currentYear && new Date().getMonth() + 1 === currentMonth &&
+      {isAttendanceLoaded && !isMarkedToday && new Date().getFullYear() === currentYear && new Date().getMonth() + 1 === currentMonth &&
         <TouchableOpacity
           className="flex-row items-center justify-center w-full p-4 mt-2 rounded-lg"
           style={{ backgroundColor: '#0AE365' }}
