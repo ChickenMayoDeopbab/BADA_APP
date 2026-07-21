@@ -6,8 +6,13 @@ import { router } from "expo-router";
 import CustomButton from "@/components/common/CustomButton";
 import { Level } from "@/api/types";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 export default function Result() {
+  useAndroidBackHandler(() => {
+    router.replace("/auth/login");
+    return true;
+  });
   const [isShowCard, setIsShowCard] = useState<boolean>(false);
   const [result, setResult] = useState<Level>();
 

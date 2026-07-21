@@ -22,6 +22,7 @@ import {
   isDiagnosisRequired,
   setAuthenticatedUsername,
 } from "@/utils/diagnosisFlow";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type LoginFormValues = {
   username: string;
@@ -29,6 +30,10 @@ type LoginFormValues = {
 };
 
 export default function LoginScreen() {
+  useAndroidBackHandler(() => {
+    router.replace("/auth");
+    return true;
+  });
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const topPadding = Math.min(Math.max(height * 0.08, 56), 80);
