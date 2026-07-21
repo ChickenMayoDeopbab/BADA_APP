@@ -19,8 +19,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 export default function SignupScreen() {
+  useAndroidBackHandler(() => {
+    router.replace("/auth/login");
+    return true;
+  });
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const topPadding = Math.min(Math.max(height * 0.08, 56), 80);

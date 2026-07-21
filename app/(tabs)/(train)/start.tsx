@@ -7,6 +7,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { PanResponder, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type FlowStep = "difficulty" | "time";
 
@@ -115,7 +116,15 @@ function TimeInput({ value, onDecrement, onIncrement }: TimeInputProps) {
 }
 
 export default function Start() {
-  const { id, isCustom } = useLocalSearchParams<{ id?: string; isCustom?: string }>();
+  const { id, isCustom, title, content, scenarioImage, category } =
+    useLocalSearchParams<{
+      id?: string;
+      isCustom?: string;
+      title?: string;
+      content?: string;
+      scenarioImage?: string;
+      category?: string;
+    }>();
   const { schedule } = usePendingCall();
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
@@ -141,9 +150,17 @@ export default function Start() {
     if (flowStep === "time") {
       setFlowStep("difficulty");
     } else {
-      router.back();
+      router.replace({
+        pathname: "/(tabs)/(train)/detail/[id]",
+        params: { id: id ?? "", title, content, isCustom, scenarioImage, category },
+      });
     }
   };
+
+  useAndroidBackHandler(() => {
+    handleBack();
+    return true;
+  });
 
   const handleComplete = async () => {
     if (!id) return;
@@ -166,6 +183,11 @@ export default function Start() {
             sessionId: session.sessionId,
             wsUrl: session.wsUrl,
             scenarioId: id,
+            title,
+            content,
+            isCustom,
+            scenarioImage,
+            category,
           },
         });
       } catch {

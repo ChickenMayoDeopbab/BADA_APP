@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type DetailParams = {
   id: string;
@@ -43,6 +44,10 @@ const formatTimeRange = (startSecond: number, endSecond: number): string => {
 };
 
 export default function RecordDetailScreen() {
+  useAndroidBackHandler(() => {
+    router.replace("/record");
+    return true;
+  });
   const { id } = useLocalSearchParams<DetailParams>();
   const recordId = Number(id);
 

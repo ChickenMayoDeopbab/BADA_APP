@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type CreateStep = "write" | "loading" | "done" | "fail";
 
@@ -38,6 +39,11 @@ export default function Create() {
     callee: "",
   });
   const createdScenarioIdRef = useRef<number | null>(null);
+
+  useAndroidBackHandler(() => {
+    router.replace("/(tabs)/(train)/list");
+    return true;
+  });
 
   useFocusEffect(
     useCallback(() => {
