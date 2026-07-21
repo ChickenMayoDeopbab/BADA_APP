@@ -16,27 +16,51 @@ interface StepSliderProps {
   onChange: (index: number) => void;
 }
 
+const SLIDER_HEIGHT = 50;
+const KNOB_SIZE = 30;
+const DOT_SIZE = 10;
+
+/** 인덱스 → knob 중심 x 좌표 (좌우 KNOB_SIZE/2 만큼 inset) */
+function getStepCenterX(index: number, lastIndex: number, trackWidth: number): number {
+  if (trackWidth === 0) return 0;
+  if (lastIndex <= 0) return trackWidth / 2;
+  return KNOB_SIZE / 2 + (index / lastIndex) * (trackWidth - KNOB_SIZE);
+}
+
 /** 단계별 슬라이더 (탭 및 드래그로 선택) */
 function StepSlider({ steps, value, onChange }: StepSliderProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const trackWidthRef = useRef(0);
   const valueRef = useRef(value);
+  const stepsRef = useRef(steps);
+  const onChangeRef = useRef(onChange);
   valueRef.current = value;
+  stepsRef.current = steps;
+  onChangeRef.current = onChange;
 
-  /** x 좌표 → 가장 가까운 단계 인덱스 계산 */
+  /** x 좌표 → 가장 가까운 단계 인덱스 계산 (getStepCenterX의 역변환) */
   const getStepIndex = (x: number): number => {
-    const w = trackWidthRef.current;
-    if (w === 0) return valueRef.current;
-    const index = Math.round((x / w) * (steps.length - 1));
-    return Math.max(0, Math.min(steps.length - 1, index));
+    const usableWidth = trackWidthRef.current - KNOB_SIZE;
+    const lastIndex = stepsRef.current.length - 1;
+    if (usableWidth <= 0 || lastIndex <= 0) return valueRef.current;
+    const index = Math.round(((x - KNOB_SIZE / 2) / usableWidth) * lastIndex);
+    return Math.max(0, Math.min(lastIndex, index));
+  };
+
+  /** 단계가 실제로 바뀔 때만 상위에 알림 */
+  const commitStep = (x: number) => {
+    const next = getStepIndex(x);
+    if (next !== valueRef.current) onChangeRef.current(next);
   };
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => onChange(getStepIndex(evt.nativeEvent.locationX)),
-      onPanResponderMove: (evt) => onChange(getStepIndex(evt.nativeEvent.locationX)),
+      // 드래그 중 상위 뷰가 제스처를 가져가지 못하도록 유지
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: (evt) => commitStep(evt.nativeEvent.locationX),
+      onPanResponderMove: (evt) => commitStep(evt.nativeEvent.locationX),
     })
   ).current;
 
@@ -53,16 +77,14 @@ function StepSlider({ steps, value, onChange }: StepSliderProps) {
         <View style={styles.trackLine} />
         {steps.map((_, index) => {
           const isSelected = index === value;
-          const size = isSelected ? 30 : 10;
-          const centerX = trackWidth > 0
-            ? 15 + (index / (steps.length - 1)) * (trackWidth - 30)
-            : 0;
+          const size = isSelected ? KNOB_SIZE : DOT_SIZE;
+          const centerX = getStepCenterX(index, steps.length - 1, trackWidth);
           return (
             <View
               key={index}
               style={[
                 isSelected ? styles.knob : styles.dot,
-                { left: centerX - size / 2, top: (50 - size) / 2 },
+                { left: centerX - size / 2, top: (SLIDER_HEIGHT - size) / 2 },
               ]}
             />
           );
@@ -268,32 +290,36 @@ export default function Start() {
 
 const styles = StyleSheet.create({
   sliderArea: {
-    height: 50,
+    height: SLIDER_HEIGHT,
     justifyContent: "center",
   },
+  // 자식 뷰가 터치 타겟이 되면 locationX가 자식 기준으로 계산돼 포인터가 튀므로 터치를 받지 않게 한다
   trackLine: {
     height: 18,
     backgroundColor: "#EBEBEC",
     borderRadius: 9,
+    pointerEvents: "none",
   },
   knob: {
     position: "absolute",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: KNOB_SIZE,
+    height: KNOB_SIZE,
+    borderRadius: KNOB_SIZE / 2,
     backgroundColor: "white",
     shadowColor: "#000",
     shadowOpacity: 0.18,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
+    pointerEvents: "none",
   },
   dot: {
     position: "absolute",
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
     backgroundColor: "#C8C8C8",
+    pointerEvents: "none",
   },
   labelRow: {
     flexDirection: "row",
