@@ -119,7 +119,7 @@ export default function Start() {
   const { schedule } = usePendingCall();
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
-  const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
+  const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
   const [attitude, setAttitude] = useState(0); // 친절(0) 보통(1) 까다로움(2) 진상(3)
   const [timeFrom, setTimeFrom] = useState(0);
   const [timeTo, setTimeTo] = useState(0);
