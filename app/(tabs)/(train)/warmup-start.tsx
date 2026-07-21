@@ -82,7 +82,7 @@ function StepSlider({ steps, value, onChange }: StepSliderProps) {
 export default function WarmupStart() {
   const { id } = useLocalSearchParams<{ id?: string }>();
 
-  const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
+  const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
   const [attitude, setAttitude] = useState(0); // 친절(0) 보통(1) 까다로움(2) 진상(3)
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
