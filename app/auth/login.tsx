@@ -1,4 +1,5 @@
 import { postLogin } from "@/api/authApi";
+import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
@@ -32,12 +33,22 @@ export default function LoginScreen() {
   const headerHeight = 74;
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
 
-  const { control, trigger, getValues, formState: { errors } } = useForm<LoginFormValues>({
+  const {
+    control,
+    trigger,
+    getValues,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
     defaultValues: { username: "", password: "" },
+    mode: "onTouched",
+    reValidateMode: "onChange",
   });
 
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
   const inputTranslateY = useRef(new Animated.Value(0)).current;
@@ -71,14 +82,41 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     const isValid = await trigger(["username", "password"]);
     if (!isValid) return;
+
+    setIsLoggingIn(true);
     try {
       const { username, password } = getValues();
-      const response = await postLogin({ username, password });
+      const response = await postLogin({
+        username: username.trim(),
+        password,
+      });
       await AsyncStorage.setItem("accessToken", response.data.accessToken);
       await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
       await AsyncStorage.setItem("autoLogin", isChecked ? "true" : "false");
-      router.push("/home");
-    } catch {}
+      router.replace("/home");
+    } catch (error) {
+      const errorField =
+        getApiErrorStatus(error) === 404 ? "username" : "password";
+
+      setError(errorField, {
+        type: "server",
+        message: getApiErrorMessage(
+          error,
+          "아이디 또는 비밀번호가 올바르지 않습니다.",
+        ),
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const clearLoginServerError = () => {
+    if (errors.username?.type === "server") {
+      clearErrors("username");
+    }
+    if (errors.password?.type === "server") {
+      clearErrors("password");
+    }
   };
 
   return (
@@ -108,13 +146,22 @@ export default function LoginScreen() {
               <Controller
                 control={control}
                 name="username"
-                rules={{ required: "아이디를 입력해주세요." }}
+                rules={{
+                  required: "아이디를 입력해주세요.",
+                  validate: (value) =>
+                    value.trim().length > 0 || "아이디를 입력해주세요.",
+                }}
                 render={({ field: { value, onChange }, fieldState: { error } }) => (
                   <CustomInput
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      clearLoginServerError();
+                    }}
                     label="아이디"
-                    textContentType="oneTimeCode"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="username"
                     returnKeyType="next"
                     onSubmitEditing={() => passwordRef.current?.focus()}
                     error={error?.message}
@@ -129,10 +176,13 @@ export default function LoginScreen() {
                   <CustomInput
                     ref={passwordRef}
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      clearLoginServerError();
+                    }}
                     label="비밀번호"
                     secureTextEntry={!isPasswordVisible}
-                    textContentType="oneTimeCode"
+                    textContentType="password"
                     returnKeyType="done"
                     onSubmitEditing={handleLogin}
                     error={error?.message}
@@ -169,9 +219,10 @@ export default function LoginScreen() {
 
             <View className="gap-y-3">
               <CustomButton
-                label="로그인"
+                label={isLoggingIn ? "로그인 중" : "로그인"}
                 color="#F6F6F6"
                 backgroundColor="#0AE365"
+                disabled={isLoggingIn}
                 onPress={handleLogin}
               />
               <CustomButton
@@ -183,10 +234,14 @@ export default function LoginScreen() {
             </View>
 
             <View className="flex-row mt-3 gap-x-4">
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/auth/find-id")}
+              >
                 <Text className="text-sm text-[#5C5E5E]">아이디 찾기</Text>
               </TouchableOpacity>
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/auth/reset-password")}
+              >
                 <Text className="text-sm text-[#5C5E5E]">비밀번호 찾기</Text>
               </TouchableOpacity>
             </View>

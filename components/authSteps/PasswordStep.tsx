@@ -27,6 +27,7 @@ export default function PasswordStep({
   const {
     control,
     getValues,
+    clearErrors,
     trigger,
     formState: { errors },
   } = useFormContext<RegisterFormValues>();
@@ -63,7 +64,10 @@ export default function PasswordStep({
           render={({ field: { value, onChange } }) => (
             <CustomInput
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                onChange(text);
+                clearErrors("password");
+              }}
               label="비밀번호"
               secureTextEntry={!isPasswordVisible}
               returnKeyType="next"
@@ -96,12 +100,15 @@ export default function PasswordStep({
             <CustomInput
               ref={confirmRef}
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                onChange(text);
+                clearErrors("confirmPassword");
+              }}
               placeholder="비밀번호를 다시 입력하세요."
               label="비밀번호 확인"
               secureTextEntry={!isConfirmPasswordVisible}
               returnKeyType="done"
-              onSubmitEditing={onNext}
+              onSubmitEditing={handleNext}
               error={errors.confirmPassword?.message}
               rightIcon={
                 <TouchableOpacity
