@@ -1,6 +1,9 @@
+import { postCheckUsername } from "@/api/authApi";
+import { getApiErrorMessage } from "@/api/error";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import { RegisterFormValues } from "@/types/auth";
+import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
   Animated,
@@ -14,25 +17,78 @@ type UsernameProps = {
   inputTranslateY: Animated.Value;
   inputAreaHeight: number;
   onPrev: () => void;
-  onNext: () => void;
+  onNext: () => boolean | Promise<boolean>;
+  isSubmitting?: boolean;
+  submitError?: string;
+  onFormChange?: () => void;
 };
 
 export default function UsernameStep({
   inputTranslateY,
   onPrev,
   onNext,
+  isSubmitting = false,
+  submitError = "",
+  onFormChange,
 }: UsernameProps) {
   const { width } = useWindowDimensions();
   const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
+  const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const {
     control,
+    getValues,
+    setError,
+    clearErrors,
     trigger,
     formState: { errors },
   } = useFormContext<RegisterFormValues>();
 
+  const handleUsernameCheck = async () => {
+    const isValid = await trigger("username");
+    if (!isValid) return false;
+
+    const username = getValues("username").trim();
+    setIsLoading(true);
+
+    try {
+      const response = await postCheckUsername({ username });
+      if (!response.data) {
+        setCheckedUsername(null);
+        setError("username", {
+          type: "server",
+          message: "이미 사용 중인 아이디입니다.",
+        });
+        return false;
+      }
+
+      clearErrors("username");
+      setCheckedUsername(username);
+      return true;
+    } catch (error) {
+      setCheckedUsername(null);
+      setError("username", {
+        type: "server",
+        message: getApiErrorMessage(
+          error,
+          "아이디 중복 확인에 실패했습니다. 다시 시도해주세요.",
+        ),
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleNext = async () => {
     const isValid = await trigger(["name", "username"]);
-    if (isValid) onNext();
+    if (!isValid) return;
+
+    const username = getValues("username").trim();
+    const isAvailable =
+      checkedUsername === username || (await handleUsernameCheck());
+
+    if (isAvailable) await onNext();
   };
 
   return (
@@ -46,12 +102,17 @@ export default function UsernameStep({
           name="name"
           rules={{
             required: "이름을 입력해주세요.",
-            minLength: { value: 2, message: "이름은 2자 이상이어야 합니다." },
+            validate: (value) =>
+              value.trim().length >= 2 || "이름은 2자 이상이어야 합니다.",
           }}
           render={({ field: { value, onChange } }) => (
             <CustomInput
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                onChange(text);
+                clearErrors("name");
+                onFormChange?.();
+              }}
               label="이름"
               returnKeyType="next"
               onSubmitEditing={handleNext}
@@ -66,19 +127,28 @@ export default function UsernameStep({
               name="username"
               rules={{
                 required: "아이디를 입력해주세요.",
-                minLength: {
-                  value: 2,
-                  message: "아이디를 2자 이상이어야 합니다.",
-                },
+                validate: (value) =>
+                  value.trim().length >= 2 ||
+                  "아이디는 2자 이상이어야 합니다.",
               }}
               render={({ field: { value, onChange } }) => (
                 <CustomInput
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    setCheckedUsername(null);
+                    clearErrors("username");
+                    onFormChange?.();
+                  }}
                   label="아이디"
                   returnKeyType="done"
                   onSubmitEditing={handleNext}
                   error={errors.username?.message}
+                  success={
+                    checkedUsername === value.trim()
+                      ? "사용 가능한 아이디입니다."
+                      : ""
+                  }
                 />
               )}
             />
@@ -88,7 +158,8 @@ export default function UsernameStep({
               label="중복 확인"
               variant="lg"
               backgroundColor="#0AE365"
-              onPress={() => {}}
+              disabled={isLoading}
+              onPress={handleUsernameCheck}
             />
           </View>
         </View>
@@ -98,11 +169,17 @@ export default function UsernameStep({
 
       <View className="gap-y-3">
         <CustomButton
-          label="회원가입"
+          label={isSubmitting ? "가입 중" : "회원가입"}
           color="#F6F6F6"
           backgroundColor="#0AE365"
+          disabled={isLoading || isSubmitting}
           onPress={handleNext}
         />
+        {submitError ? (
+          <Text className="text-xs text-center text-[#FF0000]">
+            {submitError}
+          </Text>
+        ) : null}
       </View>
 
       <View className="flex-row mt-3 gap-x-4">

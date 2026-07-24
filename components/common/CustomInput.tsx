@@ -123,4 +123,6 @@ const CustomInput = forwardRef<TextInput, InputFieldProps>(
   },
 );
 
+CustomInput.displayName = "CustomInput";
+
 export default CustomInput;

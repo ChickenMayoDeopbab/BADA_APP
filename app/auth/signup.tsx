@@ -1,4 +1,5 @@
 import { postSignup } from "@/api/authApi";
+import { getApiErrorMessage } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
@@ -13,7 +14,6 @@ import {
   Platform,
   ScrollView,
   Text,
-  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -32,6 +32,8 @@ export default function SignupScreen() {
   );
   const inputAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
   const [step, setStep] = useState<number>(1);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [signupError, setSignupError] = useState("");
   const inputTranslateY = useRef(new Animated.Value(0)).current;
 
   const methods = useForm<RegisterFormValues>({
@@ -43,14 +45,35 @@ export default function SignupScreen() {
       name: "",
       username: "",
     },
+    mode: "onTouched",
+    reValidateMode: "onChange",
   });
 
   const handleSignup = async () => {
     const { email, password, name, username } = methods.getValues();
+    setIsSigningUp(true);
+    setSignupError("");
+
     try {
-      await postSignup({ username, password, email, name });
-      router.push("/auth/login");
-    } catch {}
+      await postSignup({
+        username: username.trim(),
+        password,
+        email: email.trim(),
+        name: name.trim(),
+      });
+      router.replace("/auth/login");
+      return true;
+    } catch (error) {
+      setSignupError(
+        getApiErrorMessage(
+          error,
+          "회원가입에 실패했습니다. 입력 정보를 확인해주세요.",
+        ),
+      );
+      return false;
+    } finally {
+      setIsSigningUp(false);
+    }
   };
 
   useEffect(() => {
@@ -126,8 +149,14 @@ export default function SignupScreen() {
                   <UsernameStep
                     inputTranslateY={inputTranslateY}
                     inputAreaHeight={inputAreaHeight}
-                    onPrev={() => setStep(2)}
+                    onPrev={() => {
+                      setSignupError("");
+                      setStep(2);
+                    }}
                     onNext={handleSignup}
+                    isSubmitting={isSigningUp}
+                    submitError={signupError}
+                    onFormChange={() => setSignupError("")}
                   />
                 )}
               </FormProvider>

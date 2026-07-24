@@ -65,6 +65,22 @@ export interface EmailVerificationRequest {
   authNum: string;
 }
 
+export interface FindIdRequest {
+  email: string;
+}
+
+export type FindIdResponse = string;
+
+export interface CheckUsernameRequest {
+  username: string;
+}
+
+export interface ChangePasswordRequest {
+  email: string;
+  oldPassword: string;
+  newPassword: string;
+}
+
 export interface MyPageResponse {
   username: string;
   email: string;
