@@ -53,15 +53,7 @@ function ProfileScreen() {
           </Text>
           <Text className="text-[13px] text-[#8E8E8E]">{myPage?.email}</Text>
         </View>
-        <MenuItem label="내 정보 수정" onPress={() => {}} />
         <MenuItem label="로그아웃" onPress={handleSignOut} />
-        <MenuItem label="회원 탈퇴" onPress={() => {}} />
-      </View>
-
-      <Text className="text-base font-bold text-[#0D0D0E] mb-3">설정</Text>
-      <View className="w-full gap-1">
-        <MenuItem label="알림" onPress={() => {}} />
-        <MenuItem label="언어 설정" onPress={() => {}} />
       </View>
     </SafeAreaView>
   );
