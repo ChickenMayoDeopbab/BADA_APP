@@ -1,7 +1,8 @@
 import { getScenarioExample } from "@/api/trainApi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -27,12 +28,10 @@ const categoryLargeImageMap: Record<string, ImageSourcePropType> = {
 };
 
 export default function Detail() {
-  const [exampleAudioUrl, setExampleAudioUrl] = useState<string | null>(null);
+  const [exampleAudioSource, setExampleAudioSource] = useState<AudioSource>(null);
   const [isFetchingExample, setIsFetchingExample] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
-  const examplePlayer = useAudioPlayer(
-    exampleAudioUrl ? { uri: exampleAudioUrl } : null,
-  );
+  const examplePlayer = useAudioPlayer(exampleAudioSource);
   const exampleStatus = useAudioPlayerStatus(examplePlayer);
 
   const { id, title, content, isCustom, scenarioImage, category } =
@@ -58,7 +57,7 @@ export default function Detail() {
       return;
     }
 
-    if (exampleAudioUrl) {
+    if (exampleAudioSource) {
       if (exampleStatus.didJustFinish) {
         await examplePlayer.seekTo(0);
       }
@@ -81,8 +80,24 @@ export default function Detail() {
         throw new Error("예시 대화 오디오가 없습니다.");
       }
 
+      const apiBaseUrl = process.env.EXPO_PUBLIC_AI_API_URL;
+      const resolvedAudioUrl = apiBaseUrl
+        ? new URL(audioUrl, `${apiBaseUrl.replace(/\/$/, "")}/`).toString()
+        : audioUrl;
+      const accessToken = await AsyncStorage.getItem("accessToken");
+      const isAiApiAudio = Boolean(
+        accessToken &&
+          apiBaseUrl &&
+          new URL(resolvedAudioUrl).origin === new URL(apiBaseUrl).origin,
+      );
+
       setShouldAutoPlay(true);
-      setExampleAudioUrl(audioUrl);
+      setExampleAudioSource({
+        uri: resolvedAudioUrl,
+        ...(isAiApiAudio
+          ? { headers: { Authorization: `Bearer ${accessToken}` } }
+          : {}),
+      });
     } catch (error) {
       console.error("[ScenarioExample] 예시 대화 조회 실패", error);
       Alert.alert(
@@ -142,10 +157,10 @@ export default function Detail() {
           }
           color="#3B3D3E"
           disabled={
-            isFetchingExample || Boolean(exampleAudioUrl && !exampleStatus.isLoaded)
+            isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded)
           }
           icon={
-            isFetchingExample || (exampleAudioUrl && !exampleStatus.isLoaded) ? (
+            isFetchingExample || (exampleAudioSource && !exampleStatus.isLoaded) ? (
               <ActivityIndicator size="small" color="#3B3D3E" />
             ) : undefined
           }
