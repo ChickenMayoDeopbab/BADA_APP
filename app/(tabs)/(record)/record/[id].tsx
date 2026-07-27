@@ -1,6 +1,6 @@
-import { PlayingButton } from "@/components/PlayingButton";
 import SeekableAudioPlayer from "@/components/SeekableAudioPlayer";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
+import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { useTrainingRecordDetail } from "@/hooks/useTrainingRecordDetail";
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
@@ -129,7 +129,11 @@ export default function RecordDetailScreen() {
                       <Text className="text-xs text-[#8C8E8E] mb-3">
                         {formatTimeRange(part.startSecond, part.endSecond)}
                       </Text>
-                      <PlayingButton audioUrl={part.audioUrl} />
+                      <AudioSegmentButton
+                        audioUrl={data.recordingUrl}
+                        startTime={part.startSecond}
+                        endTime={part.endSecond}
+                      />
                     </View>
                   ))}
                 </View>
