@@ -11,6 +11,8 @@ import { RefreshTokenResponse } from './types';
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
+
+const isAuthRequest = (url?: string) => url?.startsWith('/api/v1/auth/');
 const apiClient: AxiosInstance = create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
   timeout: 10000,
@@ -22,6 +24,11 @@ const apiClient: AxiosInstance = create({
 // 요청 인터셉터
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    if (isAuthRequest(config.url)) {
+      config.headers.delete('Authorization');
+      return config;
+    }
+
     const token = await AsyncStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -37,13 +44,17 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as CustomAxiosRequestConfig;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRequest(originalRequest.url)
+    ) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = await AsyncStorage.getItem('refreshToken');
         const { data } = await axios.post<RefreshTokenResponse>(
-          `${process.env.EXPO_PUBLIC_API_URL}/auth/refresh`,
+          `${process.env.EXPO_PUBLIC_API_URL}/api/v1/auth/refresh`,
           { refreshToken }
         );
 

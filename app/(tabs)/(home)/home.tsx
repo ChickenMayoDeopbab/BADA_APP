@@ -4,8 +4,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AttendanceCalendar from "@/components/Calendar";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from "expo-router";
+import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 
 export default function Home() {
+  useDoubleBackExit();
   return (
     <View className="flex-1 px-10 bg-white">
       <Top isMain/>
