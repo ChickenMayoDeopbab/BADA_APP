@@ -16,11 +16,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type ReportParams = {
   sessionId?: string;
   scenarioId?: string;
   mode?: "scenario" | "warmUp";
+  title?: string;
+  content?: string;
+  isCustom?: string;
+  scenarioImage?: string;
+  category?: string;
 };
 
 const formatTrainingTime = (
@@ -36,8 +42,26 @@ const formatTrainingTime = (
 export default function Report() {
   const {
     sessionId,
+    scenarioId,
     mode = "scenario",
+    title,
+    content,
+    isCustom,
+    scenarioImage,
+    category,
   } = useLocalSearchParams<ReportParams>();
+
+  useAndroidBackHandler(() => {
+    if (scenarioId) {
+      router.replace({
+        pathname: "/(tabs)/(train)/detail/[id]",
+        params: { id: scenarioId, title, content, isCustom, scenarioImage, category },
+      });
+    } else {
+      router.replace("/(tabs)/(train)/list");
+    }
+    return true;
+  });
   const [feedback, setFeedback] = useState<TrainingFeedbackResponse | null>(
     null,
   );

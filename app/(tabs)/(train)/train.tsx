@@ -4,9 +4,10 @@ import CustomButton from "@/components/common/CustomButton";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { BackHandler, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ResizeMode, Video } from "expo-av";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type TrainStep = "receive" | "training" | "end";
 
@@ -49,12 +50,22 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 export default function Train() {
-  const { sessionId, wsUrl, isWarmup, scenarioId } = useLocalSearchParams<{
+  const { sessionId, wsUrl, isWarmup, scenarioId, title, content, isCustom, scenarioImage, category } = useLocalSearchParams<{
     sessionId: string;
     wsUrl: string;
     isWarmup?: string;
     scenarioId?: string;
+    title?: string;
+    content?: string;
+    isCustom?: string;
+    scenarioImage?: string;
+    category?: string;
   }>();
+
+  useAndroidBackHandler(() => {
+    BackHandler.exitApp();
+    return true;
+  });
 
   const [step, setStep] = useState<TrainStep>("receive");
   const [isMeditationVisible, setIsMeditationVisible] = useState(false);
@@ -191,6 +202,11 @@ export default function Train() {
         sessionId,
         scenarioId,
         mode: isWarmup === "true" ? "warmUp" : "scenario",
+        title,
+        content,
+        isCustom,
+        scenarioImage,
+        category,
       },
     });
   };

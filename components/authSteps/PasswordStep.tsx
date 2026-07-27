@@ -1,5 +1,9 @@
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import {
+  createConfirmPasswordRules,
+  passwordRules,
+} from "@/constants/authValidation";
 import { RegisterFormValues } from "@/types/auth";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
@@ -27,6 +31,7 @@ export default function PasswordStep({
   const {
     control,
     getValues,
+    clearErrors,
     trigger,
     formState: { errors },
   } = useFormContext<RegisterFormValues>();
@@ -49,21 +54,14 @@ export default function PasswordStep({
         <Controller
           control={control}
           name="password"
-          rules={{
-            required: "비밀번호를 입력해주세요.",
-            minLength: {
-              value: 8,
-              message: "비밀번호는 8자 이상이어야 합니다.",
-            },
-            pattern: {
-              value: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/,
-              message: "영문, 숫자를 포함해야 합니다.",
-            },
-          }}
+          rules={passwordRules}
           render={({ field: { value, onChange } }) => (
             <CustomInput
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                onChange(text);
+                clearErrors("password");
+              }}
               label="비밀번호"
               secureTextEntry={!isPasswordVisible}
               returnKeyType="next"
@@ -86,22 +84,20 @@ export default function PasswordStep({
         <Controller
           control={control}
           name="confirmPassword"
-          rules={{
-            required: "비밀번호 확인을 입력해주세요.",
-            validate: (value) =>
-              value === getValues("password") ||
-              "비밀번호가 일치하지 않습니다.",
-          }}
+          rules={createConfirmPasswordRules(() => getValues("password"))}
           render={({ field: { value, onChange } }) => (
             <CustomInput
               ref={confirmRef}
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                onChange(text);
+                clearErrors("confirmPassword");
+              }}
               placeholder="비밀번호를 다시 입력하세요."
               label="비밀번호 확인"
               secureTextEntry={!isConfirmPasswordVisible}
               returnKeyType="done"
-              onSubmitEditing={onNext}
+              onSubmitEditing={handleNext}
               error={errors.confirmPassword?.message}
               rightIcon={
                 <TouchableOpacity
