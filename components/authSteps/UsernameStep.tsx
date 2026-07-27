@@ -2,6 +2,7 @@ import { postCheckUsername } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { nameRules, usernameRules } from "@/constants/authValidation";
 import { RegisterFormValues } from "@/types/auth";
 import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
@@ -100,11 +101,7 @@ export default function UsernameStep({
         <Controller
           control={control}
           name="name"
-          rules={{
-            required: "이름을 입력해주세요.",
-            validate: (value) =>
-              value.trim().length >= 2 || "이름은 2자 이상이어야 합니다.",
-          }}
+          rules={nameRules}
           render={({ field: { value, onChange } }) => (
             <CustomInput
               value={value}
@@ -125,12 +122,7 @@ export default function UsernameStep({
             <Controller
               control={control}
               name="username"
-              rules={{
-                required: "아이디를 입력해주세요.",
-                validate: (value) =>
-                  value.trim().length >= 2 ||
-                  "아이디는 2자 이상이어야 합니다.",
-              }}
+              rules={usernameRules}
               render={({ field: { value, onChange } }) => (
                 <CustomInput
                   value={value}

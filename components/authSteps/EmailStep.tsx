@@ -2,6 +2,7 @@ import { postEmailCheck, postEmailSend } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { authCodeRules, emailRules } from "@/constants/authValidation";
 import { RegisterFormValues } from "@/types/auth";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
@@ -105,13 +106,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
             <Controller
               control={control}
               name="email"
-              rules={{
-                required: "이메일을 입력해주세요.",
-                pattern: {
-                  value: /^[a-zA-Z0-9+-_.]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
-                  message: "올바른 이메일 형식이 아닙니다.",
-                },
-              }}
+              rules={emailRules}
               render={({
                 field: { value, onChange },
                 fieldState: { error },
@@ -148,11 +143,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
         <Controller
           control={control}
           name="authNum"
-          rules={{
-            required: "인증코드를 입력해주세요.",
-            validate: (value) =>
-              value.trim().length > 0 || "인증코드를 입력해주세요.",
-          }}
+          rules={authCodeRules}
           render={({ field: { value, onChange } }) => (
             <CustomInput
               ref={verificationRef}

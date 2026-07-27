@@ -8,6 +8,14 @@ import PartyFace from "@/assets/partyFace.svg";
 import AuthFlowHeader from "@/components/auth/AuthFlowHeader";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import {
+  authCodeRules,
+  createConfirmPasswordRules,
+  emailRules,
+  loginUsernameRules,
+  newPasswordRules,
+  oldPasswordRules,
+} from "@/constants/authValidation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
@@ -35,26 +43,6 @@ type ResetPasswordFormValues = {
 };
 
 type ResetPasswordStep = "identity" | "password" | "success";
-
-const emailRules = {
-  required: "이메일을 입력해주세요.",
-  pattern: {
-    value: /^[a-zA-Z0-9+-_.]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
-    message: "올바른 이메일 형식이 아닙니다.",
-  },
-};
-
-const newPasswordRules = {
-  required: "새 비밀번호를 입력해주세요.",
-  minLength: {
-    value: 8,
-    message: "비밀번호는 8자 이상이어야 합니다.",
-  },
-  pattern: {
-    value: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/,
-    message: "영문, 숫자를 포함해야 합니다.",
-  },
-};
 
 function getInitialParam(value: string | string[] | undefined) {
   return typeof value === "string" ? value : "";
@@ -245,12 +233,7 @@ export default function ResetPasswordScreen() {
                 <Controller
                   control={control}
                   name="username"
-                  rules={{
-                    required: "아이디를 입력해주세요.",
-                    validate: (value) =>
-                      value.trim().length > 0 ||
-                      "아이디를 입력해주세요.",
-                  }}
+                  rules={loginUsernameRules}
                   render={({ field: { value, onChange } }) => (
                     <CustomInput
                       value={value}
@@ -309,12 +292,7 @@ export default function ResetPasswordScreen() {
                 <Controller
                   control={control}
                   name="authNum"
-                  rules={{
-                    required: "인증코드를 입력해주세요.",
-                    validate: (value) =>
-                      value.trim().length > 0 ||
-                      "인증코드를 입력해주세요.",
-                  }}
+                  rules={authCodeRules}
                   render={({ field: { value, onChange } }) => (
                     <CustomInput
                       ref={verificationRef}
@@ -361,7 +339,7 @@ export default function ResetPasswordScreen() {
                 <Controller
                   control={control}
                   name="oldPassword"
-                  rules={{ required: "기존 비밀번호를 입력해주세요." }}
+                  rules={oldPasswordRules}
                   render={({ field: { value, onChange } }) => (
                     <CustomInput
                       value={value}
@@ -434,12 +412,10 @@ export default function ResetPasswordScreen() {
                 <Controller
                   control={control}
                   name="confirmPassword"
-                  rules={{
-                    required: "새 비밀번호를 다시 입력해주세요.",
-                    validate: (value) =>
-                      value === getValues("newPassword") ||
-                      "비밀번호가 일치하지 않습니다.",
-                  }}
+                  rules={createConfirmPasswordRules(
+                    () => getValues("newPassword"),
+                    "새 비밀번호를 다시 입력해주세요.",
+                  )}
                   render={({ field: { value, onChange } }) => (
                     <CustomInput
                       ref={confirmPasswordRef}
