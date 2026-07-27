@@ -7,6 +7,7 @@ import { getApiErrorMessage } from "@/api/error";
 import AuthFlowHeader from "@/components/auth/AuthFlowHeader";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import { authCodeRules, emailRules } from "@/constants/authValidation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -30,14 +31,6 @@ type FindIdFormValues = {
 };
 
 type FindIdView = "form" | "success" | "failure";
-
-const emailRules = {
-  required: "이메일을 입력해주세요.",
-  pattern: {
-    value: /^[a-zA-Z0-9+-_.]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
-    message: "올바른 이메일 형식이 아닙니다.",
-  },
-};
 
 export default function FindIdScreen() {
   const { height, width } = useWindowDimensions();
@@ -220,14 +213,9 @@ export default function FindIdScreen() {
                 </View>
 
                 <Controller
-                      control={control}
-                      name="authNum"
-                      rules={{
-                        required: "인증코드를 입력해주세요.",
-                        validate: (value) =>
-                          value.trim().length > 0 ||
-                          "인증코드를 입력해주세요.",
-                      }}
+                  control={control}
+                  name="authNum"
+                  rules={authCodeRules}
                   render={({ field: { value, onChange } }) => (
                     <CustomInput
                       ref={verificationRef}
