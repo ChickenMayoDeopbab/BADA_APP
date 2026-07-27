@@ -5,6 +5,7 @@ import { setAudioModeAsync } from "expo-audio";
 import { router, Stack, useRootNavigationState } from "expo-router";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { isDiagnosisRequiredForAuthenticatedUser } from "@/utils/diagnosisFlow";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,7 +35,14 @@ export default function RootLayout() {
     const checkToken = async () => {
       const token = await AsyncStorage.getItem("accessToken");
       const autoLogin = await AsyncStorage.getItem("autoLogin");
-      router.replace(token && autoLogin === "true" ? "/home" : "/auth");
+      if (!token || autoLogin !== "true") {
+        router.replace("/auth");
+        return;
+      }
+
+      const needsDiagnosis =
+        await isDiagnosisRequiredForAuthenticatedUser();
+      router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
     };
     checkToken();
   }, [navigationState?.key]);

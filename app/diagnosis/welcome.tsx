@@ -2,8 +2,13 @@ import CustomButton from "@/components/common/CustomButton";
 import { router } from "expo-router";
 import { Text, View } from "react-native";
 import PartyFace from "@/assets/partyFace.svg";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 export default function Welcome() {
+  useAndroidBackHandler(() => {
+    router.replace("/auth/login");
+    return true;
+  });
   return (
     <View className="flex-col justify-between flex-1 p-10 bg-white">
       <View className="mt-40">

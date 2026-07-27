@@ -21,7 +21,12 @@ function CallWatcher() {
         const session = await createSession(config);
         router.push({
           pathname: "/(tabs)/(train)/train",
-          params: { sessionId: session.sessionId, wsUrl: session.wsUrl },
+          params: {
+            sessionId: session.sessionId,
+            wsUrl: session.wsUrl,
+            scenarioId: config.scenarioId,
+            isWarmup: config.type === "WARMUP" ? "true" : undefined,
+          },
         });
       } catch {
         // 세션 생성 실패 시 조용히 무시

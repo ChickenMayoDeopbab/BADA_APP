@@ -2,7 +2,7 @@ import axios, {
   AxiosInstance,
   AxiosResponse,
   InternalAxiosRequestConfig,
-  create
+  create,
 } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -36,51 +36,69 @@ const apiClient: AxiosInstance = create({
 // 요청 인터셉터
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    if (isPublicAuthRequest(config.url)) return config;
+    if (isPublicAuthRequest(config.url)) {
+      config.headers.delete('Authorization');
+      return config;
+    }
 
     const token = await AsyncStorage.getItem('accessToken');
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // 응답 인터셉터
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error) => {
-    const originalRequest = error.config as CustomAxiosRequestConfig;
+    const originalRequest = error.config as
+      | CustomAxiosRequestConfig
+      | undefined;
 
     if (
       error.response?.status === 401 &&
       originalRequest &&
-      !isPublicAuthRequest(originalRequest.url) &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !isPublicAuthRequest(originalRequest.url)
     ) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = await AsyncStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('Refresh token is missing');
+
+        if (!refreshToken) {
+          throw new Error('Refresh token is missing');
+        }
 
         const { data } = await axios.post<RefreshTokenResponse>(
-          `${process.env.EXPO_PUBLIC_API_URL}/auth/refresh`,
-          { refreshToken }
+          `${process.env.EXPO_PUBLIC_API_URL}/api/v1/auth/refresh`,
+          { refreshToken },
         );
 
         await AsyncStorage.setItem('accessToken', data.accessToken);
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+
+        originalRequest.headers.Authorization =
+          `Bearer ${data.accessToken}`;
+
         return apiClient(originalRequest);
       } catch {
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
-        router.replace("/auth/login");
+        await AsyncStorage.multiRemove([
+          'accessToken',
+          'refreshToken',
+          'autoLogin',
+        ]);
+
+        router.replace('/auth/login');
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;

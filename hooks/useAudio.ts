@@ -83,6 +83,7 @@ export function useAudio(): UseAudioReturn {
   const audioContextRef = useRef<any>(null);
   const mediaStreamRef = useRef<any>(null);
   const processorRef = useRef<any>(null);
+  const muteReleaseTimerRef = useRef<any>(null);
 
   // Web Audio: 재생 전용 (AudioContext 스케줄링으로 즉시 스트리밍)
   const playbackCtxRef = useRef<any>(null);
@@ -168,6 +169,7 @@ export function useAudio(): UseAudioReturn {
           const workletNode = new AudioWorkletNode(ctx, "pcm-processor");
           workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
             if (!isSendingRef.current) return;
+            if (isMutedRef.current) return;
             sendFn(e.data);
           };
           source.connect(workletNode);
@@ -291,6 +293,19 @@ export function useAudio(): UseAudioReturn {
       const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
       source.start(startAt);
       nextPlayTimeRef.current = startAt + audioBuffer.duration;
+
+      isMutedRef.current = true;
+      if (muteReleaseTimerRef.current) {
+        clearTimeout(muteReleaseTimerRef.current);
+      }
+      const remainMs = Math.max(
+        0,
+        (nextPlayTimeRef.current - ctx.currentTime) * 1000,
+      );
+      muteReleaseTimerRef.current = setTimeout(() => {
+        isMutedRef.current = false;
+        muteReleaseTimerRef.current = null;
+      }, remainMs + 50);
     } else {
       chunkQueueRef.current.push(new Uint8Array(data));
       playNextChunkRef.current();
@@ -355,9 +370,12 @@ export function useAudio(): UseAudioReturn {
 
   const resetStream = useCallback(() => {
     if (Platform.OS === "web") {
-      // AudioContext를 닫지 않고 재생 타임라인만 리셋ㄷ
-      // 닫으면 새 컨텍스트가 유저 제스처 밖에서 생성되어 autoplay 정책에 걸림
       nextPlayTimeRef.current = 0;
+      if (muteReleaseTimerRef.current) {
+        clearTimeout(muteReleaseTimerRef.current);
+        muteReleaseTimerRef.current = null;
+      }
+      isMutedRef.current = false;
     } else {
       chunkQueueRef.current = [];
       isNativePlayingRef.current = false;
@@ -374,6 +392,10 @@ export function useAudio(): UseAudioReturn {
   useEffect(() => {
     return () => {
       if (Platform.OS !== "web") return;
+      if (muteReleaseTimerRef.current) {
+        clearTimeout(muteReleaseTimerRef.current);
+        muteReleaseTimerRef.current = null;
+      }
       const rec = audioContextRef.current;
       audioContextRef.current = null;
       if (rec && rec.state !== "closed") {

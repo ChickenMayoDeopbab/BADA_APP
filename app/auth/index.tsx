@@ -6,8 +6,10 @@ import { router } from "expo-router";
 import { useWindowDimensions, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 
 export default function AuthScreen() {
+  useDoubleBackExit();
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const bottomPadding = Math.min(Math.max(height * 0.1, 64), 96);
