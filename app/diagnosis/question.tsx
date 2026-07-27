@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
@@ -154,6 +155,11 @@ export default function Question() {
       router.back();
     }
   };
+
+  useAndroidBackHandler(() => {
+    handleBack();
+    return true;
+  });
 
   const PercentBar = ({ step }: { step: number }) => {
     const percent = (step / 10) * 100;

@@ -1,7 +1,9 @@
-import { getScenarioExample } from "@/api/trainApi";
+import { getScenarioExample, getScenarios } from "@/api/trainApi";
+import { ScenarioInfo } from "@/api/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -13,6 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 const fallbackLargeImage: ImageSourcePropType = require("@/assets/Q1_l.png");
 
@@ -27,12 +30,10 @@ const categoryLargeImageMap: Record<string, ImageSourcePropType> = {
 };
 
 export default function Detail() {
-  const [exampleAudioUrl, setExampleAudioUrl] = useState<string | null>(null);
+  const [exampleAudioSource, setExampleAudioSource] = useState<AudioSource>(null);
   const [isFetchingExample, setIsFetchingExample] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
-  const examplePlayer = useAudioPlayer(
-    exampleAudioUrl ? { uri: exampleAudioUrl } : null,
-  );
+  const examplePlayer = useAudioPlayer(exampleAudioSource);
   const exampleStatus = useAudioPlayerStatus(examplePlayer);
 
   const { id, title, content, isCustom, scenarioImage, category } =
@@ -44,6 +45,37 @@ export default function Detail() {
       scenarioImage: string;
       category: string;
     }>();
+
+  useEffect(() => {
+    if (!id || title) return;
+
+    let cancelled = false;
+    setIsResolvingScenario(true);
+    getScenarios()
+      .then(({ scenarios }) => {
+        if (!cancelled) {
+          setResolvedScenario(
+            scenarios.find((scenario) => String(scenario.scenario_id) === id) ?? null,
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedScenario(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsResolvingScenario(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, title]);
+
+  const resolvedTitle = title ?? resolvedScenario?.title;
+  const resolvedContent = content ?? resolvedScenario?.content;
+  const resolvedIsCustom = isCustom ?? String(resolvedScenario?.is_custom ?? false);
+  const resolvedScenarioImage = scenarioImage ?? resolvedScenario?.scenario_image ?? "";
+  const resolvedCategory = category ?? resolvedScenario?.category;
 
   useEffect(() => {
     if (!shouldAutoPlay || !exampleStatus.isLoaded) return;
@@ -58,7 +90,7 @@ export default function Detail() {
       return;
     }
 
-    if (exampleAudioUrl) {
+    if (exampleAudioSource) {
       if (exampleStatus.didJustFinish) {
         await examplePlayer.seekTo(0);
       }
@@ -81,8 +113,24 @@ export default function Detail() {
         throw new Error("예시 대화 오디오가 없습니다.");
       }
 
+      const apiBaseUrl = process.env.EXPO_PUBLIC_AI_API_URL;
+      const resolvedAudioUrl = apiBaseUrl
+        ? new URL(audioUrl, `${apiBaseUrl.replace(/\/$/, "")}/`).toString()
+        : audioUrl;
+      const accessToken = await AsyncStorage.getItem("accessToken");
+      const isAiApiAudio = Boolean(
+        accessToken &&
+          apiBaseUrl &&
+          new URL(resolvedAudioUrl).origin === new URL(apiBaseUrl).origin,
+      );
+
       setShouldAutoPlay(true);
-      setExampleAudioUrl(audioUrl);
+      setExampleAudioSource({
+        uri: resolvedAudioUrl,
+        ...(isAiApiAudio
+          ? { headers: { Authorization: `Bearer ${accessToken}` } }
+          : {}),
+      });
     } catch (error) {
       console.error("[ScenarioExample] 예시 대화 조회 실패", error);
       Alert.alert(
@@ -96,7 +144,7 @@ export default function Detail() {
     }
   };
 
-  if (!id || !title) {
+  if (!id || (!resolvedTitle && !isResolvingScenario)) {
     return (
       <View className="flex-1 bg-white">
         <Top title="시나리오 선택" back onBack={() => router.push("/(tabs)/(train)/list")} />
@@ -107,12 +155,20 @@ export default function Detail() {
     );
   }
 
-  const imageSource: ImageSourcePropType = scenarioImage
-    ? { uri: scenarioImage }
-    : (categoryLargeImageMap[category ?? ""] ?? fallbackLargeImage);
+  if (isResolvingScenario) {
+    return (
+      <View className="items-center justify-center flex-1 bg-white">
+        <ActivityIndicator color="#0AE365" />
+      </View>
+    );
+  }
+
+  const imageSource: ImageSourcePropType = resolvedScenarioImage
+    ? { uri: resolvedScenarioImage }
+    : (categoryLargeImageMap[resolvedCategory ?? ""] ?? fallbackLargeImage);
 
   const typeLabel =
-    isCustom === "true" ? "커스텀 시나리오" : "기본 제공 시나리오";
+    resolvedIsCustom === "true" ? "커스텀 시나리오" : "기본 제공 시나리오";
 
   return (
     <View className="flex-1 bg-white">
@@ -126,9 +182,9 @@ export default function Detail() {
         />
         <View className="px-8 pt-5 pb-6">
           <Text className="text-base text-[#5C5E5E] font-medium mb-2">{typeLabel}</Text>
-          <Text className="text-3xl font-bold text-[#3B3D3E] mb-6">{title}</Text>
+          <Text className="text-3xl font-bold text-[#3B3D3E] mb-6">{resolvedTitle}</Text>
           <Text className="text-sm font-semibold text-[#BDBEBE] mb-1">시나리오 설명</Text>
-          <Text className="text-sm text-[#5C5E5E] leading-6">{content}</Text>
+          <Text className="text-sm text-[#5C5E5E] leading-6">{resolvedContent}</Text>
         </View>
       </ScrollView>
       <View className="px-8 pt-4 pb-10 gap-y-3">
@@ -142,10 +198,10 @@ export default function Detail() {
           }
           color="#3B3D3E"
           disabled={
-            isFetchingExample || Boolean(exampleAudioUrl && !exampleStatus.isLoaded)
+            isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded)
           }
           icon={
-            isFetchingExample || (exampleAudioUrl && !exampleStatus.isLoaded) ? (
+            isFetchingExample || (exampleAudioSource && !exampleStatus.isLoaded) ? (
               <ActivityIndicator size="small" color="#3B3D3E" />
             ) : undefined
           }
@@ -156,7 +212,17 @@ export default function Detail() {
           backgroundColor="#0AE365"
           color="white"
           onPress={() =>
-            router.push({ pathname: "/(tabs)/(train)/start", params: { id } })
+            router.push({
+              pathname: "/(tabs)/(train)/start",
+              params: {
+                id,
+                title: resolvedTitle,
+                content: resolvedContent,
+                isCustom: resolvedIsCustom,
+                scenarioImage: resolvedScenarioImage,
+                category: resolvedCategory,
+              },
+            })
           }
         />
       </View>

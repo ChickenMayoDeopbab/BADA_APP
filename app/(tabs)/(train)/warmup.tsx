@@ -6,6 +6,7 @@ import { createCustomScenario } from "@/api/trainApi";
 import { router, useFocusEffect } from "expo-router";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type WarmupCreateStep = "write" | "loading" | "done" | "fail";
 
@@ -30,6 +32,10 @@ const FieldBox = ({ label, children }: { label: string; children: ReactNode }) =
 );
 
 export default function Warmup() {
+  useAndroidBackHandler(() => {
+    BackHandler.exitApp();
+    return true;
+  });
   const [step, setStep] = useState<WarmupCreateStep>("write");
   const [form, setForm] = useState<WarmupForm>({ purpose: "", callee: "" });
   const createdScenarioIdRef = useRef<number | null>(null);
