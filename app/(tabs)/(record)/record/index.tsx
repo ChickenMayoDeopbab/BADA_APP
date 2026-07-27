@@ -1,8 +1,9 @@
 import { TrainingRecordItem } from "@/api/types";
+import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { SORT_OPTIONS, SORT_PARAM_MAP } from "@/constants/recordConsts";
+import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
 import { useTrainingRecords } from "@/hooks/useTrainingRecords";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -12,7 +13,6 @@ import {
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Text,
   TouchableOpacity,
   View,
@@ -50,6 +50,16 @@ export default function RecordScreen() {
     : undefined;
 
   const {
+    data: recordIndex,
+    isLoading: isLoadingRecordDates,
+    refetch: refetchRecordIndex,
+  } = useTrainingRecordDates();
+  const availableDates = useMemo(
+    () => new Set(recordIndex?.dates ?? []),
+    [recordIndex?.dates],
+  );
+
+  const {
     data,
     isLoading,
     isRefetching,
@@ -65,7 +75,12 @@ export default function RecordScreen() {
   });
 
   const records: TrainingRecordItem[] = useMemo(() => {
-    const flat = data?.pages.flatMap((page) => page.content) ?? [];
+    const loadedRecords = data?.pages.flatMap((page) => page.content) ?? [];
+    const flat = selectedDate
+      ? (recordIndex?.records ?? []).filter(
+          (record) => format(new Date(record.trainedAt), "yyyy-MM-dd") === dateParam,
+        )
+      : loadedRecords;
 
     const sorted = [...flat].sort((a, b) =>
       selectedSort === "최신 순"
@@ -73,12 +88,16 @@ export default function RecordScreen() {
         : a.recordId - b.recordId,
     );
     return sorted;
-  }, [data, selectedSort]);
+  }, [data, dateParam, recordIndex?.records, selectedDate, selectedSort]);
 
   const handleEndReached = () => {
-    if (hasNextPage && !isFetchingNextPage) {
+    if (!selectedDate && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
+  };
+
+  const handleRefresh = async () => {
+    await Promise.all([refetch(), refetchRecordIndex()]);
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -93,16 +112,6 @@ export default function RecordScreen() {
       offset: 0,
       animated: true,
     });
-  };
-
-  const handleDateChange = (event: any, date?: Date) => {
-    if (Platform.OS === "android") {
-      setIsDatePickerVisible(false);
-    }
-    if (event.type === "dismissed") return;
-    if (date) {
-      setSelectedDate(date);
-    }
   };
 
   return (
@@ -176,22 +185,24 @@ export default function RecordScreen() {
         )}
       </View>
 
-      {isDatePickerVisible && (
-        <DateTimePicker
-          value={selectedDate ?? new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
+      <TrainingRecordCalendarModal
+        visible={isDatePickerVisible}
+        selectedDate={dateParam ?? null}
+        availableDates={availableDates}
+        isLoading={isLoadingRecordDates}
+        onClose={() => setIsDatePickerVisible(false)}
+        onSelect={(date) => {
+          setSelectedDate(new Date(`${date}T00:00:00`));
+          setIsDatePickerVisible(false);
+        }}
+      />
 
       <View className="flex-row justify-between w-full pb-2 border-b border-[#BDBEBE]">
         <Text className="text-[#5C5E5E] font-bold text-sm">일시</Text>
         <Text className="text-[#5C5E5E] font-bold text-sm">시나리오명</Text>
       </View>
 
-      {isLoading ? (
+      {isLoading || Boolean(selectedDate && isLoadingRecordDates) ? (
         <View className="items-center justify-center flex-1">
           <ActivityIndicator color="#0AE365" />
         </View>
@@ -226,7 +237,7 @@ export default function RecordScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             refreshing={isRefetching}
-            onRefresh={() => refetch()}
+            onRefresh={handleRefresh}
             contentContainerStyle={
               records.length === 0 ? { flexGrow: 1 } : undefined
             }
