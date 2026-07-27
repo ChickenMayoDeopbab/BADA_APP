@@ -18,6 +18,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  isDiagnosisRequired,
+  setAuthenticatedUsername,
+} from "@/utils/diagnosisFlow";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type LoginFormValues = {
   username: string;
@@ -25,6 +30,10 @@ type LoginFormValues = {
 };
 
 export default function LoginScreen() {
+  useAndroidBackHandler(() => {
+    router.replace("/auth");
+    return true;
+  });
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const topPadding = Math.min(Math.max(height * 0.08, 56), 80);
@@ -77,7 +86,10 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("accessToken", response.data.accessToken);
       await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
       await AsyncStorage.setItem("autoLogin", isChecked ? "true" : "false");
-      router.push("/home");
+      await setAuthenticatedUsername(username);
+
+      const needsDiagnosis = await isDiagnosisRequired(username);
+      router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
     } catch {}
   };
 
