@@ -10,7 +10,7 @@ const ANDROID_PACKAGE = IS_PLAYSTORE
 
 module.exports = {
   expo: {
-    name: "bada",
+    name: "바다",
     slug: "bada",
     version: "1.0.0",
     orientation: "portrait",
