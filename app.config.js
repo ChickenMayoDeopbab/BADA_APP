@@ -12,7 +12,7 @@ module.exports = {
   expo: {
     name: "바다",
     slug: "bada",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/badaLogo.png",
     scheme: "bada",
