@@ -2,10 +2,12 @@ import { deleteSignout } from "@/api/authApi";
 import { MyPageResponse } from "@/api/types";
 import { getMyPage } from "@/api/userInfoApi";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { clearAuthTokens } from "@/utils/authTokenStorage";
 
 interface MenuItemProps {
   label: string;
@@ -36,7 +38,20 @@ function ProfileScreen() {
   }, []);
 
   const handleSignOut = async () => {
-    await deleteSignout();
+    try {
+      await deleteSignout();
+    } catch {
+      // 서버 로그아웃에 실패해도 기기의 로그인 정보는 반드시 제거합니다.
+    }
+
+    await Promise.all([
+      clearAuthTokens(),
+      AsyncStorage.multiRemove([
+        "autoLogin",
+        "authenticatedUsername",
+        "diagnosisResult",
+      ]),
+    ]);
     router.replace("/auth");
   };
   return (

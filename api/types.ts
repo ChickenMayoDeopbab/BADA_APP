@@ -19,6 +19,11 @@ export interface RefreshTokenResponse {
   refreshToken: string;
 }
 
+export interface RefreshTokenRequest {
+  refreshToken: string;
+  userId: number;
+}
+
 export interface Question {
   questionId: number,
   content: string,
@@ -55,6 +60,8 @@ export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export type OAuthProvider = 'google' | 'naver' | 'apple';
 
 export interface EmailRequest {
   email: string;
