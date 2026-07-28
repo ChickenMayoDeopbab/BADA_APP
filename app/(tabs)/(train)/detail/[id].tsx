@@ -1,11 +1,11 @@
 import { getScenarioExample, getScenarios } from "@/api/trainApi";
 import { ScenarioInfo } from "@/api/types";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
+import { getAccessToken } from "@/utils/authTokenStorage";
 import {
   ActivityIndicator,
   Alert,
@@ -30,9 +30,17 @@ const categoryLargeImageMap: Record<string, ImageSourcePropType> = {
 };
 
 export default function Detail() {
+  useAndroidBackHandler(() => {
+    router.replace("/(tabs)/(train)/list");
+    return true;
+  });
+
   const [exampleAudioSource, setExampleAudioSource] = useState<AudioSource>(null);
   const [isFetchingExample, setIsFetchingExample] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
+  const [resolvedScenario, setResolvedScenario] =
+    useState<ScenarioInfo | null>(null);
+  const [isResolvingScenario, setIsResolvingScenario] = useState(false);
   const examplePlayer = useAudioPlayer(exampleAudioSource);
   const exampleStatus = useAudioPlayerStatus(examplePlayer);
 
@@ -117,7 +125,7 @@ export default function Detail() {
       const resolvedAudioUrl = apiBaseUrl
         ? new URL(audioUrl, `${apiBaseUrl.replace(/\/$/, "")}/`).toString()
         : audioUrl;
-      const accessToken = await AsyncStorage.getItem("accessToken");
+      const accessToken = await getAccessToken();
       const isAiApiAudio = Boolean(
         accessToken &&
           apiBaseUrl &&

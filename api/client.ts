@@ -1,4 +1,4 @@
-import axios, {
+import {
   AxiosInstance,
   AxiosResponse,
   InternalAxiosRequestConfig,
@@ -6,7 +6,11 @@ import axios, {
 } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { RefreshTokenResponse } from './types';
+import {
+  clearAuthTokens,
+  getAccessToken,
+} from '@/utils/authTokenStorage';
+import { refreshAuthTokens } from './tokenApi';
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -41,7 +45,7 @@ apiClient.interceptors.request.use(
       return config;
     }
 
-    const token = await AsyncStorage.getItem('accessToken');
+    const token = await getAccessToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -69,28 +73,16 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = await AsyncStorage.getItem('refreshToken');
-
-        if (!refreshToken) {
-          throw new Error('Refresh token is missing');
-        }
-
-        const { data } = await axios.post<RefreshTokenResponse>(
-          `${process.env.EXPO_PUBLIC_API_URL}/api/v1/auth/refresh`,
-          { refreshToken },
-        );
-
-        await AsyncStorage.setItem('accessToken', data.accessToken);
+        const { accessToken } = await refreshAuthTokens();
 
         originalRequest.headers.Authorization =
-          `Bearer ${data.accessToken}`;
+          `Bearer ${accessToken}`;
 
         return apiClient(originalRequest);
       } catch {
-        await AsyncStorage.multiRemove([
-          'accessToken',
-          'refreshToken',
-          'autoLogin',
+        await Promise.all([
+          clearAuthTokens(),
+          AsyncStorage.removeItem('autoLogin'),
         ]);
 
         router.replace('/auth/login');

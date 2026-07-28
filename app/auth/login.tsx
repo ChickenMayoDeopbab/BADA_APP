@@ -12,6 +12,7 @@ import {
   isDiagnosisRequired,
   setAuthenticatedUsername,
 } from "@/utils/diagnosisFlow";
+import { setAuthTokens } from "@/utils/authTokenStorage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -115,17 +116,10 @@ export default function LoginScreen() {
       const response = await postLogin({ username, password });
 
       await AsyncStorage.setItem(
-        "accessToken",
-        response.data.accessToken,
-      );
-      await AsyncStorage.setItem(
-        "refreshToken",
-        response.data.refreshToken,
-      );
-      await AsyncStorage.setItem(
         "autoLogin",
         isChecked ? "true" : "false",
       );
+      await setAuthTokens(response.data);
       await setAuthenticatedUsername(username);
 
       const needsDiagnosis = await isDiagnosisRequired(username);

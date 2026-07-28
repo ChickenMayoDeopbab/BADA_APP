@@ -6,6 +6,10 @@ import { router, Stack, useRootNavigationState } from "expo-router";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { isDiagnosisRequiredForAuthenticatedUser } from "@/utils/diagnosisFlow";
+import {
+  clearAuthTokens,
+  getAccessToken,
+} from "@/utils/authTokenStorage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,9 +37,10 @@ export default function RootLayout() {
     if (!navigationState?.key) return;
 
     const checkToken = async () => {
-      const token = await AsyncStorage.getItem("accessToken");
+      const token = await getAccessToken();
       const autoLogin = await AsyncStorage.getItem("autoLogin");
       if (!token || autoLogin !== "true") {
+        await clearAuthTokens();
         router.replace("/auth");
         return;
       }
