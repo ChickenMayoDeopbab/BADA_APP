@@ -21,6 +21,7 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.bada.app",
+      icon: "./assets/badaAppIcon.png",
       infoPlist: {
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: true,
