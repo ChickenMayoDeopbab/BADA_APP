@@ -1,5 +1,4 @@
 import {
-  getAppleLogin,
   getGoogleLogin,
   getNaverLogin,
 } from "@/api/authApi";
@@ -59,13 +58,6 @@ export default function AuthScreen() {
             color="#F7F7F8"
             backgroundColor="#03CF5D"
             onPress={() => void handleOAuthLogin(getNaverLogin)}
-          />
-          <CustomButton
-            label="Apple로 계속할래요"
-            icon={<AntDesign name="apple" size={20} color="#F7F7F8" />}
-            color="#F7F7F8"
-            backgroundColor="#0D0D0E"
-            onPress={() => void handleOAuthLogin(getAppleLogin)}
           />
           <CustomButton
             label="아이디로 계속할래요"
