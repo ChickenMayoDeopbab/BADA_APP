@@ -63,6 +63,10 @@ export interface LoginResponse {
 
 export type OAuthProvider = 'google' | 'naver' | 'apple';
 
+export interface OAuthCodeRequest {
+  code: string;
+}
+
 export interface EmailRequest {
   email: string;
 }

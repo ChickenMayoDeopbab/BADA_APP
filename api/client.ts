@@ -24,6 +24,7 @@ const PUBLIC_AUTH_PATHS = new Set([
   '/api/v1/auth/find-id',
   '/api/v1/auth/check/username',
   '/api/v1/auth/password',
+  '/api/v1/auth/oauth/token',
 ]);
 
 const isPublicAuthRequest = (url?: string) =>
