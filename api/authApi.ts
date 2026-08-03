@@ -10,6 +10,7 @@ import {
   FindIdResponse,
   LoginRequest,
   LoginResponse,
+  OAuthCodeRequest,
   OAuthProvider,
   SignUpRequest,
 } from "./types";
@@ -46,6 +47,17 @@ export const getNaverLogin = (): Promise<void> =>
 
 export const getAppleLogin = (): Promise<void> =>
   openOAuthLogin("apple");
+
+export const postOAuthToken = async (
+  data: OAuthCodeRequest,
+): Promise<ApiResponse<LoginResponse>> => {
+  const response = await apiClient.post<ApiResponse<LoginResponse>>(
+    "/api/v1/auth/oauth/token",
+    data,
+  );
+
+  return response.data;
+};
 
 export const postSignup = async (
   data: SignUpRequest
