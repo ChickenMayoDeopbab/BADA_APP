@@ -38,6 +38,7 @@ export default function Detail() {
   const [exampleAudioSource, setExampleAudioSource] = useState<AudioSource>(null);
   const [isFetchingExample, setIsFetchingExample] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
+  // params 없이 id로만 진입했을 때 목록에서 시나리오를 복원한다
   const [resolvedScenario, setResolvedScenario] =
     useState<ScenarioInfo | null>(null);
   const [isResolvingScenario, setIsResolvingScenario] = useState(false);
