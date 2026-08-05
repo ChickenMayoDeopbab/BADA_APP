@@ -2,10 +2,19 @@ import "@/global.css";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAudioModeAsync } from "expo-audio";
-import { router, Stack, useRootNavigationState } from "expo-router";
+import {
+  router,
+  Stack,
+  usePathname,
+  useRootNavigationState,
+} from "expo-router";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { isDiagnosisRequiredForAuthenticatedUser } from "@/utils/diagnosisFlow";
+import {
+  clearAuthTokens,
+  getAccessToken,
+} from "@/utils/authTokenStorage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +27,8 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const navigationState = useRootNavigationState();
+  const pathname = usePathname();
+  const isOAuthCallback = pathname === "/auth/callback";
 
   useEffect(() => {
     setAudioModeAsync({
@@ -30,12 +41,13 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!navigationState?.key) return;
+    if (!navigationState?.key || isOAuthCallback) return;
 
     const checkToken = async () => {
-      const token = await AsyncStorage.getItem("accessToken");
+      const token = await getAccessToken();
       const autoLogin = await AsyncStorage.getItem("autoLogin");
       if (!token || autoLogin !== "true") {
+        await clearAuthTokens();
         router.replace("/auth");
         return;
       }
@@ -45,7 +57,7 @@ export default function RootLayout() {
       router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
     };
     checkToken();
-  }, [navigationState?.key]);
+  }, [isOAuthCallback, navigationState?.key]);
 
   return (
     <QueryClientProvider client={queryClient}>

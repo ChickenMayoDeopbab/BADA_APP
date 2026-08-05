@@ -1,5 +1,5 @@
 import { AxiosInstance, InternalAxiosRequestConfig, create } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from '@/utils/authTokenStorage';
 
 const aiApiClient: AxiosInstance = create({
   baseURL: process.env.EXPO_PUBLIC_AI_API_URL,
@@ -11,7 +11,7 @@ const aiApiClient: AxiosInstance = create({
 
 aiApiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    const token = await AsyncStorage.getItem('accessToken');
+    const token = await getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

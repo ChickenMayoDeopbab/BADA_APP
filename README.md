@@ -1,3 +1,28 @@
+# 바다 App
+React Native(Expo) 기반 모바일 애플리케이션입니다.<br>
+사용자는 자가진단, 시나리오 훈련, 전화 하이라이트, 실전 워밍업 기능을 이용할 수 있습니다.<br>
+
+<br>
+
+# 저장소 구조
+**App** - 현재 저장소<br>
+React Native(Expo) 기반 모바일 애플리케이션입니다.<br>
+https://github.com/ChickenMayoDeopbab/BADA_APP<br>
+
+**Fast API**<br>
+바다의 AI 서버로 실시간 음성 인식(STT), LLM 기반 대화 생성, 음성 합성(TTS)과 같은 AI 전화 훈련 파이프라인을 담당합니다.<br>
+https://github.com/ChickenMayoDeopbab/BADA_FASTAPI<br>
+
+**Spring Server**<br>
+백엔드 서버로 핵심 비즈니스 로직과 API를 담당합니다.<br>
+https://github.com/ChickenMayoDeopbab/BADA_SPRING_SERVER<br>
+
+<br>
+<br>
+<br>
+<br>
+<hr>
+
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
