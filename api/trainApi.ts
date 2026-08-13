@@ -37,9 +37,11 @@ export const createCustomScenario = async (
 
 export const getScenarioExample = async (
   scenarioId: string,
+  signal?: AbortSignal,
 ): Promise<ExampleConversationResponse> => {
   const response = await aiApiClient.get<ExampleConversationResponse>(
     `/api/v1/scenario/${scenarioId}/example`,
+    { signal },
   );
   return response.data;
 };

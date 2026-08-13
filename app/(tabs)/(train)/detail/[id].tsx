@@ -2,10 +2,11 @@ import { getScenarioExample, getScenarios } from "@/api/trainApi";
 import { ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
-import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
 import { getAccessToken } from "@/utils/authTokenStorage";
+import { isCancel } from "axios";
+import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -44,6 +45,9 @@ export default function Detail() {
   const [isResolvingScenario, setIsResolvingScenario] = useState(false);
   const examplePlayer = useAudioPlayer(exampleAudioSource);
   const exampleStatus = useAudioPlayerStatus(examplePlayer);
+  const examplePlayerRef = useRef(examplePlayer);
+  const exampleRequestControllerRef = useRef<AbortController | null>(null);
+  examplePlayerRef.current = examplePlayer;
 
   const { id, title, content, isCustom, scenarioImage, category } =
     useLocalSearchParams<{
@@ -86,6 +90,29 @@ export default function Detail() {
   const resolvedScenarioImage = scenarioImage ?? resolvedScenario?.scenario_image ?? "";
   const resolvedCategory = category ?? resolvedScenario?.category;
 
+  const stopExample = useCallback(() => {
+    const requestController = exampleRequestControllerRef.current;
+    exampleRequestControllerRef.current = null;
+    requestController?.abort();
+
+    const player = examplePlayerRef.current;
+    player.pause();
+    player.replace(null);
+
+    setIsFetchingExample(false);
+    setShouldAutoPlay(false);
+    setExampleAudioSource(null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // 이전 화면 인스턴스가 스택에 남아 다시 포커스되는 경우에도
+      // 네이티브 플레이어의 오래된 재생 상태를 초기화한다.
+      stopExample();
+      return stopExample;
+    }, [stopExample]),
+  );
+
   useEffect(() => {
     if (!shouldAutoPlay || !exampleStatus.isLoaded) return;
 
@@ -94,12 +121,20 @@ export default function Detail() {
   }, [examplePlayer, exampleStatus.isLoaded, shouldAutoPlay]);
 
   const handleExamplePress = async () => {
-    if (exampleStatus.playing) {
-      examplePlayer.pause();
+    const isExampleLoading =
+      isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded);
+
+    if (isExampleLoading) {
+      stopExample();
       return;
     }
 
     if (exampleAudioSource) {
+      if (exampleStatus.playing) {
+        examplePlayer.pause();
+        return;
+      }
+
       if (exampleStatus.didJustFinish) {
         await examplePlayer.seekTo(0);
       }
@@ -113,9 +148,15 @@ export default function Detail() {
       return;
     }
 
+    const requestController = new AbortController();
+    exampleRequestControllerRef.current = requestController;
+
     try {
       setIsFetchingExample(true);
-      const example = await getScenarioExample(scenarioId);
+      const example = await getScenarioExample(
+        scenarioId,
+        requestController.signal,
+      );
       const audioUrl = example.audio_url?.trim();
 
       if (!audioUrl) {
@@ -133,6 +174,8 @@ export default function Detail() {
           new URL(resolvedAudioUrl).origin === new URL(apiBaseUrl).origin,
       );
 
+      if (requestController.signal.aborted) return;
+
       setShouldAutoPlay(true);
       setExampleAudioSource({
         uri: resolvedAudioUrl,
@@ -141,6 +184,8 @@ export default function Detail() {
           : {}),
       });
     } catch (error) {
+      if (requestController.signal.aborted || isCancel(error)) return;
+
       console.error("[ScenarioExample] 예시 대화 조회 실패", error);
       Alert.alert(
         "재생 실패",
@@ -149,7 +194,10 @@ export default function Detail() {
           : "예시 대화를 불러오지 못했습니다.",
       );
     } finally {
-      setIsFetchingExample(false);
+      if (exampleRequestControllerRef.current === requestController) {
+        exampleRequestControllerRef.current = null;
+        setIsFetchingExample(false);
+      }
     }
   };
 
@@ -178,6 +226,9 @@ export default function Detail() {
 
   const typeLabel =
     resolvedIsCustom === "true" ? "커스텀 시나리오" : "기본 제공 시나리오";
+  const isExampleLoading =
+    isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded);
+  const isExamplePlaying = Boolean(exampleAudioSource && exampleStatus.playing);
 
   return (
     <View className="flex-1 bg-white">
@@ -199,18 +250,15 @@ export default function Detail() {
       <View className="px-8 pt-4 pb-10 gap-y-3">
         <CustomButton
           label={
-            isFetchingExample
-              ? "예시 대화 불러오는 중"
-              : exampleStatus.playing
+            isExampleLoading
+              ? "예시 대화 불러오기 중단"
+              : isExamplePlaying
                 ? "예시 대화 일시정지"
                 : "예시 대화 들어보기"
           }
           color="#3B3D3E"
-          disabled={
-            isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded)
-          }
           icon={
-            isFetchingExample || (exampleAudioSource && !exampleStatus.isLoaded) ? (
+            isExampleLoading ? (
               <ActivityIndicator size="small" color="#3B3D3E" />
             ) : undefined
           }
