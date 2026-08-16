@@ -12,10 +12,43 @@
       "distribution": "store",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
+      }
+    },
+    "onestore": {
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "APP_VARIANT": "onestore",
+        "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
+      }
+    },
+    "playstore": {
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "APP_VARIANT": "playstore",
+        "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
+      }
     }
   },
   "submit": {

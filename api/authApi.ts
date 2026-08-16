@@ -1,3 +1,4 @@
+import * as Linking from "expo-linking";
 import apiClient from "./client";
 import {
   ApiResponse,
@@ -9,8 +10,54 @@ import {
   FindIdResponse,
   LoginRequest,
   LoginResponse,
+  OAuthCodeRequest,
+  OAuthProvider,
   SignUpRequest,
 } from "./types";
+
+const OAUTH_LOGIN_PATHS: Record<OAuthProvider, string> = {
+  google: "/api/v1/auth/google",
+  naver: "/api/v1/auth/naver",
+  apple: "/api/v1/auth/apple",
+};
+
+export const getOAuthLoginUrl = (provider: OAuthProvider): string => {
+  const url = apiClient.getUri({
+    url: OAUTH_LOGIN_PATHS[provider],
+  });
+
+  if (!/^https?:\/\//i.test(url)) {
+    throw new Error("EXPO_PUBLIC_API_URL이 설정되지 않았습니다.");
+  }
+
+  return url;
+};
+
+export const openOAuthLogin = async (
+  provider: OAuthProvider
+): Promise<void> => {
+  await Linking.openURL(getOAuthLoginUrl(provider));
+};
+
+export const getGoogleLogin = (): Promise<void> =>
+  openOAuthLogin("google");
+
+export const getNaverLogin = (): Promise<void> =>
+  openOAuthLogin("naver");
+
+export const getAppleLogin = (): Promise<void> =>
+  openOAuthLogin("apple");
+
+export const postOAuthToken = async (
+  data: OAuthCodeRequest,
+): Promise<ApiResponse<LoginResponse>> => {
+  const response = await apiClient.post<ApiResponse<LoginResponse>>(
+    "/api/v1/auth/oauth/token",
+    data,
+  );
+
+  return response.data;
+};
 
 export const postSignup = async (
   data: SignUpRequest
