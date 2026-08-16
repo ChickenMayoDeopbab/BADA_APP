@@ -19,14 +19,8 @@ module.exports = {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
-      supportsTablet: true,
       bundleIdentifier: "com.bada.app",
       icon: "./assets/badaAppIcon.png",
-      infoPlist: {
-        NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true,
-        },
-      },
     },
     android: {
       predictiveBackGestureEnabled: false,
