@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { refreshAuthTokens } from "@/api/tokenApi";
+import { getAccessToken } from "@/utils/authTokenStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const getWsBaseUrl = () =>
@@ -96,7 +97,7 @@ export function useTrainWebSocket({
 
   const connect = useCallback(async () => {
     if (!sessionId) return;
-    const token = await AsyncStorage.getItem("accessToken");
+    const token = await getAccessToken();
     if (!token) return;
 
     // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
@@ -185,41 +186,8 @@ export function useTrainWebSocket({
           // 토큰 재발급 후 재연결
           (async () => {
             try {
-              const accessToken = await AsyncStorage.getItem("accessToken");
-              const refreshToken = await AsyncStorage.getItem("refreshToken");
-              if (!refreshToken) throw new Error("no refresh token");
-
-              // 만료된 access token의 payload에서 userId 추출 (RefreshRequest 필수 필드)
-              let userId: number | null = null;
-              if (accessToken) {
-                try {
-                  const b64 = accessToken
-                    .split(".")[1]
-                    .replace(/-/g, "+")
-                    .replace(/_/g, "/");
-                  const claims = JSON.parse(atob(b64));
-                  userId = claims.sub != null ? Number(claims.sub) : null;
-                } catch {}
-              }
-              if (userId == null) throw new Error("no userId");
-
-              const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(
-                /\/$/,
-                "",
-              );
-              const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refreshToken, userId }),
-              });
-              if (!res.ok) throw new Error("refresh failed");
-              const json = await res.json();
-              await AsyncStorage.setItem("accessToken", json.data.accessToken);
-              await AsyncStorage.setItem(
-                "refreshToken",
-                json.data.refreshToken,
-              );
-              connectRef.current();
+              await refreshAuthTokens();
+              await connectRef.current();
             } catch {
               onErrorRef.current?.("WS_CLOSE_TOKEN_EXPIRED");
             }

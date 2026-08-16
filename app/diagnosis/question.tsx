@@ -11,6 +11,7 @@ import { jwtDecode } from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { getAccessToken } from "@/utils/authTokenStorage";
 import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
@@ -107,7 +108,7 @@ export default function Question() {
   }, [status]);
 
   const submitAnswers = async (answers: number[]) => {
-    const token = await AsyncStorage.getItem("accessToken");
+    const token = await getAccessToken();
     if (!token) {
       setStatus('error')
       return;
