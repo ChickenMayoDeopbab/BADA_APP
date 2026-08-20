@@ -46,8 +46,19 @@ module.exports = {
       "expo-font",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
-      "expo-secure-store",
-      "expo-audio",
+      [
+        "expo-secure-store",
+        {
+          faceIDPermission: false,
+        },
+      ],
+      [
+        "expo-audio",
+        {
+          microphonePermission:
+            "대화 훈련 중 음성을 녹음하여 발화 내용을 분석하고 피드백을 제공하기 위해 마이크를 사용합니다.",
+        },
+      ],
       "expo-asset",
     ],
     experiments: {
