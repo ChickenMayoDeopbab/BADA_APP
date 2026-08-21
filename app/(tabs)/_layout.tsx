@@ -116,6 +116,12 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="(profile)"
+          listeners={{
+            tabPress: (event) => {
+              event.preventDefault();
+              router.replace("/(tabs)/(profile)/profile");
+            },
+          }}
           options={{
             title: "프로필",
             tabBarIcon: ({ color, size }) => (
