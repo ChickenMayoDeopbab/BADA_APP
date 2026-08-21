@@ -104,7 +104,7 @@ function ProfileScreen() {
   const displayName = myPage?.name?.trim() || myPage?.username || "";
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
       <View className="flex-row items-center justify-between h-16 px-2 bg-background-normal">
         <View className="size-16" />
         <Text className="font-bold text-headline1 text-label-neutral">프로필</Text>
@@ -150,7 +150,7 @@ function ProfileScreen() {
                       {myPage?.username ?? ""}
                     </Text>
                   </View>
-                  <View className="h-3 w-px bg-line-neutral" />
+                  <View className="w-px h-3 bg-line-neutral" />
                   <View className="min-w-0 shrink flex-row items-center gap-0.5">
                     <Ionicons
                       name="mail"
@@ -177,7 +177,7 @@ function ProfileScreen() {
           </View>
 
           <View className="w-full gap-1.5">
-            <Text className="px-1 text-body font-medium text-label-alternative">
+            <Text className="px-1 font-medium text-body text-label-alternative">
               설정
             </Text>
             <View
@@ -210,7 +210,7 @@ function ProfileScreen() {
           </View>
 
           <View className="w-full gap-1.5">
-            <Text className="px-1 text-body font-medium text-label-alternative">
+            <Text className="px-1 font-medium text-body text-label-alternative">
               계정
             </Text>
             <View
