@@ -1,9 +1,14 @@
-import { Tabs, router } from "expo-router";
-import Octicons from '@expo/vector-icons/Octicons';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect } from "react";
 import { createSession } from "@/api/trainApi";
-import { PendingCallProvider, usePendingCall } from "@/context/PendingCallContext";
+import CommunityIcon from "@/assets/community.svg";
+import {
+  PendingCallProvider,
+  usePendingCall,
+} from "@/context/PendingCallContext";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import Octicons from "@expo/vector-icons/Octicons";
+import { Tabs, router, usePathname } from "expo-router";
+import { useEffect } from "react";
+import { SEMANTIC_COLORS } from "@/design-system/colors";
 
 /** 발신 예약 타이머 감시 — 예약된 시각이 되면 세션을 생성하고 훈련 화면으로 이동 */
 function CallWatcher() {
@@ -46,59 +51,78 @@ function CallWatcher() {
 }
 
 export default function TabLayout() {
+  const pathname = usePathname();
+
   return (
     <PendingCallProvider>
       <CallWatcher />
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: {
-            backgroundColor: '#f5f5f5',
-            borderTopWidth: 1,
-            shadowOpacity: 0.1,
-            height: 110,
-            paddingTop: 10
-          },
-          tabBarActiveTintColor: '#0AE365',
-          tabBarInactiveTintColor: '#aaaaaa',
+          tabBarStyle:
+            pathname === "/train"
+              ? { display: "none" }
+              : {
+                  backgroundColor: SEMANTIC_COLORS.background.normal,
+                  borderTopWidth: 1,
+                  shadowOpacity: 0.1,
+                  height: 110,
+                  paddingTop: 10,
+                },
+          tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
+          tabBarInactiveTintColor: SEMANTIC_COLORS.line.normal,
           tabBarLabelStyle: {
             fontSize: 12,
-            fontWeight: 'semibold',
+            fontWeight: "semibold",
           },
         }}
       >
-        <Tabs.Screen name="(home)/home" options={{
-          title: '메인',
-          tabBarIcon: ({ color, size }) => (
-            <Octicons name="home-fill" size={size} color={color} />
-          )
-        }} />
-        <Tabs.Screen name="(train)/list" options={{
-          title: '훈련',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="call" size={size} color={color} />
-          )
-        }} />
-          <Tabs.Screen name="(train)/report" options={{ href: null }} />
-        <Tabs.Screen name="(train)/create" options={{ href: null }} />
-        <Tabs.Screen name="(train)/detail/[id]" options={{ href: null }} />
-        <Tabs.Screen name="(train)/start" options={{ href: null }} />
-        <Tabs.Screen name="(train)/train" options={{ href: null, tabBarStyle: { display: "none" } }} />
-        <Tabs.Screen name="(train)/warmup" options={{ href: null }} />
-        <Tabs.Screen name="(train)/warmup-start" options={{ href: null }} />
-        <Tabs.Screen name="(record)/record/index" options={{
-          title: '기록',
-          tabBarIcon: ({ color, size }) => (
-            <Octicons name="history" size={size} color={color} />
-          )
-        }} />
-        <Tabs.Screen name="(record)/record/[id]" options={{ href: null }} />
-        <Tabs.Screen name="profile" options={{
-          title: '프로필',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          )
-        }} />
+        <Tabs.Screen
+          name="(home)"
+          options={{
+            title: "메인",
+            tabBarIcon: ({ color, size }) => (
+              <Octicons name="home-fill" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="(train)"
+          options={{
+            title: "훈련",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="call" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tabs.Screen
+          name="(record)"
+          options={{
+            title: "기록",
+            tabBarIcon: ({ color, size }) => (
+              <Octicons name="history" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="(community)"
+          options={{
+            title: "커뮤니티",
+            tabBarIcon: ({ color, size }) => (
+              <CommunityIcon width={size} height={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="(profile)"
+          options={{
+            title: "프로필",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
+          }}
+        />
       </Tabs>
     </PendingCallProvider>
   );

@@ -43,7 +43,39 @@ module.exports = {
           },
         },
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          android: {
+            fonts: [
+              {
+                fontFamily: "Pretendard",
+                fontDefinitions: [
+                  {
+                    path: "./public/fonts/Pretendard-Regular.otf",
+                    weight: 400,
+                  },
+                  {
+                    path: "./public/fonts/Pretendard-Medium.otf",
+                    weight: 500,
+                  },
+                  {
+                    path: "./public/fonts/Pretendard-Bold.otf",
+                    weight: 700,
+                  },
+                ],
+              },
+            ],
+          },
+          ios: {
+            fonts: [
+              "./public/fonts/Pretendard-Regular.otf",
+              "./public/fonts/Pretendard-Medium.otf",
+              "./public/fonts/Pretendard-Bold.otf",
+            ],
+          },
+        },
+      ],
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       [

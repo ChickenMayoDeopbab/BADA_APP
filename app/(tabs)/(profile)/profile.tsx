@@ -32,7 +32,7 @@ function ProfileScreen() {
       try {
         const response = await getMyPage();
         setMyPage(response.data);
-      } catch (error) {}
+      } catch {}
     };
     fetchMyPage();
   }, []);
