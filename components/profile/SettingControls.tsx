@@ -1,6 +1,6 @@
-import { PALETTE } from "@/design-system/colors";
+import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { ReactNode, useEffect, useRef } from "react";
-import { Animated, Pressable, Text, View } from "react-native";
+import { Animated, Easing, Pressable, Text, View } from "react-native";
 
 const settingCardShadow = {
   boxShadow: `0px 0px 3.4px 0px ${PALETTE.common[100]}14`,
@@ -8,7 +8,7 @@ const settingCardShadow = {
 
 export function SettingSectionLabel({ children }: { children: string }) {
   return (
-    <Text className="px-1 text-body font-medium text-label-alternative">
+    <Text className="px-1 font-medium text-body text-label-alternative">
       {children}
     </Text>
   );
@@ -36,7 +36,7 @@ interface SettingRowProps {
 export function SettingRow({ label, children, onPress }: SettingRowProps) {
   const content = (
     <>
-      <Text className="text-headline2 font-medium text-label-normal">
+      <Text className="font-medium text-headline2 text-label-normal">
         {label}
       </Text>
       {children}
@@ -64,7 +64,7 @@ export function SettingRow({ label, children, onPress }: SettingRowProps) {
 
 export function RadioIndicator({ selected }: { selected: boolean }) {
   return (
-    <View className="size-6 items-center justify-center rounded-pill border-2 border-line-normal">
+    <View className="items-center justify-center border-2 size-6 rounded-pill border-line-normal">
       {selected && <View className="size-[15px] rounded-pill bg-primary-normal" />}
     </View>
   );
@@ -77,23 +77,39 @@ interface SettingToggleProps {
   label: string;
 }
 
+const TOGGLE_TRACK_WIDTH = 42;
+const TOGGLE_TRACK_HEIGHT = 24;
+const TOGGLE_THUMB_SIZE = 20;
+const TOGGLE_THUMB_INSET = 2;
+const TOGGLE_THUMB_TRAVEL =
+  TOGGLE_TRACK_WIDTH - TOGGLE_THUMB_SIZE - TOGGLE_THUMB_INSET * 2;
+
 export function SettingToggle({
   value,
   onValueChange,
   disabled = false,
   label,
 }: SettingToggleProps) {
-  const thumbPosition = useRef(new Animated.Value(value ? 18 : 0)).current;
+  const thumbPosition = useRef(
+    new Animated.Value(value ? TOGGLE_THUMB_TRAVEL : 0),
+  ).current;
 
   useEffect(() => {
-    Animated.spring(thumbPosition, {
-      toValue: value ? 18 : 0,
-      damping: 18,
-      stiffness: 220,
-      mass: 0.7,
-      overshootClamping: true,
+    thumbPosition.stopAnimation();
+    const animation = Animated.timing(thumbPosition, {
+      toValue: value ? TOGGLE_THUMB_TRAVEL : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    }).start();
+    });
+
+    animation.start(({ finished }) => {
+      if (finished) {
+        thumbPosition.setValue(value ? TOGGLE_THUMB_TRAVEL : 0);
+      }
+    });
+
+    return () => animation.stop();
   }, [thumbPosition, value]);
 
   const trackClassName = disabled
@@ -109,11 +125,24 @@ export function SettingToggle({
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
-      className={`relative h-6 w-[42px] overflow-hidden rounded-pill ${trackClassName}`}
+      className={`relative overflow-hidden ${trackClassName}`}
+      style={{
+        width: TOGGLE_TRACK_WIDTH,
+        height: TOGGLE_TRACK_HEIGHT,
+        borderRadius: TOGGLE_TRACK_HEIGHT / 2,
+      }}
     >
       <Animated.View
-        className="absolute left-0.5 top-0.5 size-5 rounded-pill bg-background-normal"
-        style={{ transform: [{ translateX: thumbPosition }] }}
+        style={{
+          position: "absolute",
+          left: TOGGLE_THUMB_INSET,
+          top: TOGGLE_THUMB_INSET,
+          width: TOGGLE_THUMB_SIZE,
+          height: TOGGLE_THUMB_SIZE,
+          borderRadius: TOGGLE_THUMB_SIZE / 2,
+          backgroundColor: SEMANTIC_COLORS.background.normal,
+          transform: [{ translateX: thumbPosition }],
+        }}
       />
     </Pressable>
   );
