@@ -98,7 +98,7 @@ export default function RingtoneSettingsScreen() {
         >
           <Ionicons
             name="add"
-            size={34}
+            size={32}
             color={SEMANTIC_COLORS.label.alternative}
           />
         </Pressable>
