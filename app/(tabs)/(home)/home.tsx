@@ -8,7 +8,13 @@ import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
@@ -52,12 +58,27 @@ export default function Home() {
   useDoubleBackExit();
   const [username, setUsername] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const today = useMemo(() => new Date(), []);
   const week = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = new Date(today);
     date.setDate(today.getDate() - 6 + index);
     return date;
   }), [today]);
+  const calendarWeeks = useMemo(() => {
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const cells: (Date | null)[] = [
+      ...Array.from({ length: firstDay }, () => null),
+      ...Array.from({ length: lastDate }, (_, index) => new Date(year, month, index + 1)),
+    ];
+
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    return Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
+  }, [today]);
 
   useEffect(() => {
     let isActive = true;
@@ -91,7 +112,8 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.header}>
         <View style={styles.bellRow}>
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
           <View style={styles.alarmDot} />
@@ -101,9 +123,9 @@ export default function Home() {
           <SmileIllustration width={26} height={26} />
         </View>
         <Text style={styles.headline}>오늘은 어떤 시나리오로 연습할까요?</Text>
-      </View>
+        </View>
 
-      <View style={styles.attendanceCard}>
+        <View style={styles.attendanceCard}>
         <View style={styles.cardHeading}>
           <Text style={styles.cardTitle}>이번 주 훈련</Text>
           <Text style={styles.streak}>{streak}일 연속 훈련</Text>
@@ -124,31 +146,73 @@ export default function Home() {
             );
           })}
         </View>
-      </View>
 
-      <View style={styles.quickRow}>
-        <Pressable onPress={() => router.push("/(tabs)/(train)/list")} style={styles.scenarioCard}>
-          <View style={[styles.cardClip, styles.scenarioContent]}>
-            <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
-            <Text style={styles.eyebrow}>추천 시나리오</Text>
-            <Text style={styles.scenarioTitle}>배준하피자{"\n"}배달 주문하기</Text>
-            <View style={styles.trainButton}>
-              <Ionicons name="call" size={14} color="#FFFFFF" />
-              <Text style={styles.trainButtonText}>훈련 하러가기</Text>
+        {isCalendarOpen && (
+          <View style={styles.calendar}>
+              <Text style={styles.calendarTitle}>{today.getFullYear()}년 {today.getMonth() + 1}월</Text>
+              <View style={styles.calendarWeekRow}>
+                {DAY_LABELS.map((label) => <Text key={label} style={styles.calendarWeekLabel}>{label}</Text>)}
+              </View>
+              {calendarWeeks.map((weekDates, weekIndex) => (
+                <View key={weekIndex} style={styles.calendarWeekRow}>
+                  {weekDates.map((date, dayIndex) => {
+                    if (!date) return <View key={`empty-${dayIndex}`} style={styles.calendarDay} />;
+                    const dateString = formatDate(date);
+                    const isAttended = attendedDates.includes(dateString);
+                    const isToday = dateString === formatDate(today);
+                    return (
+                      <View key={dateString} style={styles.calendarDay}>
+                        <View style={[styles.calendarDate, isAttended && styles.attendedDay, isToday && !isAttended && styles.todayDate]}>
+                          <Text style={[styles.calendarDateText, isAttended && styles.attendedDateText]}>{date.getDate()}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+          </View>
+        )}
+
+        <Pressable
+          accessibilityLabel={isCalendarOpen ? "월간 출석 내역 접기" : "월간 출석 내역 펼치기"}
+          hitSlop={10}
+          onPress={() => setIsCalendarOpen((previous) => !previous)}
+          style={styles.calendarToggle}
+        >
+          <Ionicons name={isCalendarOpen ? "chevron-up" : "chevron-down"} size={22} color={SEMANTIC_COLORS.label.alternative} />
+        </Pressable>
+        </View>
+
+        <View style={styles.quickRow}>
+        <Pressable
+          onPress={() => router.push("/(tabs)/(train)/list")}
+          style={styles.scenarioCard}
+        >
+            <View style={[styles.cardClip, styles.scenarioContent]}>
+              <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
+              <Text style={styles.eyebrow}>추천 시나리오</Text>
+              <Text style={styles.scenarioTitle}>배준하피자{"\n"}배달 주문하기</Text>
+              <View style={styles.trainButton}>
+                <Ionicons name="call" size={14} color="#FFFFFF" />
+                <Text style={styles.trainButtonText}>훈련 하러가기</Text>
+              </View>
+              <PizzaIllustration width={105} height={105} style={styles.pizza} />
             </View>
-            <PizzaIllustration width={105} height={105} style={styles.pizza} />
-          </View>
         </Pressable>
-        <Pressable onPress={() => router.push("/(tabs)/(train)/warmup")} style={styles.warmupCard}>
-          <View style={[styles.cardClip, styles.warmupContent]}>
-            <CardGradient id="warmupGradient" colors={["#6D9FF5", "#9CBBFA"]} />
-            <FireIllustration width={52} height={52} />
-            <Text numberOfLines={2} adjustsFontSizeToFit style={styles.warmupTitle}>
-              통화 전 워밍업{"\n"}시작하기
-            </Text>
-          </View>
+        <Pressable
+          onPress={() => router.push("/(tabs)/(train)/warmup")}
+          style={styles.warmupCard}
+        >
+            <View style={[styles.cardClip, styles.warmupContent]}>
+              <CardGradient id="warmupGradient" colors={["#6D9FF5", "#9CBBFA"]} />
+              <FireIllustration width={52} height={52} />
+              <Text numberOfLines={2} adjustsFontSizeToFit style={styles.warmupTitle}>
+                통화 전 워밍업{"\n"}시작하기
+              </Text>
+            </View>
         </Pressable>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -159,7 +223,8 @@ const cardShadow = {
 };
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F2F2F2", paddingHorizontal: 33 },
+  screen: { flex: 1, backgroundColor: "#F2F2F2" },
+  content: { paddingBottom: 24, paddingHorizontal: 33 },
   header: { paddingTop: 13 },
   bellRow: { alignItems: "flex-end", height: 38, position: "relative" },
   alarmDot: { backgroundColor: "#FF0000", borderRadius: 4, height: 8, position: "absolute", right: 4, top: 1, width: 8 },
@@ -176,6 +241,16 @@ const styles = StyleSheet.create({
   attendedDay: { backgroundColor: SEMANTIC_COLORS.primary.normal },
   dayLabel: { color: SEMANTIC_COLORS.label.alternative, fontSize: 12, fontWeight: "500", letterSpacing: -0.24, lineHeight: 16 },
   todayLabel: { color: SEMANTIC_COLORS.label.strong, fontWeight: "700" },
+  calendar: { borderTopColor: SEMANTIC_COLORS.line.normal, borderTopWidth: 1, gap: 4, paddingTop: 20 },
+  calendarTitle: { color: SEMANTIC_COLORS.label.normal, fontSize: 14, fontWeight: "700", lineHeight: 18, marginBottom: 10, textAlign: "center" },
+  calendarWeekRow: { flexDirection: "row" },
+  calendarWeekLabel: { color: SEMANTIC_COLORS.label.alternative, flex: 1, fontSize: 12, fontWeight: "500", lineHeight: 16, marginBottom: 2, textAlign: "center" },
+  calendarDay: { alignItems: "center", flex: 1, height: 32, justifyContent: "center" },
+  calendarDate: { alignItems: "center", borderRadius: 14, height: 28, justifyContent: "center", width: 28 },
+  calendarDateText: { color: SEMANTIC_COLORS.label.normal, fontSize: 12, fontWeight: "500", lineHeight: 16 },
+  attendedDateText: { color: "#FFFFFF", fontWeight: "700" },
+  todayDate: { borderColor: SEMANTIC_COLORS.primary.normal, borderWidth: 1 },
+  calendarToggle: { alignItems: "center", height: 28, justifyContent: "center", marginVertical: -8 },
   quickRow: { flexDirection: "row", gap: 12, marginTop: 12 },
   scenarioCard: { ...cardShadow, borderRadius: 12, height: 148, width: "59%" },
   cardClip: { borderRadius: 12, flex: 1, overflow: "hidden" },
