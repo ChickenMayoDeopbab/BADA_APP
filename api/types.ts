@@ -182,10 +182,6 @@ export interface CustomScenarioResponse {
 export interface GetTrainingRecordsParams {
   page?: number;
   size?: number;
-  /** @deprecated Swagger 명세에 없는 기존 클라이언트 호환용 필드 */
-  sort?: string;
-  /** @deprecated Swagger 명세에 없는 기존 클라이언트 호환용 필드 */
-  date?: string;
 }
 
 export interface SortObject {
@@ -261,7 +257,6 @@ export interface TrainingRecordDetailResponse {
   positiveFeedbacks: PositiveFeedbackResponse[];
 }
 
-export type TrainingRecordDetail = TrainingRecordDetailResponse;
 export type ApiResponseTrainingRecordDetailResponse =
   ApiResponse<TrainingRecordDetailResponse>;
 
@@ -278,7 +273,7 @@ export interface AnxietyScoreResponse {
 
 export type ApiResponseAnxietyScoreResponse = ApiResponse<AnxietyScoreResponse>;
 
-export interface GetTrainingRecordFeedbackParams {
+export interface GetFeedbackParams {
   scenarioId: number;
 }
 
@@ -305,5 +300,3 @@ export interface FeedbackResponse {
   goodSegments: GoodSegment[];
   recordingUrl: string;
 }
-
-export type TrainingFeedbackResponse = FeedbackResponse;
