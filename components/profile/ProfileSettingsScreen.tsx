@@ -28,14 +28,14 @@ export default function ProfileSettingsScreen({
   const cancel = onCancel ?? (() => router.back());
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-16 flex-row items-center justify-between bg-background-normal px-2">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
+      <View className="flex-row items-center justify-between h-16 px-2 bg-background-normal">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="프로필로 돌아가기"
           onPress={cancel}
           hitSlop={8}
-          className="size-16 items-center justify-center active:opacity-70"
+          className="items-center justify-center size-16 active:opacity-70"
         >
           <Ionicons
             name="chevron-back"
@@ -43,13 +43,14 @@ export default function ProfileSettingsScreen({
             color={SEMANTIC_COLORS.label.alternative}
           />
         </Pressable>
-        <Text className="text-headline1 font-bold text-label-neutral">
+        <Text className="font-bold text-headline1 text-label-neutral">
           {title}
         </Text>
-        <View className="size-16 items-center justify-center">{headerAction}</View>
+        <View className="items-center justify-center size-16">{headerAction}</View>
       </View>
 
       <ScrollView
+        className="flex-1 bg-background-alternative"
         showsVerticalScrollIndicator={false}
         contentContainerClassName="grow"
       >
@@ -58,7 +59,7 @@ export default function ProfileSettingsScreen({
             {children}
           </View>
 
-          <View className="mt-auto gap-1 pt-6">
+          <View className="gap-1 pt-6 mt-auto">
             <CustomButton
               label="변경사항 저장하기"
               disabled={!hasChanges}

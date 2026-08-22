@@ -14,23 +14,27 @@ interface CustomButtonProps extends PressableProps {
 const variantStyle = {
   xl: {
     height: "min-h-[51px]",
-    text: "text-headline1",
-    padding: "px-[14px] py-3",
+    text: "text-headline2",
+    padding: "p-[14px]",
+    radius: "rounded-component",
   },
   lg: {
     height: "min-h-[41px]",
-    text: "text-headline2",
-    padding: "px-[10px] py-2",
+    text: "text-body",
+    padding: "p-[10px]",
+    radius: "rounded-component",
   },
   md: {
     height: "min-h-[38px]",
-    text: "text-body",
-    padding: "px-[10px] py-2",
+    text: "text-label",
+    padding: "p-[10px]",
+    radius: "rounded-[8px]",
   },
   sm: {
     height: "min-h-[28px]",
-    text: "text-label",
-    padding: "px-[6px] py-1",
+    text: "text-caption",
+    padding: "p-[6px]",
+    radius: "rounded-[8px]",
   },
 };
 
@@ -45,7 +49,7 @@ export default function CustomButton({
   className,
   ...props
 }: CustomButtonProps) {
-  const { height, text, padding } = variantStyle[variant];
+  const { height, text, padding, radius } = variantStyle[variant];
   const usesCustomColors = Boolean(backgroundColor || color);
   const resolvedTone = tone ?? (usesCustomColors ? undefined : "neutral");
   const toneClassName = disabled
@@ -73,7 +77,7 @@ export default function CustomButton({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(disabled) }}
-      className={`w-full items-center justify-center rounded-component ${height} ${padding} ${toneClassName} ${pressedClassName} ${className ?? ""}`}
+      className={`w-full items-center justify-center ${radius} ${height} ${padding} ${toneClassName} ${pressedClassName} ${className ?? ""}`}
       style={
         backgroundColor && !disabled ? { backgroundColor } : undefined
       }

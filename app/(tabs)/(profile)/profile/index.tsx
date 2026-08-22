@@ -112,119 +112,117 @@ function ProfileScreen() {
       </View>
 
       <ScrollView
+        className="flex-1 bg-background-alternative"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="pb-6 pt-[22px]"
+        contentContainerClassName="gap-4 px-[33px] pb-6 pt-[22px]"
       >
-        <View className="gap-4 px-[33px]">
-          <View
-            className="w-full items-center gap-4 rounded-component bg-background-normal px-[22px] py-[14px]"
-            style={profileCardShadow}
-          >
-            <View className="items-center gap-3">
-              <View className="h-[107px] w-[100px] items-center justify-center overflow-hidden rounded-[36px] bg-fill-neutral">
-                <Ionicons
-                  name="person"
-                  size={52}
-                  color={SEMANTIC_COLORS.line.normal}
-                />
-              </View>
+        <View
+          className="w-full items-center gap-4 rounded-component bg-background-normal px-[22px] py-[14px]"
+          style={profileCardShadow}
+        >
+          <View className="items-center gap-3">
+            <View className="h-[107px] w-[100px] items-center justify-center overflow-hidden rounded-[36px] bg-fill-neutral">
+              <Ionicons
+                name="person"
+                size={52}
+                color={SEMANTIC_COLORS.line.normal}
+              />
+            </View>
 
-              <View className="w-full items-center gap-0.5">
-                <Text
-                  numberOfLines={1}
-                  className="max-w-[282px] text-title2 font-bold text-label-normal"
-                >
-                  {displayName}
-                </Text>
-                <View className="min-h-[18px] w-full flex-row items-center justify-center gap-[10px]">
-                  <View className="min-w-0 flex-row items-center gap-0.5">
-                    <Ionicons
-                      name="person"
-                      size={18}
-                      color={SEMANTIC_COLORS.label.alternative}
-                    />
-                    <Text
-                      numberOfLines={1}
-                      className="max-w-[84px] text-label text-label-alternative"
-                    >
-                      {myPage?.username ?? ""}
-                    </Text>
-                  </View>
-                  <View className="w-px h-3 bg-line-neutral" />
-                  <View className="min-w-0 shrink flex-row items-center gap-0.5">
-                    <Ionicons
-                      name="mail"
-                      size={18}
-                      color={SEMANTIC_COLORS.label.alternative}
-                    />
-                    <Text
-                      numberOfLines={1}
-                      className="max-w-[158px] shrink text-label text-label-alternative"
-                    >
-                      {myPage?.email ?? ""}
-                    </Text>
-                  </View>
+            <View className="w-full items-center gap-0.5">
+              <Text
+                numberOfLines={1}
+                className="max-w-[282px] text-title2 font-bold text-label-normal"
+              >
+                {displayName}
+              </Text>
+              <View className="min-h-[18px] w-full flex-row items-center justify-center gap-[10px]">
+                <View className="min-w-0 flex-row items-center gap-0.5">
+                  <Ionicons
+                    name="person"
+                    size={18}
+                    color={SEMANTIC_COLORS.label.alternative}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    className="max-w-[84px] text-label text-label-alternative"
+                  >
+                    {myPage?.username ?? ""}
+                  </Text>
+                </View>
+                <View className="w-px h-3 bg-line-neutral" />
+                <View className="min-w-0 shrink flex-row items-center gap-0.5">
+                  <Ionicons
+                    name="mail"
+                    size={18}
+                    color={SEMANTIC_COLORS.label.alternative}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    className="max-w-[158px] shrink text-label text-label-alternative"
+                  >
+                    {myPage?.email ?? ""}
+                  </Text>
                 </View>
               </View>
             </View>
-
-            <CustomButton
-              label="프로필 수정하기"
-              variant="md"
-              tone="neutral"
-              onPress={() => router.push("/(tabs)/(profile)/profile/edit")}
-            />
           </View>
 
-          <View className="w-full gap-1.5">
-            <Text className="px-1 font-medium text-body text-label-alternative">
-              설정
-            </Text>
-            <View
-              className="w-full rounded-component bg-background-normal"
-              style={profileCardShadow}
-            >
-              <View className="w-full overflow-hidden rounded-component">
-                <MenuRow
-                  label="벨소리"
-                  onPress={() =>
-                    router.push("/(tabs)/(profile)/profile/settings/ringtone")
-                  }
-                />
-                <MenuRow
-                  label="알림"
-                  onPress={() =>
-                    router.push(
-                      "/(tabs)/(profile)/profile/settings/notification",
-                    )
-                  }
-                />
-                <MenuRow
-                  label="언어"
-                  onPress={() =>
-                    router.push("/(tabs)/(profile)/profile/settings/language")
-                  }
-                />
-              </View>
+          <CustomButton
+            label="프로필 수정하기"
+            variant="md"
+            backgroundColor={SEMANTIC_COLORS.background.alternative}
+            color={SEMANTIC_COLORS.label.neutral}
+            onPress={() => router.push("/(tabs)/(profile)/profile/edit")}
+          />
+        </View>
+
+        <View className="w-full gap-1.5">
+          <Text className="px-1 font-medium text-body text-label-alternative">
+            설정
+          </Text>
+          <View
+            className="w-full rounded-component bg-background-normal"
+            style={profileCardShadow}
+          >
+            <View className="w-full overflow-hidden rounded-component">
+              <MenuRow
+                label="벨소리"
+                onPress={() =>
+                  router.push("/(tabs)/(profile)/profile/settings/ringtone")
+                }
+              />
+              <MenuRow
+                label="알림"
+                onPress={() =>
+                  router.push("/(tabs)/(profile)/profile/settings/notification")
+                }
+              />
+              <MenuRow
+                label="언어"
+                onPress={() =>
+                  router.push("/(tabs)/(profile)/profile/settings/language")
+                }
+              />
             </View>
           </View>
+        </View>
 
-          <View className="w-full gap-1.5">
-            <Text className="px-1 font-medium text-body text-label-alternative">
-              계정
-            </Text>
-            <View
-              className="w-full rounded-component bg-background-normal"
-              style={profileCardShadow}
-            >
-              <View className="w-full overflow-hidden rounded-component">
-                <MenuRow label="로그아웃" destructive onPress={handleSignOut} />
-                <MenuRow
-                  label="회원 탈퇴"
-                  destructive
-                  onPress={() => setDeleteDialogVisible(true)}
-                />
-              </View>
+        <View className="w-full gap-1.5">
+          <Text className="px-1 font-medium text-body text-label-alternative">
+            계정
+          </Text>
+          <View
+            className="w-full rounded-component bg-background-normal"
+            style={profileCardShadow}
+          >
+            <View className="w-full overflow-hidden rounded-component">
+              <MenuRow label="로그아웃" destructive onPress={handleSignOut} />
+              <MenuRow
+                label="회원 탈퇴"
+                destructive
+                onPress={() => setDeleteDialogVisible(true)}
+              />
             </View>
           </View>
         </View>
