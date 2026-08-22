@@ -1,45 +1,71 @@
 import apiClient from "./client";
 import {
-  ApiResponse,
+  ApiResponseAnxietyScoreResponse,
+  ApiResponsePageTrainingRecordResponse,
+  ApiResponseTrainingRecordDetailResponse,
+  ApiResponseVoid,
+  FeedbackResponse,
+  GetTrainingRecordFeedbackParams,
   GetTrainingRecordsParams,
-  PageData,
+  RecordAnxietyScoreRequest,
   TrainingFeedbackResponse,
-  TrainingRecordDetail,
-  TrainingRecordItem,
 } from "./types";
 
 export const getTrainingRecords = async (
-  params: GetTrainingRecordsParams,
-): Promise<ApiResponse<PageData<TrainingRecordItem>>> => {
-  const response = await apiClient.get<
-    ApiResponse<PageData<TrainingRecordItem>>
-  >("/api/v1/training-records", { params });
+  params: GetTrainingRecordsParams = {},
+): Promise<ApiResponsePageTrainingRecordResponse> => {
+  const { page, size } = params;
+  const response = await apiClient.get<ApiResponsePageTrainingRecordResponse>(
+    "/api/v1/training-records",
+    { params: { page, size } },
+  );
   return response.data;
 };
 
-export const getTrainingRecordDetail = async (
+export const getTrainingRecord = async (
   recordId: number,
-): Promise<ApiResponse<TrainingRecordDetail>> => {
-  const response = await apiClient.get<ApiResponse<TrainingRecordDetail>>(
+): Promise<ApiResponseTrainingRecordDetailResponse> => {
+  const response = await apiClient.get<ApiResponseTrainingRecordDetailResponse>(
     `/api/v1/training-records/${recordId}`,
   );
   return response.data;
 };
 
-export const getTrainingRecordFeedback = async (
-  recordId: number,
-  scenarioId?: string,
-): Promise<TrainingFeedbackResponse> => {
-  const response = await apiClient.get<
-    ApiResponse<TrainingFeedbackResponse> | TrainingFeedbackResponse
-  >("/api/v1/training-records/feedback", {
-    params: { recordId, scenarioId },
-  });
-  const body = response.data;
+export const getTrainingRecordDetail = getTrainingRecord;
 
-  return "data" in body ? body.data : body;
+export const deleteTrainingRecord = async (
+  recordId: number,
+): Promise<ApiResponseVoid> => {
+  const response = await apiClient.delete<ApiResponseVoid>(
+    `/api/v1/training-records/${recordId}`,
+  );
+  return response.data;
 };
 
+export const recordAnxietyScore = async (
+  sessionId: string,
+  request: RecordAnxietyScoreRequest,
+): Promise<ApiResponseAnxietyScoreResponse> => {
+  const response = await apiClient.post<ApiResponseAnxietyScoreResponse>(
+    `/api/v1/training-records/${sessionId}/anxiety-score`,
+    request,
+  );
+  return response.data;
+};
+
+export const getTrainingRecordFeedback = async (
+  params: GetTrainingRecordFeedbackParams,
+): Promise<FeedbackResponse> => {
+  const response = await apiClient.get<FeedbackResponse>(
+    "/api/v1/training-records/feedback",
+    {
+      params,
+    },
+  );
+  return response.data;
+};
+
+export const getFeedback = getTrainingRecordFeedback;
 
 export const getTrainingFeedbackBySessionId = async (
   sessionId: string,
@@ -53,7 +79,6 @@ export const getTrainingFeedbackBySessionId = async (
         const recordsResponse = await getTrainingRecords({
           page: 0,
           size: 20,
-          sort: "trainedAt,desc",
         });
         const record = recordsResponse.data.content.find(
           (item) => item.sessionId === sessionId,
@@ -62,7 +87,7 @@ export const getTrainingFeedbackBySessionId = async (
       }
 
       if (recordId != null) {
-        const detailResponse = await getTrainingRecordDetail(recordId);
+        const detailResponse = await getTrainingRecord(recordId);
         const detail = detailResponse.data;
         const totalSeconds = Math.max(0, Math.round(detail.durationSeconds));
 
