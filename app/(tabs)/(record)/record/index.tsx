@@ -19,6 +19,7 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   RefreshControl,
   ScrollView,
   Text,
@@ -42,11 +43,11 @@ const PERIOD_TABS: { key: Period; label: string }[] = [
 ];
 
 const cardShadow = {
-  shadowColor: SEMANTIC_COLORS.label.strong,
-  shadowOpacity: 0.08,
-  shadowRadius: 3.4,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 2,
+  shadowColor: "#000000",
+  shadowOpacity: 0.04,
+  shadowRadius: 5.3,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 1,
 };
 
 const toValidDate = (value: string): Date | null => {
@@ -109,16 +110,49 @@ function PeriodTabs({
   selected: Period;
   onSelect: (period: Period) => void;
 }) {
+  const [containerWidth, setContainerWidth] = useState(0);
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const selectedIndex = PERIOD_TABS.findIndex((tab) => tab.key === selected);
+  const indicatorWidth = Math.max(0, (containerWidth - 8) / PERIOD_TABS.length);
+
+  useEffect(() => {
+    if (indicatorWidth === 0) return;
+
+    Animated.spring(indicatorX, {
+      toValue: selectedIndex * indicatorWidth,
+      damping: 20,
+      stiffness: 220,
+      mass: 0.7,
+      useNativeDriver: true,
+    }).start();
+  }, [indicatorWidth, indicatorX, selectedIndex]);
+
   return (
-    <View className="flex-row h-11 p-1 bg-fill-alternative rounded-control">
+    <View
+      className="relative flex-row h-11 p-1 overflow-hidden bg-fill-alternative rounded-control"
+      onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
+    >
+      {indicatorWidth > 0 && (
+        <Animated.View
+          pointerEvents="none"
+          className="absolute top-1 bottom-1 left-1 bg-fill-normal rounded-[6px]"
+          style={{
+            width: indicatorWidth,
+            transform: [{ translateX: indicatorX }],
+            shadowColor: "#000000",
+            shadowOpacity: 0.04,
+            shadowRadius: 5.3,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 1,
+          }}
+        />
+      )}
       {PERIOD_TABS.map((tab) => {
         const isSelected = tab.key === selected;
         return (
           <TouchableOpacity
             key={tab.key}
-            className={`items-center justify-center flex-1 rounded-[6px] ${
-              isSelected ? "bg-fill-normal" : "bg-transparent"
-            }`}
+            className="z-10 items-center justify-center flex-1"
             activeOpacity={0.8}
             onPress={() => onSelect(tab.key)}
           >
@@ -344,17 +378,7 @@ export default function RecordScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                tintColor={SEMANTIC_COLORS.primary.normal}
-                onRefresh={refetch}
-              />
-            }
-            contentContainerStyle={{ paddingBottom: 28 }}
-          >
+          <View className="flex-1">
             <View className="px-[11px] pt-[18px]">
               <PeriodTabs selected={period} onSelect={setPeriod} />
               <View className="mt-2">
@@ -372,34 +396,47 @@ export default function RecordScreen() {
               </View>
             </View>
 
-            <View className="px-[11px] mt-5">
-              {sections.length === 0 ? (
-                <View className="items-center justify-center py-20">
-                  <Ionicons
-                    name="document-text-outline"
-                    size={48}
-                    color={SEMANTIC_COLORS.line.normal}
-                  />
-                  <Text className="mt-3 text-body text-label-alternative">
-                    선택한 기간에 훈련 기록이 없습니다
-                  </Text>
-                </View>
-              ) : (
-                sections.map((section) => (
-                  <View key={section.dateKey} className="mb-5">
-                    <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
-                      {section.title}
+            <ScrollView
+              className="flex-1 mt-5"
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefetching}
+                  tintColor={SEMANTIC_COLORS.primary.normal}
+                  onRefresh={refetch}
+                />
+              }
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
+            >
+              <View className="flex-1 px-[11px]">
+                {sections.length === 0 ? (
+                  <View className="items-center justify-center flex-1">
+                    <Ionicons
+                      name="document-text-outline"
+                      size={48}
+                      color={SEMANTIC_COLORS.line.normal}
+                    />
+                    <Text className="mt-3 text-body text-label-alternative">
+                      선택한 기간에 훈련 기록이 없습니다
                     </Text>
-                    <View className="gap-y-[6px]">
-                      {section.records.map((record) => (
-                        <RecordCard key={record.recordId} item={record} />
-                      ))}
-                    </View>
                   </View>
-                ))
-              )}
-            </View>
-          </ScrollView>
+                ) : (
+                  sections.map((section) => (
+                    <View key={section.dateKey} className="mb-5">
+                      <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
+                        {section.title}
+                      </Text>
+                      <View className="gap-y-[6px]">
+                        {section.records.map((record) => (
+                          <RecordCard key={record.recordId} item={record} />
+                        ))}
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            </ScrollView>
+          </View>
         )}
       </View>
 
