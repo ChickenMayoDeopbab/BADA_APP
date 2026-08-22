@@ -95,6 +95,8 @@ export interface ChangePasswordRequest {
 export interface MyPageResponse {
   username: string;
   email: string;
+  /** 백엔드 응답 버전에 따라 포함될 수 있는 계정 이름 */
+  name?: string;
 }
 
 export type Personality = 'kind' | 'neutral' | 'tough' | 'rude';
