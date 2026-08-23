@@ -3,7 +3,7 @@ import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
 import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
-import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -111,13 +111,13 @@ export default function Home() {
   }, [attendedDates, today]);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F2F2F2]" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-[33px] pb-6">
         <View className="pt-[13px]">
         <View className="relative h-[38px] items-end">
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          <View className="absolute right-1 top-px size-2 rounded-full bg-[#FF0000]" />
+          <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
         </View>
         <View className="flex-row items-center gap-0.5">
           <Text className="text-body font-medium text-label-normal">다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
@@ -138,7 +138,11 @@ export default function Home() {
             return (
               <View key={formatDate(date)} className="w-10 items-center gap-0.5">
                 <View className={`size-10 items-center justify-center rounded-control ${isAttended ? "bg-primary-normal" : "bg-background-alternative"}`}>
-                  <Ionicons name="call" size={23} color={isAttended ? "#FFFFFF" : "#DADADB"} />
+                  <Ionicons
+                    name="call"
+                    size={23}
+                    color={isAttended ? PALETTE.common[0] : SEMANTIC_COLORS.line.neutral}
+                  />
                 </View>
                 <Text className={`text-caption ${isToday ? "font-bold text-label-strong" : "font-medium text-label-alternative"}`}>
                   {isToday ? "오늘" : DAY_LABELS[date.getDay()]}
@@ -194,7 +198,7 @@ export default function Home() {
               <Text className="text-caption font-medium text-white/80">추천 시나리오</Text>
               <Text className="mt-1 text-headline1 font-bold text-white">배준하피자{"\n"}배달 주문하기</Text>
               <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
-                <Ionicons name="call" size={14} color="#FFFFFF" />
+                <Ionicons name="call" size={14} color={PALETTE.common[0]} />
                 <Text className="text-label font-medium text-white">훈련 하러가기</Text>
               </View>
               <View className="absolute -bottom-1.5 -right-6">
