@@ -129,7 +129,7 @@ function PeriodTabs({
 
   return (
     <View
-      className="relative flex-row h-11 p-1 overflow-hidden bg-fill-alternative rounded-control"
+      className="relative flex-row p-1 overflow-hidden h-11 bg-fill-alternative rounded-control"
       onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
     >
       {indicatorWidth > 0 && (
@@ -396,46 +396,54 @@ export default function RecordScreen() {
               </View>
             </View>
 
-            <ScrollView
-              className="flex-1 mt-5"
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isRefetching}
-                  tintColor={SEMANTIC_COLORS.primary.normal}
-                  onRefresh={refetch}
-                />
-              }
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
-            >
-              <View className="flex-1 px-[11px]">
-                {sections.length === 0 ? (
-                  <View className="items-center justify-center flex-1">
-                    <Ionicons
-                      name="document-text-outline"
-                      size={48}
-                      color={SEMANTIC_COLORS.line.normal}
-                    />
-                    <Text className="mt-3 text-body text-label-alternative">
-                      선택한 기간에 훈련 기록이 없습니다
-                    </Text>
-                  </View>
-                ) : (
-                  sections.map((section) => (
-                    <View key={section.dateKey} className="mb-5">
-                      <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
-                        {section.title}
-                      </Text>
-                      <View className="gap-y-[6px]">
-                        {section.records.map((record) => (
-                          <RecordCard key={record.recordId} item={record} />
-                        ))}
+            <View className="relative flex-1 mt-5">
+              {sections.length === 0 && (
+                <View
+                  pointerEvents="none"
+                  className="absolute inset-0 z-0 items-center justify-center"
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={48}
+                    color={SEMANTIC_COLORS.line.normal}
+                  />
+                  <Text className="mt-3 text-body text-label-alternative">
+                    선택한 기간에 훈련 기록이 없습니다
+                  </Text>
+                </View>
+              )}
+
+              <ScrollView
+                className="z-10 flex-1"
+                alwaysBounceVertical
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefetching}
+                    tintColor={SEMANTIC_COLORS.primary.normal}
+                    onRefresh={refetch}
+                  />
+                }
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
+              >
+                {sections.length > 0 && (
+                  <View className="px-[11px]">
+                    {sections.map((section) => (
+                      <View key={section.dateKey} className="mb-5">
+                        <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
+                          {section.title}
+                        </Text>
+                        <View className="gap-y-[6px]">
+                          {section.records.map((record) => (
+                            <RecordCard key={record.recordId} item={record} />
+                          ))}
+                        </View>
                       </View>
-                    </View>
-                  ))
+                    ))}
+                  </View>
                 )}
-              </View>
-            </ScrollView>
+              </ScrollView>
+            </View>
           </View>
         )}
       </View>
