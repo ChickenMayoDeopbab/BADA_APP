@@ -1,5 +1,5 @@
 import CommunityIcon from "@/assets/community.svg";
-import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SEMANTIC_COLORS } from "@/design-system";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Octicons from "@expo/vector-icons/Octicons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -49,7 +49,7 @@ export default function BottomNav({ state, descriptors, navigation }: BottomTabB
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: "flex-start", backgroundColor: SEMANTIC_COLORS.background.normal, borderTopColor: "#F1F1F1", borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 25 },
+  container: { alignItems: "flex-start", backgroundColor: SEMANTIC_COLORS.background.normal, borderTopColor: SEMANTIC_COLORS.line.alternative, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 25 },
   item: { alignItems: "center", gap: 6, justifyContent: "center", paddingTop: 12, width: 52 },
   label: { fontSize: 12, fontWeight: "500", letterSpacing: -0.24, lineHeight: 16 },
 });
