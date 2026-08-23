@@ -1,8 +1,14 @@
-import { getScenarioExample, getScenarios } from "@/api/trainApi";
-import { ScenarioInfo } from "@/api/types";
+import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
-import Top from "@/components/common/Top";
+import GlassChip from "@/components/train/GlassChip";
+import GradientOverlay from "@/components/train/GradientOverlay";
+import TrainingCountLabel from "@/components/train/TrainingCountLabel";
+import { getDummyTrainingCount } from "@/constants/dummyTrainingCounts";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useScenario } from "@/hooks/useScenarios";
 import { getAccessToken } from "@/utils/authTokenStorage";
+import { getScenarioThumbnail } from "@/utils/scenarioImage";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { isCancel } from "axios";
 import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -10,85 +16,96 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
-  ImageSourcePropType,
-  ScrollView,
+  PanResponder,
+  Pressable,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
-
-const fallbackLargeImage: ImageSourcePropType = require("@/assets/Q1_l.png");
-
-// 카테고리별 대형 이미지 폴백
-const categoryLargeImageMap: Record<string, ImageSourcePropType> = {
-  restaurant: require("@/assets/Q1_l.png"),
-  hospital: require("@/assets/Q2_l.png"),
-  complaint: require("@/assets/Q3_l.png"),
-  delivery: require("@/assets/Q3_l.png"),
-  bank: require("@/assets/Q2_l.png"),
-  custom: require("@/assets/Q1_l.png"),
-};
 
 export default function Detail() {
-  useAndroidBackHandler(() => {
-    router.replace("/(tabs)/(train)/list");
-    return true;
-  });
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: scenario, isPending, isError, refetch } = useScenario(id);
 
   const [exampleAudioSource, setExampleAudioSource] = useState<AudioSource>(null);
   const [isFetchingExample, setIsFetchingExample] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
-  // params 없이 id로만 진입했을 때 목록에서 시나리오를 복원한다
-  const [resolvedScenario, setResolvedScenario] =
-    useState<ScenarioInfo | null>(null);
-  const [isResolvingScenario, setIsResolvingScenario] = useState(false);
   const examplePlayer = useAudioPlayer(exampleAudioSource);
   const exampleStatus = useAudioPlayerStatus(examplePlayer);
   const examplePlayerRef = useRef(examplePlayer);
   const exampleRequestControllerRef = useRef<AbortController | null>(null);
   examplePlayerRef.current = examplePlayer;
 
-  const { id, title, content, isCustom, scenarioImage, category } =
-    useLocalSearchParams<{
-      id: string;
-      title: string;
-      content: string;
-      isCustom: string;
-      scenarioImage: string;
-      category: string;
-    }>();
+  // 닫힘 애니메이션이 도는 동안 두 번째 닫기가 들어오면 뒤 화면까지 pop된다
+  const isClosingRef = useRef(false);
 
-  useEffect(() => {
-    if (!id || title) return;
+  /** 바텀시트 닫기 (뒤로 갈 곳이 없으면 목록으로) */
+  const handleDismiss = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
 
-    let cancelled = false;
-    setIsResolvingScenario(true);
-    getScenarios()
-      .then(({ scenarios }) => {
-        if (!cancelled) {
-          setResolvedScenario(
-            scenarios.find((scenario) => String(scenario.scenario_id) === id) ?? null,
-          );
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)/(train)/list");
+  }, []);
+
+  useAndroidBackHandler(() => {
+    handleDismiss();
+    return true;
+  });
+
+  // 아래로 끌어내려 닫는 제스처
+  const dragY = useRef(new Animated.Value(0)).current;
+  const sheetHeightRef = useRef(0);
+  const handleDismissRef = useRef(handleDismiss);
+  handleDismissRef.current = handleDismiss;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // 아래 방향으로 끌 때만 시트가 제스처를 가져간다(버튼 탭은 그대로 동작)
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) dragY.setValue(gesture.dy);
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const sheetHeight = sheetHeightRef.current || 400;
+        // 시트 높이의 30% 이상 내렸거나 빠르게 튕기면 닫는다
+        const shouldClose = gesture.dy > sheetHeight * 0.3 || gesture.vy > 0.8;
+
+        if (shouldClose) {
+          if (isClosingRef.current) return;
+          Animated.timing(dragY, {
+            toValue: sheetHeight + 80,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => handleDismissRef.current());
+          return;
         }
-      })
-      .catch(() => {
-        if (!cancelled) setResolvedScenario(null);
-      })
-      .finally(() => {
-        if (!cancelled) setIsResolvingScenario(false);
-      });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [id, title]);
+        Animated.spring(dragY, {
+          toValue: 0,
+          bounciness: 0,
+          useNativeDriver: true,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragY, {
+          toValue: 0,
+          bounciness: 0,
+          useNativeDriver: true,
+        }).start();
+      },
+    }),
+  ).current;
 
-  const resolvedTitle = title ?? resolvedScenario?.title;
-  const resolvedContent = content ?? resolvedScenario?.content;
-  const resolvedIsCustom = isCustom ?? String(resolvedScenario?.is_custom ?? false);
-  const resolvedScenarioImage = scenarioImage ?? resolvedScenario?.scenario_image ?? "";
-  const resolvedCategory = category ?? resolvedScenario?.category;
+  // 시트를 내릴수록 뒤 배경도 함께 옅어진다
+  const backdropOpacity = dragY.interpolate({
+    inputRange: [0, 300],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
 
   const stopExample = useCallback(() => {
     const requestController = exampleRequestControllerRef.current;
@@ -120,10 +137,11 @@ export default function Detail() {
     setShouldAutoPlay(false);
   }, [examplePlayer, exampleStatus.isLoaded, shouldAutoPlay]);
 
-  const handleExamplePress = async () => {
-    const isExampleLoading =
-      isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded);
+  const isExampleLoading =
+    isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded);
+  const isExamplePlaying = Boolean(exampleAudioSource && exampleStatus.playing);
 
+  const handleExamplePress = async () => {
     if (isExampleLoading) {
       stopExample();
       return;
@@ -201,88 +219,147 @@ export default function Detail() {
     }
   };
 
-  if (!id || (!resolvedTitle && !isResolvingScenario)) {
-    return (
-      <View className="flex-1 bg-white">
-        <Top title="시나리오 선택" back onBack={() => router.push("/(tabs)/(train)/list")} />
-        <View className="items-center justify-center flex-1">
-          <Text className="text-base text-[#5C5E5E]">시나리오를 찾을 수 없습니다.</Text>
-        </View>
-      </View>
-    );
-  }
+  /** 훈련 시작 설정 화면으로 이동 */
+  const handleStart = () => {
+    if (!scenario) return;
 
-  if (isResolvingScenario) {
-    return (
-      <View className="items-center justify-center flex-1 bg-white">
-        <ActivityIndicator color="#0AE365" />
-      </View>
-    );
-  }
-
-  const imageSource: ImageSourcePropType = resolvedScenarioImage
-    ? { uri: resolvedScenarioImage }
-    : (categoryLargeImageMap[resolvedCategory ?? ""] ?? fallbackLargeImage);
-
-  const typeLabel =
-    resolvedIsCustom === "true" ? "커스텀 시나리오" : "기본 제공 시나리오";
-  const isExampleLoading =
-    isFetchingExample || Boolean(exampleAudioSource && !exampleStatus.isLoaded);
-  const isExamplePlaying = Boolean(exampleAudioSource && exampleStatus.playing);
+    router.push({
+      pathname: "/(tabs)/(train)/start",
+      params: {
+        id: String(scenario.scenario_id),
+        title: scenario.title,
+        content: scenario.content,
+        isCustom: String(scenario.is_custom),
+        scenarioImage: scenario.scenario_image ?? "",
+        category: scenario.category,
+      },
+    });
+  };
 
   return (
-    <View className="flex-1 bg-white">
-      <Top title="시나리오 선택" back onBack={() => router.push("/(tabs)/(train)/list")} />
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <Image
-          source={imageSource}
-          className="w-full"
-          style={{ height: 240 }}
-          resizeMode="cover"
-        />
-        <View className="px-8 pt-5 pb-6">
-          <Text className="text-base text-[#5C5E5E] font-medium mb-2">{typeLabel}</Text>
-          <Text className="text-3xl font-bold text-[#3B3D3E] mb-6">{resolvedTitle}</Text>
-          <Text className="text-sm font-semibold text-[#BDBEBE] mb-1">시나리오 설명</Text>
-          <Text className="text-sm text-[#5C5E5E] leading-6">{resolvedContent}</Text>
+    <View className="flex-1 justify-end">
+      {/* 시트 바깥을 누르면 닫힌다 */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: "rgba(0,0,0,0.2)", opacity: backdropOpacity },
+        ]}
+      >
+        <Pressable className="flex-1" onPress={handleDismiss} />
+      </Animated.View>
+
+      {/*
+        NativeWind는 Animated.View에 className을 적용하지 않는다.
+        애니메이션 래퍼(style만)와 실제 스타일을 입히는 View를 분리한다.
+      */}
+      <Animated.View
+        {...panResponder.panHandlers}
+        onLayout={({ nativeEvent }) => {
+          sheetHeightRef.current = nativeEvent.layout.height;
+        }}
+        style={{
+          transform: [{ translateY: dragY }],
+          // 탭 바 안쪽에 떠서 하단 인셋은 이미 확보돼 있다
+          marginBottom: 11,
+        }}
+      >
+        <View
+          className="mx-[11px] gap-y-4 overflow-hidden rounded-dialog bg-background-normal px-[22px] pt-2 pb-[22px]"
+          style={{
+            shadowColor: "#000",
+            shadowOpacity: 0.25,
+            shadowRadius: 32.9,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 12,
+          }}
+        >
+        <View className="h-3 items-center justify-center">
+          <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
         </View>
-      </ScrollView>
-      <View className="px-8 pt-4 pb-10 gap-y-3">
-        <CustomButton
-          label={
-            isExampleLoading
-              ? "예시 대화 불러오기 중단"
-              : isExamplePlaying
-                ? "예시 대화 일시정지"
-                : "예시 대화 들어보기"
-          }
-          color="#3B3D3E"
-          icon={
-            isExampleLoading ? (
-              <ActivityIndicator size="small" color="#3B3D3E" />
-            ) : undefined
-          }
-          onPress={handleExamplePress}
-        />
-        <CustomButton
-          label="선택하기"
-          backgroundColor="#0AE365"
-          color="white"
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/(train)/start",
-              params: {
-                id,
-                title: resolvedTitle,
-                content: resolvedContent,
-                isCustom: resolvedIsCustom,
-                scenarioImage: resolvedScenarioImage,
-                category: resolvedCategory,
-              },
-            })
-          }
-        />
-      </View>
+
+        {/* 시나리오 정보를 아직 못 받았을 때 */}
+        {isPending ? (
+          <View className="h-[163px] items-center justify-center">
+            <ActivityIndicator color="#0AE365" />
+          </View>
+        ) : isError ? (
+          /* 목록 조회 자체가 실패한 경우 — 재시도를 제공한다 */
+          <View className="h-[163px] items-center justify-center gap-y-3">
+            <Text className="text-body text-label-alternative">
+              시나리오를 불러오지 못했습니다.
+            </Text>
+            <CustomButton
+              label="다시 시도"
+              backgroundColor="#0AE365"
+              color="white"
+              variant="md"
+              onPress={() => refetch()}
+            />
+          </View>
+        ) : !scenario ? (
+          <View className="h-[163px] items-center justify-center">
+            <Text className="text-body text-label-alternative">
+              시나리오를 찾을 수 없습니다.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View className="flex-row gap-x-4">
+              <View className="h-[163px] w-[163px] items-end justify-end overflow-hidden rounded-control border border-line-alternative p-3">
+                <Image
+                  source={getScenarioThumbnail(
+                    scenario.scenario_image,
+                    scenario.category,
+                  )}
+                  className="absolute h-full w-full"
+                  resizeMode="cover"
+                />
+                <GradientOverlay direction="bottom" style={{ top: "32%" }} />
+                <GlassChip onPress={handleExamplePress}>
+                  {isExampleLoading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Ionicons
+                      name={isExamplePlaying ? "pause" : "play"}
+                      size={12}
+                      color="white"
+                    />
+                  )}
+                  <Text className="text-label font-medium text-white">
+                    예시 대화 듣기
+                  </Text>
+                </GlassChip>
+              </View>
+
+              <View className="flex-1 gap-y-3">
+                <View className="gap-y-[2px]">
+                  <Text className="text-caption font-medium text-label-alternative">
+                    {scenario.is_custom ? "커스텀 시나리오" : "기본 제공 시나리오"}
+                  </Text>
+                  <Text className="text-headline1 font-bold text-label-normal">
+                    {scenario.title}
+                  </Text>
+                  <TrainingCountLabel
+                    count={getDummyTrainingCount(scenario.scenario_id)}
+                    size="md"
+                    color="#5C5E5E"
+                  />
+                </View>
+                <Text className="text-label font-medium text-label-neutral">
+                  {scenario.content}
+                </Text>
+              </View>
+            </View>
+
+            <CustomButton
+              label="훈련 시작하기"
+              backgroundColor="#0AE365"
+              onPress={handleStart}
+            />
+            </>
+          )}
+        </View>
+      </Animated.View>
     </View>
   );
 }
