@@ -111,35 +111,36 @@ export default function Home() {
   }, [attendedDates, today]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-        <View style={styles.bellRow}>
+    <SafeAreaView className="flex-1 bg-[#F2F2F2]" edges={["top"]}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View className="px-[33px] pb-6">
+        <View className="pt-[13px]">
+        <View className="relative h-[38px] items-end">
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          <View style={styles.alarmDot} />
+          <View className="absolute right-1 top-px size-2 rounded-full bg-[#FF0000]" />
         </View>
-        <View style={styles.greetingRow}>
-          <Text style={styles.greeting}>다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
+        <View className="flex-row items-center gap-0.5">
+          <Text className="text-body font-medium text-label-normal">다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
           <SmileIllustration width={26} height={26} />
         </View>
-        <Text style={styles.headline}>오늘은 어떤 시나리오로 연습할까요?</Text>
+        <Text className="mt-0.5 text-headline1 font-bold text-label-normal">오늘은 어떤 시나리오로 연습할까요?</Text>
         </View>
 
-        <View style={styles.attendanceCard}>
-        <View style={styles.cardHeading}>
-          <Text style={styles.cardTitle}>이번 주 훈련</Text>
-          <Text style={styles.streak}>{streak}일 연속 훈련</Text>
+        <View className="mt-4 gap-4 rounded-component bg-white px-3 py-4 shadow-md">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-body font-bold text-label-normal">이번 주 훈련</Text>
+          <Text className="text-caption font-medium text-label-alternative">{streak}일 연속 훈련</Text>
         </View>
-        <View style={styles.weekRow}>
+        <View className="flex-row justify-between">
           {week.map((date, index) => {
             const isToday = index === week.length - 1;
             const isAttended = attendedDates.includes(formatDate(date));
             return (
-              <View key={formatDate(date)} style={styles.dayColumn}>
-                <View style={[styles.dayBox, isAttended && styles.attendedDay]}>
+              <View key={formatDate(date)} className="w-10 items-center gap-0.5">
+                <View className={`size-10 items-center justify-center rounded-control ${isAttended ? "bg-primary-normal" : "bg-background-alternative"}`}>
                   <Ionicons name="call" size={23} color={isAttended ? "#FFFFFF" : "#DADADB"} />
                 </View>
-                <Text style={[styles.dayLabel, isToday && styles.todayLabel]}>
+                <Text className={`text-caption ${isToday ? "font-bold text-label-strong" : "font-medium text-label-alternative"}`}>
                   {isToday ? "오늘" : DAY_LABELS[date.getDay()]}
                 </Text>
               </View>
@@ -148,22 +149,22 @@ export default function Home() {
         </View>
 
         {isCalendarOpen && (
-          <View style={styles.calendar}>
-              <Text style={styles.calendarTitle}>{today.getFullYear()}년 {today.getMonth() + 1}월</Text>
-              <View style={styles.calendarWeekRow}>
-                {DAY_LABELS.map((label) => <Text key={label} style={styles.calendarWeekLabel}>{label}</Text>)}
+          <View className="gap-1 border-t border-line-normal pt-5">
+              <Text className="mb-2.5 text-center text-label font-bold text-label-normal">{today.getFullYear()}년 {today.getMonth() + 1}월</Text>
+              <View className="flex-row">
+                {DAY_LABELS.map((label) => <Text key={label} className="mb-0.5 flex-1 text-center text-caption font-medium text-label-alternative">{label}</Text>)}
               </View>
               {calendarWeeks.map((weekDates, weekIndex) => (
-                <View key={weekIndex} style={styles.calendarWeekRow}>
+                <View key={weekIndex} className="flex-row">
                   {weekDates.map((date, dayIndex) => {
-                    if (!date) return <View key={`empty-${dayIndex}`} style={styles.calendarDay} />;
+                    if (!date) return <View key={`empty-${dayIndex}`} className="h-8 flex-1" />;
                     const dateString = formatDate(date);
                     const isAttended = attendedDates.includes(dateString);
                     const isToday = dateString === formatDate(today);
                     return (
-                      <View key={dateString} style={styles.calendarDay}>
-                        <View style={[styles.calendarDate, isAttended && styles.attendedDay, isToday && !isAttended && styles.todayDate]}>
-                          <Text style={[styles.calendarDateText, isAttended && styles.attendedDateText]}>{date.getDate()}</Text>
+                      <View key={dateString} className="h-8 flex-1 items-center justify-center">
+                        <View className={`size-7 items-center justify-center rounded-full ${isAttended ? "bg-primary-normal" : isToday ? "border border-primary-normal" : ""}`}>
+                          <Text className={`text-caption ${isAttended ? "font-bold text-white" : "font-medium text-label-normal"}`}>{date.getDate()}</Text>
                         </View>
                       </View>
                     );
@@ -177,90 +178,45 @@ export default function Home() {
           accessibilityLabel={isCalendarOpen ? "월간 출석 내역 접기" : "월간 출석 내역 펼치기"}
           hitSlop={10}
           onPress={() => setIsCalendarOpen((previous) => !previous)}
-          style={styles.calendarToggle}
+          className="-my-2 h-7 items-center justify-center"
         >
           <Ionicons name={isCalendarOpen ? "chevron-up" : "chevron-down"} size={22} color={SEMANTIC_COLORS.label.alternative} />
         </Pressable>
         </View>
 
-        <View style={styles.quickRow}>
+        <View className="mt-3 flex-row gap-3">
         <Pressable
           onPress={() => router.push("/(tabs)/(train)/list")}
-          style={styles.scenarioCard}
+          className="h-[148px] w-[59%] rounded-component shadow-md"
         >
-            <View style={[styles.cardClip, styles.scenarioContent]}>
+            <View className="flex-1 overflow-hidden rounded-component bg-[#FFB184] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
-              <Text style={styles.eyebrow}>추천 시나리오</Text>
-              <Text style={styles.scenarioTitle}>배준하피자{"\n"}배달 주문하기</Text>
-              <View style={styles.trainButton}>
+              <Text className="text-caption font-medium text-white/80">추천 시나리오</Text>
+              <Text className="mt-1 text-headline1 font-bold text-white">배준하피자{"\n"}배달 주문하기</Text>
+              <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
                 <Ionicons name="call" size={14} color="#FFFFFF" />
-                <Text style={styles.trainButtonText}>훈련 하러가기</Text>
+                <Text className="text-label font-medium text-white">훈련 하러가기</Text>
               </View>
-              <PizzaIllustration width={105} height={105} style={styles.pizza} />
+              <View className="absolute -bottom-1.5 -right-6">
+                <PizzaIllustration width={105} height={105} />
+              </View>
             </View>
         </Pressable>
         <Pressable
           onPress={() => router.push("/(tabs)/(train)/warmup")}
-          style={styles.warmupCard}
+          className="h-[148px] flex-1 rounded-component shadow-md"
         >
-            <View style={[styles.cardClip, styles.warmupContent]}>
+            <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#9CBBFA] px-3 py-3.5">
               <CardGradient id="warmupGradient" colors={["#6D9FF5", "#9CBBFA"]} />
               <FireIllustration width={52} height={52} />
-              <Text numberOfLines={2} adjustsFontSizeToFit style={styles.warmupTitle}>
+              <Text numberOfLines={2} adjustsFontSizeToFit className="mt-2 text-body font-bold text-white">
                 통화 전 워밍업{"\n"}시작하기
               </Text>
             </View>
         </Pressable>
         </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const cardShadow = {
-  elevation: 3, shadowColor: "#000000", shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.12, shadowRadius: 5.3,
-};
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F2F2F2" },
-  content: { paddingBottom: 24, paddingHorizontal: 33 },
-  header: { paddingTop: 13 },
-  bellRow: { alignItems: "flex-end", height: 38, position: "relative" },
-  alarmDot: { backgroundColor: "#FF0000", borderRadius: 4, height: 8, position: "absolute", right: 4, top: 1, width: 8 },
-  greetingRow: { alignItems: "center", flexDirection: "row", gap: 2 },
-  greeting: { color: SEMANTIC_COLORS.label.normal, fontSize: 16, fontWeight: "500", letterSpacing: -0.32, lineHeight: 21 },
-  headline: { color: SEMANTIC_COLORS.label.normal, fontSize: 20, fontWeight: "700", letterSpacing: -0.4, lineHeight: 26, marginTop: 2 },
-  attendanceCard: { ...cardShadow, backgroundColor: "#FFFFFF", borderRadius: 12, gap: 16, marginTop: 16, paddingHorizontal: 12, paddingVertical: 16 },
-  cardHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  cardTitle: { color: SEMANTIC_COLORS.label.normal, fontSize: 16, fontWeight: "700", letterSpacing: -0.32, lineHeight: 21 },
-  streak: { color: SEMANTIC_COLORS.label.alternative, fontSize: 12, fontWeight: "500", letterSpacing: -0.24, lineHeight: 16 },
-  weekRow: { flexDirection: "row", justifyContent: "space-between" },
-  dayColumn: { alignItems: "center", gap: 2, width: 40 },
-  dayBox: { alignItems: "center", backgroundColor: SEMANTIC_COLORS.background.alternative, borderRadius: 8, height: 40, justifyContent: "center", width: 40 },
-  attendedDay: { backgroundColor: SEMANTIC_COLORS.primary.normal },
-  dayLabel: { color: SEMANTIC_COLORS.label.alternative, fontSize: 12, fontWeight: "500", letterSpacing: -0.24, lineHeight: 16 },
-  todayLabel: { color: SEMANTIC_COLORS.label.strong, fontWeight: "700" },
-  calendar: { borderTopColor: SEMANTIC_COLORS.line.normal, borderTopWidth: 1, gap: 4, paddingTop: 20 },
-  calendarTitle: { color: SEMANTIC_COLORS.label.normal, fontSize: 14, fontWeight: "700", lineHeight: 18, marginBottom: 10, textAlign: "center" },
-  calendarWeekRow: { flexDirection: "row" },
-  calendarWeekLabel: { color: SEMANTIC_COLORS.label.alternative, flex: 1, fontSize: 12, fontWeight: "500", lineHeight: 16, marginBottom: 2, textAlign: "center" },
-  calendarDay: { alignItems: "center", flex: 1, height: 32, justifyContent: "center" },
-  calendarDate: { alignItems: "center", borderRadius: 14, height: 28, justifyContent: "center", width: 28 },
-  calendarDateText: { color: SEMANTIC_COLORS.label.normal, fontSize: 12, fontWeight: "500", lineHeight: 16 },
-  attendedDateText: { color: "#FFFFFF", fontWeight: "700" },
-  todayDate: { borderColor: SEMANTIC_COLORS.primary.normal, borderWidth: 1 },
-  calendarToggle: { alignItems: "center", height: 28, justifyContent: "center", marginVertical: -8 },
-  quickRow: { flexDirection: "row", gap: 12, marginTop: 12 },
-  scenarioCard: { ...cardShadow, borderRadius: 12, height: 148, width: "59%" },
-  cardClip: { borderRadius: 12, flex: 1, overflow: "hidden" },
-  scenarioContent: { backgroundColor: "#FFB184", paddingHorizontal: 12, paddingVertical: 16 },
-  eyebrow: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: "500", letterSpacing: -0.24, lineHeight: 16 },
-  scenarioTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "700", letterSpacing: -0.4, lineHeight: 26, marginTop: 4 },
-  trainButton: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(122,122,122,0.12)", borderColor: "rgba(255,255,255,0.29)", borderRadius: 8, borderWidth: 1, bottom: 16, flexDirection: "row", gap: 8, left: 12, paddingHorizontal: 10, paddingVertical: 6, position: "absolute" },
-  trainButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "500", letterSpacing: -0.28, lineHeight: 18 },
-  pizza: { bottom: -6, position: "absolute", right: -24 },
-  warmupCard: { ...cardShadow, borderRadius: 12, flex: 1, height: 148 },
-  warmupContent: { backgroundColor: "#9CBBFA", justifyContent: "flex-end", paddingHorizontal: 12, paddingVertical: 14 },
-  warmupTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", letterSpacing: -0.32, lineHeight: 21, marginTop: 8 },
-});
