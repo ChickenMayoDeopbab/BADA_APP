@@ -149,11 +149,11 @@ export default function Start() {
   const handleBack = () => {
     if (flowStep === "time") {
       setFlowStep("difficulty");
+    } else if (router.canGoBack()) {
+      // 상세는 목록 위에 떠 있는 바텀시트라 스택을 되감으면 그대로 복원된다
+      router.back();
     } else {
-      router.replace({
-        pathname: "/(tabs)/(train)/detail/[id]",
-        params: { id: id ?? "", title, content, isCustom, scenarioImage, category },
-      });
+      router.replace("/(tabs)/(train)/list");
     }
   };
 
