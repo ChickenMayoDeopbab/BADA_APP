@@ -43,50 +43,9 @@ module.exports = {
           },
         },
       ],
-      [
-        "expo-font",
-        {
-          android: {
-            fonts: [
-              {
-                fontFamily: "Pretendard",
-                fontDefinitions: [
-                  {
-                    path: "./public/fonts/Pretendard-Regular.otf",
-                    weight: 400,
-                  },
-                  {
-                    path: "./public/fonts/Pretendard-Medium.otf",
-                    weight: 500,
-                  },
-                  {
-                    path: "./public/fonts/Pretendard-Bold.otf",
-                    weight: 700,
-                  },
-                ],
-              },
-            ],
-          },
-          ios: {
-            fonts: [
-              "./public/fonts/Pretendard-Regular.otf",
-              "./public/fonts/Pretendard-Medium.otf",
-              "./public/fonts/Pretendard-Bold.otf",
-            ],
-          },
-        },
-      ],
+      "expo-font",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
-      [
-        "expo-media-library",
-        {
-          photosPermission:
-            "프로필 사진을 선택할 수 있도록 사진 보관함 접근을 허용해 주세요.",
-          savePhotosPermission: false,
-          granularPermissions: ["photo"],
-        },
-      ],
       [
         "expo-secure-store",
         {
