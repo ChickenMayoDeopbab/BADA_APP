@@ -114,7 +114,13 @@ export default function Detail() {
 
     const player = examplePlayerRef.current;
     player.pause();
-    player.replace(null);
+    // Android의 expo-audio는 replace(null)을 거부한다(ERR_NULL_ARGUMENT).
+    // 아래 setExampleAudioSource(null)로 소스는 어차피 해제되므로 실패는 무시한다.
+    try {
+      player.replace(null);
+    } catch {
+      // 이미 소스가 없거나 플랫폼이 null 해제를 지원하지 않는 경우
+    }
 
     setIsFetchingExample(false);
     setShouldAutoPlay(false);
