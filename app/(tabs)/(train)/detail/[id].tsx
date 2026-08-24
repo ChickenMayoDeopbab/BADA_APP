@@ -112,14 +112,17 @@ export default function Detail() {
     exampleRequestControllerRef.current = null;
     requestController?.abort();
 
-    const player = examplePlayerRef.current;
-    player.pause();
-    // Android의 expo-audio는 replace(null)을 거부한다(ERR_NULL_ARGUMENT).
-    // 아래 setExampleAudioSource(null)로 소스는 어차피 해제되므로 실패는 무시한다.
+    // 네이티브 플레이어 정리는 실패할 수 있어 통째로 감싼다.
+    // - 화면이 사라진 뒤 정리가 돌면 플레이어가 이미 해제돼 있다
+    //   (ERR_USING_RELEASED_SHARED_OBJECT)
+    // - Android의 expo-audio는 replace(null)을 거부한다 (ERR_NULL_ARGUMENT)
+    // 소스는 아래 setExampleAudioSource(null)로 어차피 해제되므로 실패는 무시한다.
     try {
+      const player = examplePlayerRef.current;
+      player.pause();
       player.replace(null);
     } catch {
-      // 이미 소스가 없거나 플랫폼이 null 해제를 지원하지 않는 경우
+      // 이미 해제됐거나 null 해제를 지원하지 않는 플랫폼
     }
 
     setIsFetchingExample(false);
