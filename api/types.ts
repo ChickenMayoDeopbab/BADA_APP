@@ -182,20 +182,40 @@ export interface CustomScenarioResponse {
 }
 
 export interface GetTrainingRecordsParams {
-  page: number; 
-  size: number;
-  sort?: string;
-  date?: string; 
+  page?: number;
+  size?: number;
+}
+
+export interface SortObject {
+  unsorted: boolean;
+  sorted: boolean;
+  empty: boolean;
+}
+
+export interface PageableObject {
+  pageNumber: number;
+  pageSize: number;
+  paged: boolean;
+  unpaged: boolean;
+  offset: number;
+  sort: SortObject;
 }
 
 export interface PageData<T> {
-  content: T[];
   totalElements: number;
   totalPages: number;
+  pageable: PageableObject;
+  numberOfElements: number;
+  size: number;
+  content: T[];
+  number: number;
+  sort: SortObject;
+  first: boolean;
   last: boolean;
+  empty: boolean;
 }
 
-export interface TrainingRecordItem {
+export interface TrainingRecordResponse {
   recordId: number;
   sessionId: string;
   trainedAt: string;
@@ -204,12 +224,17 @@ export interface TrainingRecordItem {
   durationSeconds: number;
 }
 
+export type TrainingRecordItem = TrainingRecordResponse;
+export type PageTrainingRecordResponse = PageData<TrainingRecordResponse>;
+export type ApiResponsePageTrainingRecordResponse =
+  ApiResponse<PageTrainingRecordResponse>;
+
 export interface TranscriptTurn {
   role: string;
   text: string;
 }
 
-export interface PositiveFeedback {
+export interface PositiveFeedbackResponse {
   startSecond: number;
   endSecond: number;
   good_point: string;
@@ -217,7 +242,9 @@ export interface PositiveFeedback {
   audioUrl: string;
 }
 
-export interface TrainingRecordDetail {
+export type PositiveFeedback = PositiveFeedbackResponse;
+
+export interface TrainingRecordDetailResponse {
   recordId: number;
   sessionId: string;
   trainedAt: string;
@@ -227,9 +254,33 @@ export interface TrainingRecordDetail {
   aiPersonality: SpringPersonality;
   durationSeconds: number;
   recordingUrl: string;
+  anxietyScore: number;
   transcript: TranscriptTurn[];
-  positiveFeedbacks: PositiveFeedback[];
+  positiveFeedbacks: PositiveFeedbackResponse[];
 }
+
+export type ApiResponseTrainingRecordDetailResponse =
+  ApiResponse<TrainingRecordDetailResponse>;
+
+export interface RecordAnxietyScoreRequest {
+  /** 0 이상 10 이하의 정수 */
+  score: number;
+}
+
+export interface AnxietyScoreResponse {
+  recordId: number;
+  sessionId: string;
+  anxietyScore: number;
+}
+
+export type ApiResponseAnxietyScoreResponse = ApiResponse<AnxietyScoreResponse>;
+
+export interface GetFeedbackParams {
+  scenarioId: number;
+}
+
+export type ApiVoidData = Record<string, never> | null;
+export type ApiResponseVoid = ApiResponse<ApiVoidData>;
 
 export interface TrainingTime {
   hour: number;
@@ -244,7 +295,7 @@ export interface GoodSegment {
   good_point: string;
 }
 
-export interface TrainingFeedbackResponse {
+export interface FeedbackResponse {
   sessionType: SpringSessionType;
   scenarioName: string;
   trainingTime: TrainingTime;
