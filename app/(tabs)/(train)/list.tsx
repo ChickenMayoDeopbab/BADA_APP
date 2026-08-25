@@ -108,16 +108,19 @@ export default function List() {
       {isError && !isPending && (
         <View className="flex-1 items-center justify-center gap-y-4 px-8">
           <Text className="text-body text-label-alternative text-center">
-            시나리오 목록을 불러오지 못했습니다.
+            시나리오 목록을 불러오지 못했어요.
           </Text>
-          <CustomButton
-            label={isFetching ? "불러오는 중..." : "다시 시도"}
-            backgroundColor="#0AE365"
-            color="white"
-            variant="md"
-            disabled={isFetching}
-            onPress={() => refetch()}
-          />
+          {/* CustomButton은 w-full이라 폭을 줄이려면 감싸는 View로 제한한다 */}
+          <View className="w-[140px]">
+            <CustomButton
+              label={isFetching ? "불러오는 중..." : "다시 불러오기"}
+              backgroundColor="#0AE365"
+              color="white"
+              variant="md"
+              disabled={isFetching}
+              onPress={() => refetch()}
+            />
+          </View>
         </View>
       )}
 
