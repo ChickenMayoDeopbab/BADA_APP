@@ -2,7 +2,7 @@ import { ScenarioInfo } from "@/api/types";
 import { getDummyTrainingCount } from "@/constants/dummyTrainingCounts";
 import { getScenarioThumbnail } from "@/utils/scenarioImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import GlassChip from "./GlassChip";
 import GradientOverlay from "./GradientOverlay";
 import TrainingCountLabel from "./TrainingCountLabel";
@@ -38,7 +38,9 @@ export default function ScenarioRowCard({
     >
       <Image
         source={getScenarioThumbnail(scenario.scenario_image, scenario.category)}
-        className="absolute w-full h-full"
+        // require() 에셋은 원본 크기가 인라인 스타일로 새어 컨테이너를 벗어난다.
+        // 크기를 명시해 컨테이너를 정확히 채운다(여백 없음, 넘치는 부분은 cover가 잘라냄).
+        style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
         resizeMode="cover"
       />
       <GradientOverlay
