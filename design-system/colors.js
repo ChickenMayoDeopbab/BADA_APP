@@ -100,6 +100,7 @@ const SEMANTIC_COLORS = {
     normal: "#F8F8F8",
     neutral: "#EBEBEC",
     alternative: "#E1E2E3",
+    pressed: "#F2F2F2",
   },
   background: {
     normal: "#FEFEFE",
@@ -145,6 +146,7 @@ const DARK_SEMANTIC_COLORS = {
     normal: "#0E0D0D",
     neutral: "#141415",
     alternative: "#1B1C1D",
+    pressed: "#303031",
   },
   background: {
     normal: "#222223",
