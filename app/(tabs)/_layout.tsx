@@ -48,6 +48,9 @@ function CallWatcher() {
   return null;
 }
 
+/** 하단 탭 바를 감추고 화면 전체를 쓰는 경로 (통화·불안 점수 입력) */
+const FULL_SCREEN_PATHS = ["/train", "/anxiety"];
+
 export default function TabLayout() {
   const pathname = usePathname();
 
@@ -55,7 +58,9 @@ export default function TabLayout() {
     <PendingCallProvider>
       <CallWatcher />
       <Tabs
-        tabBar={(props) => pathname === "/train" ? null : <BottomNav {...props} />}
+        tabBar={(props) =>
+          FULL_SCREEN_PATHS.includes(pathname) ? null : <BottomNav {...props} />
+        }
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
