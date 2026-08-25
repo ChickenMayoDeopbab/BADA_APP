@@ -314,30 +314,35 @@ export default function Detail() {
         ) : (
           <>
             <View className="flex-row gap-x-4">
-              <View className="h-[163px] w-[163px] items-end justify-end overflow-hidden rounded-control border border-line-alternative p-3">
+              <View className="h-[163px] w-[163px] overflow-hidden rounded-control border border-line-alternative">
                 <Image
                   source={getScenarioThumbnail(
                     scenario.scenario_image,
                     scenario.category,
                   )}
-                  className="absolute h-full w-full"
+                  // require() 에셋은 원본 크기가 인라인 스타일로 새어 컨테이너를 벗어난다.
+                  // 크기를 명시해 컨테이너를 정확히 채운다(여백 없음, 넘치는 부분은 cover가 잘라냄).
+                  style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
                   resizeMode="cover"
                 />
                 <GradientOverlay direction="bottom" style={{ top: "32%" }} />
-                <GlassChip onPress={handleExamplePress}>
-                  {isExampleLoading ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Ionicons
-                      name={isExamplePlaying ? "pause" : "play"}
-                      size={12}
-                      color="white"
-                    />
-                  )}
-                  <Text className="text-label font-medium text-white">
-                    예시 대화 듣기
-                  </Text>
-                </GlassChip>
+                {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
+                <View className="flex-1 items-end justify-end p-3">
+                  <GlassChip onPress={handleExamplePress}>
+                    {isExampleLoading ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Ionicons
+                        name={isExamplePlaying ? "pause" : "play"}
+                        size={12}
+                        color="white"
+                      />
+                    )}
+                    <Text className="text-label font-medium text-white">
+                      예시 대화 듣기
+                    </Text>
+                  </GlassChip>
+                </View>
               </View>
 
               <View className="flex-1 gap-y-3">
