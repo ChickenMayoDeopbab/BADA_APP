@@ -1,289 +1,223 @@
-import SearchBox from "@/components/common/SearchBox";
+import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
-import DropdownArrow from "@/assets/dropdownArrow.svg";
-import { getScenarios } from "@/api/trainApi";
-import { ScenarioInfo } from "@/api/types";
+import CategoryChips from "@/components/train/CategoryChips";
+import GradientOverlay from "@/components/train/GradientOverlay";
+import CustomScenarioBanner from "@/components/train/CustomScenarioBanner";
+import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
+import ScenarioGridCard from "@/components/train/ScenarioGridCard";
+import ScenarioTabs from "@/components/train/ScenarioTabs";
+import SearchIconButton from "@/components/common/SearchIconButton";
+import { ScenarioTabValue } from "@/constants/train";
+import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { useScenarios } from "@/hooks/useScenarios";
+import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
-import { ElementRef, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  ImageSourcePropType,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const sortOptions = ["제목 순", "난이도 순"]; // 정렬 옵션 목록
+// 탭 아래에서 목록이 뚝 잘려 보이지 않도록 덮는 페이드 (배경색 → 투명).
+// 시작 구간을 불투명하게 붙잡아 두어야 경계가 선처럼 보이지 않는다.
+const SCROLL_FADE_STOPS = [
+  { color: SEMANTIC_COLORS.background.alternative, opacity: 1, offset: "0%" },
+  { color: SEMANTIC_COLORS.background.alternative, opacity: 1, offset: "25%" },
+  { color: SEMANTIC_COLORS.background.alternative, opacity: 0, offset: "100%" },
+];
 
-// 카테고리별 썸네일 (scenario_image 없을 때 폴백)
-const categoryImageMap: Record<string, ImageSourcePropType> = {
-  restaurant: require("@/assets/Q1_s.png"),
-  hospital: require("@/assets/Q2_s.png"),
-  complaint: require("@/assets/Q3_s.png"),
-  delivery: require("@/assets/Q4_s.png"),
-  bank: require("@/assets/Q5_s.png"),
-  custom: require("@/assets/Q6_s.png"),
-};
-const fallbackImage: ImageSourcePropType = require("@/assets/Q1_s.png");
+// 페이드 높이. 위로 2px 겹쳐 탭 영역과의 이음새가 벌어져 보이지 않게 한다.
+const SCROLL_FADE_HEIGHT = 44;
+const SCROLL_FADE_OVERLAP = 2;
 
-/** 시나리오 카테고리에 맞는 로컬 이미지 반환 */
-function getLocalImage(category: string): ImageSourcePropType {
-  return categoryImageMap[category] ?? fallbackImage;
-}
-
-export default function List() {
-  const [search, setSearch] = useState(""); // 검색어
-  const [isSortVisible, setIsSortVisible] = useState(false); // 정렬 드롭다운 표시 여부
-  const [selectedSort, setSelectedSort] = useState("제목 순"); // 선택된 정렬 옵션
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 }); // 드롭다운 절대 위치
-  const [isScrollTopVisible, setIsScrollTopVisible] = useState(false); // 상단 이동 버튼 표시 여부
-  const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const dropdownRef = useRef<ElementRef<typeof TouchableOpacity>>(null);
-  const flatListRef = useRef<FlatList<ScenarioInfo | null>>(null);
-
-  useEffect(() => {
-    fetchScenarios();
+/** 그리드 렌더링을 위해 목록을 2개씩 묶는다 */
+const toGridRows = (scenarios: ScenarioInfo[]): ScenarioInfo[][] =>
+  scenarios.reduce<ScenarioInfo[][]>((rows, scenario, index) => {
+    if (index % 2 === 0) rows.push([scenario]);
+    else rows[rows.length - 1].push(scenario);
+    return rows;
   }, []);
 
-  const fetchScenarios = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await getScenarios();
-      setScenarios(result.scenarios);
-    } catch {
-      setError("시나리오 목록을 불러오지 못했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default function List() {
+  const insets = useSafeAreaInsets();
+  // 스크롤을 내렸을 때만 상단 페이드를 보여준다
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const fadeOpacity = scrollY.interpolate({
+    inputRange: [0, 24],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+  const [selectedTab, setSelectedTab] = useState<ScenarioTabValue>("basic");
+  const [selectedCategory, setSelectedCategory] =
+    useState<ScenarioCategory | null>(null);
 
-  /** 드롭다운 버튼 레이아웃 측정 후 위치 저장 */
-  const handleDropdownLayout = () => {
-    dropdownRef.current?.measure((_, __, ___, height, px, py) => {
-      setDropdownPos({ top: py + height + 8, left: px });
-    });
-  };
+  // 시나리오 목록은 페이지네이션이 없어 한 번에 받고 탭·카테고리는 클라이언트에서 거른다
+  const { data: scenarios, isPending, isError, isFetching, refetch } =
+    useScenarios();
 
-  const filtered = scenarios.filter((s) => s.title.includes(search));
-  const sorted =
-    selectedSort === "제목 순"
-      ? [...filtered].sort((a, b) => a.title.localeCompare(b.title))
-      : filtered;
-  const paddedData: (ScenarioInfo | null)[] =
-    sorted.length % 2 !== 0 ? [...sorted, null] : sorted;
+  const basicScenarios = useMemo(
+    () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
+    [scenarios],
+  );
+  const customScenarios = useMemo(
+    () => scenarios?.filter((scenario) => scenario.is_custom) ?? [],
+    [scenarios],
+  );
 
-  /** 시나리오 카드 클릭 시 상세 페이지로 이동 */
-  const handleScenarioPress = (scenario: ScenarioInfo) => {
-    router.push({
-      pathname: `/(tabs)/(train)/detail/${scenario.scenario_id}` as any,
-      params: {
-        title: scenario.title,
-        content: scenario.content,
-        isCustom: String(scenario.is_custom),
-        scenarioImage: scenario.scenario_image ?? "",
-        category: scenario.category,
-      },
-    });
-  };
+  const visibleScenarios = useMemo(() => {
+    if (selectedTab === "custom") return customScenarios;
+    if (!selectedCategory) return basicScenarios;
+    // 서버 값의 대소문자·공백 차이로 카테고리가 통째로 비어 보이지 않도록 정규화해서 비교한다
+    return basicScenarios.filter(
+      (scenario) => scenario.category?.trim().toLowerCase() === selectedCategory,
+    );
+  }, [basicScenarios, customScenarios, selectedCategory, selectedTab]);
+
+  const recommendedScenario = basicScenarios[0];
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FEFEFE] px-8">
-      <Text className="text-xl font-bold text-[#3B3D3E] mt-10 mb-7 text-center">훈련하기</Text>
-      <View className="flex-1">
-        <SearchBox
-          placeholder="제목, 설명으로 검색"
-          value={search}
-          onChangeText={setSearch}
+    <View className="flex-1 bg-background-alternative">
+      {/*
+        헤더 높이는 공용 Top 컴포넌트와 동일하게 맞춘다.
+        (총 105px에 상단 인셋을 padding으로 흡수 — 인셋만큼 헤더가 늘어나면
+        인셋이 작은 기기에서 다른 페이지보다 타이틀이 위로 붙는다.)
+      */}
+      <View
+        className="h-[105px] flex-row items-center justify-between px-8"
+        style={{ paddingTop: insets.top }}
+      >
+        <Text className="text-title2 font-bold text-label-normal">
+          시나리오 훈련
+        </Text>
+        <SearchIconButton
+          onPress={() => router.push("/(tabs)/(train)/search")}
         />
-
-        <View className="flex-row items-center mt-3 mb-4 gap-x-3">
-          <TouchableOpacity
-            ref={dropdownRef}
-            onLayout={handleDropdownLayout}
-            onPress={() => setIsSortVisible(true)}
-            activeOpacity={0.8}
-            className="flex-row items-center justify-between bg-[#EBEBEC] rounded-lg px-3"
-            style={{ height: 38, width: 120 }}
-          >
-            <Text className="text-[#5C5E5E] text-sm">{selectedSort}</Text>
-            <DropdownArrow width={14} height={12} />
-          </TouchableOpacity>
-
-          <View className="flex-1">
-            <CustomButton
-              label="커스텀 시나리오 만들기"
-              backgroundColor="#0AE365"
-              color="white"
-              variant="md"
-              onPress={() => router.push("/(tabs)/(train)/create")}
-            />
-          </View>
-        </View>
-
-        <View className="border-b border-[#EBEBEC]" />
-
-        {isLoading && (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#0AE365" />
-          </View>
-        )}
-
-        {error && !isLoading && (
-          <View className="flex-1 items-center justify-center gap-y-4">
-            <Text className="text-base text-[#5C5E5E] text-center">{error}</Text>
-            <CustomButton
-              label="다시 시도"
-              backgroundColor="#0AE365"
-              color="white"
-              variant="md"
-              onPress={fetchScenarios}
-            />
-          </View>
-        )}
-
-        {!isLoading && !error && (
-          <FlatList
-            ref={flatListRef}
-            data={paddedData}
-            keyExtractor={(item, index) =>
-              item ? String(item.scenario_id) : `placeholder-${index}`
-            }
-            numColumns={2}
-            columnWrapperStyle={{ gap: 12 }}
-            contentContainerStyle={{ gap: 12, paddingTop: 16 }}
-            showsVerticalScrollIndicator={false}
-            onScroll={({ nativeEvent }) =>
-              setIsScrollTopVisible(nativeEvent.contentOffset.y > 200)
-            }
-            scrollEventThrottle={16}
-            renderItem={({ item }) => {
-              if (!item) return <View className="flex-1" />;
-              const imageSource: ImageSourcePropType = item.scenario_image
-                ? { uri: item.scenario_image }
-                : getLocalImage(item.category);
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  className="flex-1 rounded-2xl overflow-hidden bg-[#F5F5F5]"
-                  onPress={() => handleScenarioPress(item)}
-                >
-                  <Image
-                    source={imageSource}
-                    className="w-full"
-                    style={{ height: 140 }}
-                    resizeMode="cover"
-                  />
-                  <View className="justify-center" style={{ height: 50 }}>
-                    <Text
-                      className="text-base px-3 text-[#3B3D3E]"
-                      style={{ fontWeight: "bold" }}
-                    >
-                      {item.title}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        )}
       </View>
 
-      {/* 스크롤이 200px 이상일 때 표시 */}
-      {isScrollTopVisible && (
-        <TouchableOpacity
-          onPress={() =>
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
-          }
-          activeOpacity={0.8}
-          style={styles.scrollTopButton}
-        >
-          <Ionicons name="arrow-up" size={22} color="white" />
-        </TouchableOpacity>
+      {/* 탭과 아래 콘텐츠 사이 간격은 디자인 기준 20px */}
+      <View className="px-8 pb-5">
+        <ScenarioTabs value={selectedTab} onChange={setSelectedTab} />
+      </View>
+
+      {/* 목록 로딩 중 */}
+      {isPending && (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#0AE365" />
+        </View>
       )}
 
-      {/* 정렬 드롭다운이 열린 상태일 때 표시 */}
-      {isSortVisible && (
-        <>
-          <TouchableOpacity
-            style={styles.dropdownOverlay}
-            onPress={() => setIsSortVisible(false)}
-            activeOpacity={1}
+      {/* 목록 조회 실패 */}
+      {isError && !isPending && (
+        <View className="flex-1 items-center justify-center gap-y-4 px-8">
+          <Text className="text-body text-label-alternative text-center">
+            시나리오 목록을 불러오지 못했습니다.
+          </Text>
+          <CustomButton
+            label={isFetching ? "불러오는 중..." : "다시 시도"}
+            backgroundColor="#0AE365"
+            color="white"
+            variant="md"
+            disabled={isFetching}
+            onPress={() => refetch()}
           />
-          <View
-            style={[
-              styles.dropdownMenu,
-              { top: dropdownPos.top, left: dropdownPos.left },
-            ]}
-          >
-            {sortOptions.map((option) => (
-              <TouchableOpacity
-                key={option}
-                className="px-4 py-4"
-                onPress={() => {
-                  setSelectedSort(option);
-                  setIsSortVisible(false);
-                }}
-              >
-                <Text
-                  className={`text-sm ${
-                    selectedSort === option
-                      ? "text-[#0AE365] font-semibold"
-                      : "text-[#5C5E5E]"
-                  }`}
-                >
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
+        </View>
       )}
-    </SafeAreaView>
+
+      {!isPending && !isError && (
+        <View className="flex-1">
+          {/* flexGrow로 내용이 짧아도 시나리오 패널이 화면 아래까지 이어지게 한다 */}
+          <Animated.ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1 }}
+            scrollEventThrottle={16}
+            // 웹에서는 네이티브 드라이버가 스크롤 이벤트를 구동하지 못해 페이드가 죽는다.
+            // 값 하나(opacity)만 따라가므로 JS 드라이버로도 충분하다.
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: false },
+            )}
+          >
+            {/* 배너와 추천 카드는 디자인상 좌우 여백이 다르다 (배너 16px, 추천 카드 32px) */}
+            {selectedTab === "custom" ? (
+              <View className="px-4 pb-5">
+                <CustomScenarioBanner
+                  onPress={() => router.push("/(tabs)/(train)/create")}
+                />
+              </View>
+            ) : (
+              recommendedScenario && (
+                <View className="px-8 pb-5">
+                  <RecommendScenarioCard
+                    scenario={recommendedScenario}
+                    onPress={openScenarioDetail}
+                  />
+                </View>
+              )
+            )}
+
+            {/* 아래로 끊기지 않고 이어지도록 남은 높이를 채우고 위쪽만 둥글린다 */}
+            <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
+              <Text className="text-headline2 font-bold text-label-normal">
+                시나리오
+              </Text>
+
+              {/* 카테고리 필터는 기본 제공 탭에만 노출 */}
+              {selectedTab === "basic" && (
+                <CategoryChips
+                  value={selectedCategory}
+                  onChange={setSelectedCategory}
+                />
+              )}
+
+              {visibleScenarios.length === 0 ? (
+                <Text className="py-10 text-center text-label text-label-alternative">
+                  {selectedTab === "custom"
+                    ? "아직 만든 커스텀 시나리오가 없습니다."
+                    : selectedCategory
+                      ? "해당 카테고리의 시나리오가 없습니다."
+                      : "표시할 시나리오가 없습니다."}
+                </Text>
+              ) : (
+                <View className="gap-y-3">
+                  {toGridRows(visibleScenarios).map((row) => (
+                    <View
+                      key={row[0].scenario_id}
+                      className="flex-row gap-x-3"
+                    >
+                      {row.map((scenario) => (
+                        <ScenarioGridCard
+                          key={scenario.scenario_id}
+                          scenario={scenario}
+                          onPress={openScenarioDetail}
+                        />
+                      ))}
+                      {/* 마지막 줄이 한 칸이면 자리 맞춤 */}
+                      {row.length === 1 && <View className="flex-1" />}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </Animated.ScrollView>
+
+          {/*
+            스크롤된 내용이 탭 바로 아래에서 잘려 보이지 않도록 덮는 페이드.
+            맨 위에서는 첫 콘텐츠를 가리므로 스크롤을 내려야 나타난다.
+          */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: -SCROLL_FADE_OVERLAP,
+              height: SCROLL_FADE_HEIGHT + SCROLL_FADE_OVERLAP,
+              opacity: fadeOpacity,
+            }}
+          >
+            <GradientOverlay stops={SCROLL_FADE_STOPS} />
+          </Animated.View>
+        </View>
+      )}
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollTopButton: {
-    position: "absolute",
-    bottom: 24,
-    alignSelf: "center",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#0AE365",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  dropdownOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  dropdownMenu: {
-    position: "absolute",
-    width: 120,
-    backgroundColor: "#FEFEFE",
-    borderRadius: 16,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-  },
-});

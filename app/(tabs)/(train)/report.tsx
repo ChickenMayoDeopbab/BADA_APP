@@ -38,26 +38,20 @@ const formatTrainingTime = (
   return parts.join(" ");
 };
 
+/**
+ * 훈련 목록으로 돌아간다.
+ * 훈련 스택은 list → detail → start → report 형태로 남아 있어서
+ * replace를 쓰면 list가 하나 더 쌓이고 뒤로가기가 start·detail로 되돌아간다.
+ * dismissTo는 스택을 list까지 되감고, list가 없으면 replace로 폴백한다.
+ */
+const goToList = () => router.dismissTo("/(tabs)/(train)/list");
+
 export default function Report() {
-  const {
-    scenarioId,
-    mode = "scenario",
-    title,
-    content,
-    isCustom,
-    scenarioImage,
-    category,
-  } = useLocalSearchParams<ReportParams>();
+  const { scenarioId, mode = "scenario" } =
+    useLocalSearchParams<ReportParams>();
 
   useAndroidBackHandler(() => {
-    if (scenarioId) {
-      router.replace({
-        pathname: "/(tabs)/(train)/detail/[id]",
-        params: { id: scenarioId, title, content, isCustom, scenarioImage, category },
-      });
-    } else {
-      router.replace("/(tabs)/(train)/list");
-    }
+    goToList();
     return true;
   });
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(
@@ -177,7 +171,7 @@ export default function Report() {
             label="끝내기"
             backgroundColor="#0AE365"
             color="white"
-            onPress={() => router.replace("/(tabs)/(train)/list")}
+            onPress={goToList}
           />
         </View>
       </View>
