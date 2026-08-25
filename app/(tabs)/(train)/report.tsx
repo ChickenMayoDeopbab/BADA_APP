@@ -1,5 +1,5 @@
-import { getTrainingFeedbackBySessionId } from "@/api/recordApi";
-import { TrainingFeedbackResponse } from "@/api/types";
+import { getFeedback } from "@/api/recordApi";
+import { FeedbackResponse } from "@/api/types";
 import Clap from "@/assets/clap.svg";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
 import CustomButton from "@/components/common/CustomButton";
@@ -19,7 +19,6 @@ import {
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type ReportParams = {
-  sessionId?: string;
   scenarioId?: string;
   mode?: "scenario" | "warmUp";
   title?: string;
@@ -30,7 +29,7 @@ type ReportParams = {
 };
 
 const formatTrainingTime = (
-  trainingTime: TrainingFeedbackResponse["trainingTime"],
+  trainingTime: FeedbackResponse["trainingTime"],
 ): string => {
   const parts: string[] = [];
   if (trainingTime.hour > 0) parts.push(`${trainingTime.hour}시간`);
@@ -48,22 +47,23 @@ const formatTrainingTime = (
 const goToList = () => router.dismissTo("/(tabs)/(train)/list");
 
 export default function Report() {
-  const { sessionId, mode = "scenario" } =
+  const { scenarioId, mode = "scenario" } =
     useLocalSearchParams<ReportParams>();
 
   useAndroidBackHandler(() => {
     goToList();
     return true;
   });
-  const [feedback, setFeedback] = useState<TrainingFeedbackResponse | null>(
+  const [feedback, setFeedback] = useState<FeedbackResponse | null>(
     null,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchFeedback = useCallback(async () => {
-    if (!sessionId) {
-      setError("세션 정보를 찾을 수 없습니다.");
+    const parsedScenarioId = Number(scenarioId);
+    if (!scenarioId || !Number.isSafeInteger(parsedScenarioId)) {
+      setError("시나리오 정보를 찾을 수 없습니다.");
       setIsLoading(false);
       return;
     }
@@ -72,15 +72,13 @@ export default function Report() {
       setIsLoading(true);
       setError(null);
 
-      setFeedback(
-        await getTrainingFeedbackBySessionId(sessionId),
-      );
+      setFeedback(await getFeedback({ scenarioId: parsedScenarioId }));
     } catch {
       setError("훈련 결과를 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId]);
+  }, [scenarioId]);
 
   useEffect(() => {
     fetchFeedback();

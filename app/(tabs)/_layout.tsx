@@ -1,11 +1,9 @@
 import { createSession } from "@/api/trainApi";
-import CommunityIcon from "@/assets/community.svg";
+import BottomNav from "@/components/navigation/BottomNav";
 import {
   PendingCallProvider,
   usePendingCall,
 } from "@/context/PendingCallContext";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import Octicons from "@expo/vector-icons/Octicons";
 import { Tabs, router, usePathname } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
@@ -57,18 +55,9 @@ export default function TabLayout() {
     <PendingCallProvider>
       <CallWatcher />
       <Tabs
+        tabBar={(props) => pathname === "/train" ? null : <BottomNav {...props} />}
         screenOptions={{
           headerShown: false,
-          tabBarStyle:
-            pathname === "/train"
-              ? { display: "none" }
-              : {
-                  backgroundColor: SEMANTIC_COLORS.background.normal,
-                  borderTopWidth: 1,
-                  shadowOpacity: 0.1,
-                  height: 110,
-                  paddingTop: 10,
-                },
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
           tabBarInactiveTintColor: SEMANTIC_COLORS.line.normal,
           tabBarLabelStyle: {
@@ -80,19 +69,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="(home)"
           options={{
-            title: "메인",
-            tabBarIcon: ({ color, size }) => (
-              <Octicons name="home-fill" size={size} color={color} />
-            ),
+            title: "홈",
           }}
         />
         <Tabs.Screen
           name="(train)"
           options={{
             title: "훈련",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="call" size={size} color={color} />
-            ),
           }}
         />
 
@@ -100,27 +83,19 @@ export default function TabLayout() {
           name="(record)"
           options={{
             title: "기록",
-            tabBarIcon: ({ color, size }) => (
-              <Octicons name="history" size={size} color={color} />
-            ),
           }}
         />
         <Tabs.Screen
           name="(community)"
           options={{
             title: "커뮤니티",
-            tabBarIcon: ({ color, size }) => (
-              <CommunityIcon width={size} height={size} color={color} />
-            ),
           }}
         />
         <Tabs.Screen
           name="(profile)"
           options={{
             title: "프로필",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
-            ),
+            popToTopOnBlur: true,
           }}
         />
       </Tabs>
