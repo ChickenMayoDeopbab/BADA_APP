@@ -100,6 +100,7 @@ const SEMANTIC_COLORS = {
     normal: "#F8F8F8",
     neutral: "#EBEBEC",
     alternative: "#E1E2E3",
+    pressed: "#F2F2F2",
   },
   background: {
     normal: "#FEFEFE",
@@ -110,6 +111,11 @@ const SEMANTIC_COLORS = {
     info: "#008BFF",
     success: "#0BF46D",
     warning: "#FFCC00",
+  },
+  record: {
+    iconBackground: "#E7F2FA",
+    summaryGradientStart: "#092EC3",
+    summaryGradientEnd: "#44AAB7",
   },
 };
 
@@ -140,12 +146,14 @@ const DARK_SEMANTIC_COLORS = {
     normal: "#0E0D0D",
     neutral: "#141415",
     alternative: "#1B1C1D",
+    pressed: "#303031",
   },
   background: {
     normal: "#222223",
     alternative: "#2D2D2D",
   },
   status: SEMANTIC_COLORS.status,
+  record: SEMANTIC_COLORS.record,
 };
 
 module.exports = {

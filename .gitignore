@@ -45,4 +45,7 @@ app-example
 # env
 .env
 
-.idea/docs/
+.idea/
+docs/                                                                                                                                                                  
+
+AGENTS.md
