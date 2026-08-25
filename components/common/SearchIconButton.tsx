@@ -34,7 +34,7 @@ export default function SearchIconButton({
     <Pressable onPress={onPress} hitSlop={8}>
       {({ pressed }) => (
         <View
-          className={`h-10 w-10 items-center justify-center rounded-component ${
+          className={`h-10 w-10 items-center justify-center rounded-pill ${
             pressed ? "bg-fill-alternative" : "bg-transparent"
           }`}
         >
