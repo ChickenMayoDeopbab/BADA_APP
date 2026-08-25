@@ -117,6 +117,10 @@ const SEMANTIC_COLORS = {
     summaryGradientStart: "#092EC3",
     summaryGradientEnd: "#44AAB7",
   },
+  train: {
+    callGradientStart: "#F5F5F5",
+    callGradientEnd: "#ABEFA8",
+  },
 };
 
 const DARK_SEMANTIC_COLORS = {
@@ -154,6 +158,7 @@ const DARK_SEMANTIC_COLORS = {
   },
   status: SEMANTIC_COLORS.status,
   record: SEMANTIC_COLORS.record,
+  train: SEMANTIC_COLORS.train,
 };
 
 module.exports = {
