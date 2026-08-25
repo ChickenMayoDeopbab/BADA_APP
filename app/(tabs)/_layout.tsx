@@ -95,6 +95,7 @@ export default function TabLayout() {
           name="(profile)"
           options={{
             title: "프로필",
+            popToTopOnBlur: true,
           }}
         />
       </Tabs>
