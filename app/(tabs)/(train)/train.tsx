@@ -1,15 +1,29 @@
-import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import CallBackground from "@/components/train/CallBackground";
+import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useAudio } from "@/hooks/useAudio";
-import CustomButton from "@/components/common/CustomButton";
+import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { ResizeMode, Video } from "expo-av";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  BackHandler,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ResizeMode, Video } from "expo-av";
-import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 type TrainStep = "receive" | "training" | "end";
+
+/** 통화 종료 화면을 보여준 뒤 다음 화면으로 넘어가기까지 기다리는 시간(ms) */
+const END_STEP_DURATION_MS = 2000;
+/** 워밍업은 불안 점수를 받지 않으므로 피드백 생성 시간을 따로 기다린다(ms) */
+const WARMUP_REPORT_DELAY_MS = 3000;
 
 /** WebSocket transcript role → 화면 표시 이름 (user=나, ai=상대) */
 const roleToSpeaker = (role: string): string =>
@@ -31,19 +45,54 @@ interface MeditationDialogProps {
 function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
   return (
     <View style={styles.overlay}>
-      <View style={styles.dialogCard}>
-        <Text className="text-xl font-bold text-[#3B3D3E] mb-2">훈련 전 명상을 할까요?</Text>
-        <Text className="text-sm text-[#5C5E5E] mb-6" style={{ lineHeight: 22 }}>
-          명상은 통화 전 마음을 안정시키는 데 도움이 돼요.
-        </Text>
-        <View style={styles.dialogButtonRow}>
-          <TouchableOpacity onPress={onSkip} activeOpacity={0.8} style={styles.skipButton}>
-            <Text className="text-base font-bold text-[#3B3D3E]">건너뛰기</Text>
+      <View className="rounded-dialog bg-background-normal p-5 gap-4">
+        <View className="gap-[10px]">
+          <Text className="text-headline2 font-bold text-label-normal">
+            훈련 전 명상을 할까요?
+          </Text>
+          <Text className="text-label font-medium text-label-alternative">
+            명상은 통화 전 마음을 안정시키는 데 도움이 돼요.
+          </Text>
+        </View>
+        <View className="flex-row gap-2">
+          <TouchableOpacity
+            onPress={onSkip}
+            activeOpacity={0.8}
+            className="flex-1 min-h-[38px] items-center justify-center rounded-control bg-fill-normal"
+          >
+            <Text className="text-label font-bold text-label-normal">건너뛰기</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onMeditate} activeOpacity={0.8} style={styles.meditateButton}>
-            <Text className="text-base font-bold text-white">명상하기</Text>
+          <TouchableOpacity
+            onPress={onMeditate}
+            activeOpacity={0.8}
+            className="flex-1 min-h-[38px] items-center justify-center rounded-control bg-primary-normal"
+          >
+            <Text className="text-label font-bold text-label-buttonText">명상하기</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    </View>
+  );
+}
+
+/** 통화 상대 이름 · 번호 · 프로필 사진 묶음 */
+function CalleeProfile({ name, phoneNumber, isSpeaking }: {
+  name: string;
+  phoneNumber: string;
+  isSpeaking?: boolean;
+}) {
+  return (
+    <View className="items-center gap-y-4">
+      <View className="items-center">
+        <Text className="text-display1 font-bold text-label-normal">{name}</Text>
+        <Text className="text-body text-label-neutral">폰 {phoneNumber}</Text>
+      </View>
+      <View
+        className={`size-[140px] items-center justify-center rounded-pill ${
+          isSpeaking ? "bg-primary-alternative" : "bg-fill-neutral"
+        }`}
+      >
+        <Ionicons name="person" size={80} color={PALETTE.neutral[80]} />
       </View>
     </View>
   );
@@ -73,13 +122,13 @@ export default function Train() {
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
-  const [isReportReady, setIsReportReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
 
   const [isMuted, setIsMuted] = useState(false);
   const permissionGrantedRef = useRef(false);
+  const isWarmupSession = isWarmup === "true";
   const generatedPhoneNumber = useMemo(() => {
     const source = sessionId ?? "";
     const hash = Array.from(source).reduce((acc, char) => {
@@ -131,12 +180,46 @@ export default function Train() {
     };
   }, [step]);
 
+  /**
+   * 통화 종료 화면을 잠시 보여준 뒤 다음 화면으로 넘긴다.
+   * 시나리오·커스텀 훈련은 불안 점수 입력을 거치고, 워밍업은 바로 리포트로 간다.
+   */
   useEffect(() => {
     if (step !== "end") return;
-    setIsReportReady(false);
-    const timeout = setTimeout(() => setIsReportReady(true), 3000);
+
+    const nextParams = {
+      sessionId,
+      scenarioId,
+      mode: isWarmupSession ? "warmUp" : "scenario",
+      title,
+      content,
+      isCustom,
+      scenarioImage,
+      category,
+    };
+
+    const timeout = setTimeout(
+      () =>
+        router.replace({
+          pathname: isWarmupSession
+            ? "/(tabs)/(train)/report"
+            : "/(tabs)/(train)/anxiety",
+          params: nextParams,
+        }),
+      isWarmupSession ? WARMUP_REPORT_DELAY_MS : END_STEP_DURATION_MS,
+    );
     return () => clearTimeout(timeout);
-  }, [step]);
+  }, [
+    step,
+    isWarmupSession,
+    sessionId,
+    scenarioId,
+    title,
+    content,
+    isCustom,
+    scenarioImage,
+    category,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,7 +229,6 @@ export default function Train() {
       setIsScriptVisible(false);
       setTranscript([]);
       setSeconds(0);
-      setIsReportReady(false);
       setIsMuted(false);
       permissionGrantedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
@@ -194,44 +276,39 @@ export default function Train() {
     setStep("end");
   };
 
-  const handleOpenReport = () => {
-    if (!isReportReady) return;
-    router.replace({
-      pathname: "/(tabs)/(train)/report",
-      params: {
-        sessionId,
-        scenarioId,
-        mode: isWarmup === "true" ? "warmUp" : "scenario",
-        title,
-        content,
-        isCustom,
-        scenarioImage,
-        category,
-      },
-    });
-  };
-
   const safeArea = { paddingTop: insets.top, paddingBottom: insets.bottom };
 
   if (step === "receive") {
     return (
       <>
-        <View className="flex-1 bg-[#F0F0F0]" style={safeArea}>
-          <View className="items-center flex-1 pt-10">
-            <Text className="text-sm text-[#5C5E5E]">바다 시나리오 훈련</Text>
-            <Text className="mt-6 text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
-            <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화</Text>
-            <Text className="text-sm text-[#5C5E5E]">{generatedPhoneNumber}</Text>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={72} color="#FFFFFF" />
+        <View className="flex-1" style={safeArea}>
+          <CallBackground />
+          <View className="items-center flex-1 pt-[22px]">
+            <Text className="text-body font-medium text-label-alternative">
+              바다 시나리오 훈련
+            </Text>
+            <View className="mt-10">
+              <CalleeProfile name={roleName} phoneNumber={generatedPhoneNumber} />
             </View>
           </View>
-          <View className="flex-row items-center justify-around pb-14">
-            <TouchableOpacity onPress={handleAccept} activeOpacity={0.8} style={styles.receiveCallButton}>
-              <Ionicons name="call" size={28} color="#0AE365" />
+          <View className="flex-row items-center justify-between self-center w-[300px] pb-[58px]">
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="전화 받기"
+              onPress={handleAccept}
+              activeOpacity={0.8}
+              style={[styles.callButton, { backgroundColor: PALETTE.green[40] }]}
+            >
+              <Ionicons name="call" size={36} color={PALETTE.common[0]} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDecline} activeOpacity={0.8} style={styles.receiveCallButton}>
-              <Ionicons name="call" size={28} color="#FF3B30" style={styles.rotatedIcon} />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="전화 거절하기"
+              onPress={handleDecline}
+              activeOpacity={0.8}
+              style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
+            >
+              <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
             </TouchableOpacity>
           </View>
         </View>
@@ -265,31 +342,45 @@ export default function Train() {
   }
 
   const isEnd = step === "end";
-  const timerColor = isEnd ? "#FF3B30" : isAiSpeaking ? "#0AE365" : "#5C5E5E";
 
   return (
-    <View className="flex-1 bg-white" style={safeArea}>
-      <View className="flex-row items-center justify-center mt-6 gap-x-1">
-        <Ionicons name="call" size={14} color={timerColor} />
-        <Text className="text-sm font-medium" style={{ color: timerColor }}>
-          {formatTime(seconds)}{isEnd ? "  훈련종료" : isAiSpeaking ? "  AI 발화 중..." : ""}
+    <View className={`flex-1 ${isEnd ? "bg-background-normal" : ""}`} style={safeArea}>
+      {/* 통화가 끝나면 초록 배경을 걷어내 훈련이 종료됐음을 드러낸다 */}
+      {!isEnd && <CallBackground />}
+
+      <View className="flex-row items-center justify-center mt-6 gap-x-2">
+        <Ionicons
+          name="call"
+          size={20}
+          color={isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral}
+          style={isEnd ? styles.rotatedIcon : undefined}
+        />
+        <Text
+          className="text-body font-medium"
+          style={{ color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral }}
+        >
+          {formatTime(seconds)}
+          {isEnd ? " 훈련을 종료했습니다." : isAiSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
-      <View className="items-center flex-1 pt-8">
-        <Text className="text-4xl font-bold text-[#3B3D3E]">{roleName}</Text>
-        <Text className="text-sm text-[#5C5E5E] mt-2">휴대전화 {generatedPhoneNumber}</Text>
-        <View style={[styles.avatar, isAiSpeaking && styles.avatarSpeaking]}>
-          <Ionicons name="person" size={72} color="#FFFFFF" />
-        </View>
+
+      <View className="items-center pt-10">
+        <CalleeProfile
+          name={roleName}
+          phoneNumber={generatedPhoneNumber}
+          isSpeaking={isAiSpeaking}
+        />
+        {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
         {!isConnected && step === "training" && (
-          <Text className="text-sm text-[#BDBEBE] mt-2">연결 중...</Text>
+          <Text className="text-label text-label-alternative mt-2">연결 중...</Text>
         )}
       </View>
+
       {!isEnd && !isScriptVisible && (
         <View style={styles.gridContainer}>
           {[
             /* 워밍업에서는 스크립트 보기 비활성화 */
-            isWarmup === "true"
+            isWarmupSession
               ? { label: "스크립트 보기", onPress: undefined, icon: "document-text", active: false, disabled: true }
               : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: "document-text", active: false, disabled: false },
             { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted, disabled: false },
@@ -303,41 +394,48 @@ export default function Train() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 disabled={btn.disabled}
-                style={[
-                  styles.gridButton,
-                  btn.active && styles.gridButtonActive,
-                  btn.disabled && styles.gridButtonDisabled,
-                ]}
+                style={styles.gridButton}
                 onPress={btn.onPress}
               >
-                {btn.icon && (
-                  <Ionicons
-                    name={btn.icon as any}
-                    size={24}
-                    color={btn.disabled ? "#C8C8C8" : btn.active ? "#FF3B30" : "#3B3D3E"}
-                  />
-                )}
+                <Ionicons
+                  name={btn.icon as any}
+                  size={32}
+                  color={
+                    btn.disabled
+                      ? SEMANTIC_COLORS.line.normal
+                      : btn.active
+                        ? PALETTE.red[40]
+                        : SEMANTIC_COLORS.label.normal
+                  }
+                />
               </TouchableOpacity>
-              <Text className={`text-xs mt-2 ${btn.disabled ? "text-[#C8C8C8]" : "text-[#5C5E5E]"}`}>
+              <Text
+                className={`text-label font-medium mt-[3px] ${
+                  btn.disabled ? "text-line-normal" : "text-label-normal"
+                }`}
+              >
                 {btn.label}
               </Text>
             </View>
           ))}
         </View>
       )}
+
       {!isEnd && isScriptVisible && (
-        <View className="flex-1 mx-5">
+        <View className="flex-1 mx-[33px] mt-[83px]">
           <TouchableOpacity
             onPress={() => setIsScriptVisible(false)}
             activeOpacity={0.8}
             style={styles.scriptHideButton}
           >
-            <Text className="text-sm text-[#3B3D3E] font-medium">스크립트 가리기</Text>
+            <Text className="text-body font-medium text-label-normal">스크립트 가리기</Text>
           </TouchableOpacity>
-          <View style={[styles.scriptContainer, { flex: 1 }]}>
+          <View style={styles.scriptContainer}>
             {transcript.length === 0 ? (
               <View className="items-center justify-center flex-1">
-                <Text className="text-sm text-[#BDBEBE]">아직 대화 내용이 없어요.</Text>
+                <Text className="text-label text-label-alternative">
+                  아직 대화 내용이 없어요.
+                </Text>
               </View>
             ) : (
               <ScrollView
@@ -348,7 +446,11 @@ export default function Train() {
                 }
               >
                 {transcript.map((line, index) => (
-                  <Text key={index} className="text-sm text-[#3B3D3E] mb-2" style={{ lineHeight: 22 }}>
+                  <Text
+                    key={index}
+                    className="text-label text-label-normal mb-3"
+                    style={{ lineHeight: 22 }}
+                  >
                     <Text className="font-semibold">{roleToSpeaker(line.role)} : </Text>
                     {line.text}
                   </Text>
@@ -358,61 +460,36 @@ export default function Train() {
           </View>
         </View>
       )}
-      <View className="items-center pb-12 mt-6">
-        {isEnd ? (
-          <View className="w-full px-8">
-            <CustomButton
-              label={isReportReady ? "다음" : "피드백 생성 중..."}
-              backgroundColor="#0AE365"
-              color="white"
-              disabled={!isReportReady}
-              onPress={handleOpenReport}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={handleEndCall}
-            activeOpacity={0.8}
-            style={styles.endButton}
-          >
-            <Ionicons
-              name="call"
-              size={32}
-              color="white"
-              style={styles.rotatedIcon}
-            />
-          </TouchableOpacity>
-        )}
+
+      <View className="items-center mt-auto pb-[58px]">
+        <TouchableOpacity
+          onPress={handleEndCall}
+          activeOpacity={0.8}
+          disabled={isEnd}
+          style={[
+            styles.callButton,
+            { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
+          ]}
+        >
+          <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "#E0E0E0",
-    marginTop: 32,
+  callButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-  },
-  avatarSpeaking: {
-    backgroundColor: "#B8F5D4",
-  },
-  receiveCallButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    shadowColor: "#000000",
+    shadowOpacity: 0.12,
+    shadowRadius: 9.45,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
   rotatedIcon: {
     transform: [{ rotate: "135deg" }],
@@ -420,36 +497,19 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 20,
-    marginHorizontal: 20,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
+    marginHorizontal: 47,
+    marginTop: 101,
   },
   gridItem: {
     width: "33.33%",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 15,
   },
   gridButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  gridButtonActive: {
-    backgroundColor: "#FFE5E5",
-  },
-  gridButtonDisabled: {
-    backgroundColor: "#EFEFEF",
-  },
-  endButton: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    backgroundColor: "#FF3B30",
+    borderRadius: 24,
+    backgroundColor: "rgba(254,254,254,0.6)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -457,46 +517,21 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingHorizontal: 24,
     paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "#EBEBEC",
+    borderRadius: 999,
+    backgroundColor: "rgba(254,254,254,0.85)",
     marginBottom: 16,
   },
   scriptContainer: {
-    borderWidth: 1,
-    borderColor: "#EBEBEC",
-    borderRadius: 16,
-    padding: 16,
+    flex: 1,
+    borderRadius: 24,
+    padding: 20,
+    backgroundColor: "rgba(254,254,254,0.6)",
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  dialogCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 24,
-  },
-  dialogButtonRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  skipButton: {
-    flex: 1,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: "#F0F0F0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  meditateButton: {
-    flex: 1,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: "#0AE365",
-    justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 33,
   },
   meditationVideoContainer: {
     flex: 1,
