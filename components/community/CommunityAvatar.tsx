@@ -1,5 +1,7 @@
 import type { CommunityAuthor } from "@/types/community";
-import { Image, View } from "react-native";
+import { SEMANTIC_COLORS } from "@/design-system";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { View } from "react-native";
 
 interface CommunityAvatarProps {
   author: CommunityAuthor;
@@ -12,20 +14,14 @@ export default function CommunityAvatar({
 }: CommunityAvatarProps) {
   return (
     <View
-      className="overflow-hidden rounded-control bg-fill-neutral"
+      className="items-center justify-center overflow-hidden rounded-control bg-fill-neutral"
       style={{ width: size, height: size }}
     >
-      <Image
-        source={author.avatar}
-        accessibilityLabel={`${author.handle} 프로필 이미지`}
-        resizeMode="cover"
-        style={{
-          position: "absolute",
-          left: -size * 0.04,
-          top: -size * 0.45,
-          width: size * 1.39,
-          height: size * 1.73,
-        }}
+      <Ionicons
+        name="person"
+        size={size * 0.82}
+        color={SEMANTIC_COLORS.label.alternative}
+        accessibilityLabel={`${author.handle} 프로필`}
       />
     </View>
   );

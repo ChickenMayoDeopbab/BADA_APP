@@ -1,6 +1,3 @@
-import CheerIcon from "@/assets/community/reaction-cheer.svg";
-import EmpathyIcon from "@/assets/community/reaction-empathy.svg";
-import LikeIcon from "@/assets/community/reaction-like.svg";
 import type { CommunityReactionKey } from "@/types/community";
 import { Pressable, Text } from "react-native";
 
@@ -10,10 +7,10 @@ const REACTION_LABELS: Record<CommunityReactionKey, string> = {
   like: "좋아요",
 };
 
-const REACTION_ICONS = {
-  cheer: CheerIcon,
-  empathy: EmpathyIcon,
-  like: LikeIcon,
+const REACTION_EMOJIS: Record<CommunityReactionKey, string> = {
+  cheer: "👍",
+  empathy: "🥺",
+  like: "❤️",
 };
 
 interface ReactionPillProps {
@@ -31,9 +28,6 @@ export default function ReactionPill({
   selected = false,
   onPress,
 }: ReactionPillProps) {
-  const Icon = REACTION_ICONS[type];
-  const iconSize = compact ? 22 : 24;
-
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
@@ -44,7 +38,7 @@ export default function ReactionPill({
         selected ? "bg-primary-normal" : "bg-transparent"
       }`}
     >
-      <Icon width={iconSize} height={iconSize} />
+      <Text style={{ fontSize: compact ? 20 : 22 }}>{REACTION_EMOJIS[type]}</Text>
       {!compact && (
         <Text
           className={`text-label font-medium ${

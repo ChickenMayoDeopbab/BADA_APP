@@ -9,7 +9,6 @@ import type {
 export const COMMUNITY_AUTHOR: CommunityAuthor = {
   id: "user-b2ong222",
   handle: "@b2ong222",
-  avatar: require("@/assets/community/avatar-layer-2.png"),
 };
 
 export const COMMUNITY_RECENT_SEARCHES = [
@@ -27,14 +26,14 @@ export const COMMUNITY_SCENARIOS: CommunityScenarioAttachment[] = [
     type: "scenario",
     title: "배놈",
     trainingCount: 5,
-    image: require("@/assets/community/scenario-batman.png"),
+    image: require("@/assets/Q3_l.png"),
   },
   {
     id: "scenario-batman",
     type: "scenario",
     title: "배놈 비슷한 배트맨",
     trainingCount: 3,
-    image: require("@/assets/community/scenario-superman.png"),
+    image: require("@/assets/Q2_l.png"),
   },
 ];
 
