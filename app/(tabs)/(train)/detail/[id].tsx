@@ -97,7 +97,6 @@ export default function Detail() {
 
     const player = examplePlayerRef.current;
     player.pause();
-    player.replace(null);
 
     setIsFetchingExample(false);
     setShouldAutoPlay(false);
