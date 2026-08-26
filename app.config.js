@@ -79,6 +79,15 @@ module.exports = {
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       [
+        "expo-media-library",
+        {
+          photosPermission:
+            "프로필 사진을 선택할 수 있도록 사진 보관함 접근을 허용해 주세요.",
+          savePhotosPermission: false,
+          granularPermissions: ["photo"],
+        },
+      ],
+      [
         "expo-secure-store",
         {
           faceIDPermission: false,
