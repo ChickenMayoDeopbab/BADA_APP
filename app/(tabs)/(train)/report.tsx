@@ -39,11 +39,6 @@ import {
 type ReportParams = {
   scenarioId?: string;
   mode?: "scenario" | "warmUp";
-  title?: string;
-  content?: string;
-  isCustom?: string;
-  scenarioImage?: string;
-  category?: string;
 };
 
 const cardShadow = {
@@ -199,15 +194,7 @@ function BottomFade() {
 }
 
 export default function Report() {
-  const {
-    scenarioId,
-    mode = "scenario",
-    title,
-    content,
-    isCustom,
-    scenarioImage,
-    category,
-  } = useLocalSearchParams<ReportParams>();
+  const { scenarioId, mode = "scenario" } = useLocalSearchParams<ReportParams>();
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -220,21 +207,7 @@ export default function Report() {
   }, []);
 
   useAndroidBackHandler(() => {
-    if (scenarioId) {
-      router.replace({
-        pathname: "/(tabs)/(train)/detail/[id]",
-        params: {
-          id: scenarioId,
-          title,
-          content,
-          isCustom,
-          scenarioImage,
-          category,
-        },
-      });
-    } else {
-      router.replace("/(tabs)/(train)/list");
-    }
+    router.replace("/(tabs)/(train)/list");
     return true;
   });
 
@@ -324,7 +297,7 @@ export default function Report() {
                 많이 좋아졌는걸요?
               </Text>
 
-              <View className="absolute right-[17px] bottom-4 w-[120px] items-end gap-2">
+              <View className="absolute left-[94px] right-[17px] bottom-4 items-end gap-2">
                 {mode === "scenario" && (
                   <View className="items-end">
                     <Text
