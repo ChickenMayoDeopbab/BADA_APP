@@ -3,6 +3,7 @@ import CustomButton from "@/components/common/CustomButton";
 import Loading from "@/components/common/Loading";
 import Top from "@/components/common/Top";
 import { createCustomScenario } from "@/api/trainApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -39,6 +40,7 @@ export default function Create() {
     callee: "",
   });
   const createdScenarioIdRef = useRef<number | null>(null);
+  const queryClient = useQueryClient();
 
   useAndroidBackHandler(() => {
     router.replace("/(tabs)/(train)/list");
@@ -72,6 +74,8 @@ export default function Create() {
         });
         if (cancelled) return;
         createdScenarioIdRef.current = result.scenario.scenario_id;
+        // 목록 캐시를 비워야 방금 만든 시나리오가 커스텀 탭에 바로 보인다
+        queryClient.invalidateQueries({ queryKey: ["scenarios"] });
         setStep("done");
       } catch {
         if (cancelled) return;
@@ -81,7 +85,7 @@ export default function Create() {
 
     run();
     return () => { cancelled = true; };
-  }, [step]);
+  }, [queryClient, step]);
 
   if (step === "fail") {
     return (

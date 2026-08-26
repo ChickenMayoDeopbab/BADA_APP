@@ -161,6 +161,14 @@ function SummaryBackground() {
   );
 }
 
+/**
+ * 훈련 목록으로 돌아간다.
+ * 훈련 스택은 list → detail → start → report 형태로 남아 있어서
+ * replace를 쓰면 list가 하나 더 쌓이고 뒤로가기가 start·detail로 되돌아간다.
+ * dismissTo는 스택을 list까지 되감고, list가 없으면 replace로 폴백한다.
+ */
+const goToList = () => router.dismissTo("/(tabs)/(train)/list");
+
 function BottomFade() {
   return (
     <Svg
@@ -203,11 +211,11 @@ export default function Report() {
   );
 
   const finishReport = useCallback(() => {
-    router.replace("/(tabs)/(train)/list");
+    goToList();
   }, []);
 
   useAndroidBackHandler(() => {
-    router.replace("/(tabs)/(train)/list");
+    goToList();
     return true;
   });
 
