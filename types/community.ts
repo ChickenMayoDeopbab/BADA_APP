@@ -7,7 +7,6 @@ export type CommunityReactions = Record<CommunityReactionKey, number>;
 export interface CommunityAuthor {
   id: string;
   handle: string;
-  avatar: ImageSourcePropType;
 }
 
 export interface CommunityReply {
