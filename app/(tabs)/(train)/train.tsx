@@ -73,7 +73,6 @@ export default function Train() {
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
-  const [isReportReady, setIsReportReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -131,13 +130,6 @@ export default function Train() {
     };
   }, [step]);
 
-  useEffect(() => {
-    if (step !== "end") return;
-    setIsReportReady(false);
-    const timeout = setTimeout(() => setIsReportReady(true), 3000);
-    return () => clearTimeout(timeout);
-  }, [step]);
-
   useFocusEffect(
     useCallback(() => {
       setStep("receive");
@@ -146,7 +138,6 @@ export default function Train() {
       setIsScriptVisible(false);
       setTranscript([]);
       setSeconds(0);
-      setIsReportReady(false);
       setIsMuted(false);
       permissionGrantedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
@@ -195,7 +186,6 @@ export default function Train() {
   };
 
   const handleOpenReport = () => {
-    if (!isReportReady) return;
     router.replace({
       pathname: "/(tabs)/(train)/report",
       params: {
@@ -362,10 +352,9 @@ export default function Train() {
         {isEnd ? (
           <View className="w-full px-8">
             <CustomButton
-              label={isReportReady ? "다음" : "피드백 생성 중..."}
+              label="다음"
               backgroundColor="#0AE365"
               color="white"
-              disabled={!isReportReady}
               onPress={handleOpenReport}
             />
           </View>
