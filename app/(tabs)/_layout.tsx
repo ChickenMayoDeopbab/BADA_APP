@@ -50,12 +50,15 @@ function CallWatcher() {
 
 export default function TabLayout() {
   const pathname = usePathname();
+  const hideTabBar =
+    pathname === "/train" ||
+    pathname.endsWith("/search");
 
   return (
     <PendingCallProvider>
       <CallWatcher />
       <Tabs
-        tabBar={(props) => pathname === "/train" ? null : <BottomNav {...props} />}
+        tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
