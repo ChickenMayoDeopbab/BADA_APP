@@ -324,7 +324,7 @@ export default function Report() {
                 많이 좋아졌는걸요?
               </Text>
 
-              <View className="absolute right-[17px] top-4 w-[120px] items-end gap-2">
+              <View className="absolute right-[17px] bottom-4 w-[120px] items-end gap-2">
                 {mode === "scenario" && (
                   <View className="items-end">
                     <Text
