@@ -112,16 +112,13 @@ function ReportLoading() {
   );
 }
 
-const formatTrainingTime = (
-  trainingTime: FeedbackResponse["trainingTime"],
-): string => {
+const formatTrainingTime = (trainingTime: FeedbackResponse["trainingTime"]) => {
+  const [hours = "0", minutes = "0", seconds = "0"] =
+    trainingTime.split(":");
   const parts: string[] = [];
-  if (trainingTime.hour > 0) parts.push(`${trainingTime.hour}시간`);
-  if (trainingTime.minute > 0) parts.push(`${trainingTime.minute}분`);
-  const seconds = Number.isFinite(trainingTime.second)
-    ? Math.round(trainingTime.second)
-    : 0;
-  parts.push(`${seconds}초`);
+  if (Number(hours) > 0) parts.push(`${Number(hours)}시간`);
+  if (Number(minutes) > 0) parts.push(`${Number(minutes)}분`);
+  parts.push(`${Number(seconds)}초`);
   return parts.join(" ");
 };
 

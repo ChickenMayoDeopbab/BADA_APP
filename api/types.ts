@@ -280,13 +280,6 @@ export interface GetFeedbackParams {
 export type ApiVoidData = Record<string, never> | null;
 export type ApiResponseVoid = ApiResponse<ApiVoidData>;
 
-export interface TrainingTime {
-  hour: number;
-  minute: number;
-  second: number;
-  nano: number;
-}
-
 export interface GoodSegment {
   start: number;
   end: number;
@@ -296,7 +289,7 @@ export interface GoodSegment {
 export interface FeedbackResponse {
   sessionType: SpringSessionType;
   scenarioName: string;
-  trainingTime: TrainingTime;
+  trainingTime: string;
   goodSegments: GoodSegment[];
   recordingUrl: string;
 }
