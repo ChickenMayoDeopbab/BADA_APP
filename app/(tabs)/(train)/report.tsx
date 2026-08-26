@@ -392,7 +392,7 @@ export default function Report() {
                               style={cardShadow}
                             >
                               <Pressable
-                                className="flex-row items-center justify-between"
+                                className="flex-row items-start justify-between"
                                 onPress={() => toggleFeedback(index)}
                               >
                                 <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
