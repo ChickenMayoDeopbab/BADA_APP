@@ -48,7 +48,7 @@ export default function AudioSegmentButton({
       : 0;
   const segmentProgress = status.playing
     ? Math.max(currentSegmentProgress, 1 / WAVEFORM_HEIGHTS.length)
-    : 0;
+    : currentSegmentProgress;
   const waveformHeights = useMemo(() => {
     const offset = Math.round(segmentStart) % WAVEFORM_HEIGHTS.length;
     return WAVEFORM_HEIGHTS.map(
@@ -68,11 +68,9 @@ export default function AudioSegmentButton({
     if (!reachedSegmentEnd) return;
 
     player.pause();
-    player.seekTo(segmentStart).catch(() => {});
   }, [
     player,
     segmentEnd,
-    segmentStart,
     status.currentTime,
     status.didJustFinish,
     status.playing,
