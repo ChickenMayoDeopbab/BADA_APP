@@ -4,6 +4,7 @@ import {
   deleteCommunityReaction,
   patchCommunityComment,
   patchCommunityPost,
+  postCopyCommunityScenario,
   postCommunityComment,
   putCommunityReaction,
 } from "@/api/communityApi";
@@ -37,6 +38,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -248,6 +250,7 @@ export default function CommunityPostDetailScreen() {
   } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [copiedScenarioId, setCopiedScenarioId] = useState<number | null>(null);
   const commentInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -467,6 +470,26 @@ export default function CommunityPostDetailScreen() {
     },
   });
 
+  const copyScenarioMutation = useMutation({
+    mutationFn: () => postCopyCommunityScenario(postId),
+    onSuccess: (copiedScenario) => {
+      setCopiedScenarioId(copiedScenario.scenario_id);
+      void queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+      Alert.alert(
+        copiedScenario.already_copied
+          ? "이미 가져온 시나리오예요"
+          : "시나리오를 가져왔어요",
+        `시나리오 훈련의 공유받은 탭에서 ${copiedScenario.title}을 확인할 수 있어요.`,
+      );
+    },
+    onError: (error) => {
+      Alert.alert(
+        "시나리오를 가져오지 못했어요",
+        getApiErrorMessage(error, "잠시 후 다시 시도해주세요."),
+      );
+    },
+  });
+
   const updateCommentMutation = useMutation({
     mutationFn: ({
       commentId,
@@ -567,6 +590,9 @@ export default function CommunityPostDetailScreen() {
   const startEditingPost = () => {
     if (!post) return;
     setIsPostMenuVisible(false);
+    setEditingCommentId(null);
+    setEditCommentContent("");
+    setEditCommentError(null);
     setEditTitle(post.title);
     setEditContent(post.content);
     setEditingPost(true);
@@ -581,6 +607,8 @@ export default function CommunityPostDetailScreen() {
   };
 
   const startEditingComment = (commentId: number, content: string) => {
+    setEditingPost(false);
+    setIsPostMenuVisible(false);
     setEditingCommentId(commentId);
     setEditCommentContent(content);
     setEditCommentError(null);
@@ -692,8 +720,14 @@ export default function CommunityPostDetailScreen() {
   const reactionCounts = post.reactions ?? {};
   const currentUserId = currentUserIdQuery.data;
   const isPostAuthor = currentUserId === post.author.user_id;
+  const scenarioAttachment = post.attachments?.find(
+    (attachment) => attachment.kind === "SCENARIO",
+  );
+  const trainingRecordAttachment = post.attachments?.find(
+    (attachment) => attachment.kind === "TRAINING_RECORD",
+  );
   const postMetadata = (
-    <View className="mt-1.5 flex-row items-center justify-between">
+    <View className="mt-1.5 flex-row items-center justify-between px-3">
       <View className="flex-row items-center gap-x-1.5">
         <CommunityAvatar author={post.author} size={22} />
         <Text className="text-body text-label-alternative">
@@ -888,15 +922,142 @@ export default function CommunityPostDetailScreen() {
               layout={editorLayoutTransition}
             >
               <View>
-                <Text className="text-title2 font-bold text-label-normal">
-                  {post.title}
-                </Text>
+                <View className="min-h-[51px] justify-center px-3 py-2">
+                  <Text className="text-title2 font-bold text-label-normal">
+                    {post.title}
+                  </Text>
+                </View>
                 {postMetadata}
-                <Text className="mt-4 text-body text-label-normal">
-                  {post.content}
-                </Text>
+                <View className="mt-4 px-3 py-3">
+                  <Text className="text-body text-label-normal">
+                    {post.content}
+                  </Text>
+                </View>
               </View>
             </Animated.View>
+          )}
+
+          {scenarioAttachment && (
+            <View className="mt-4 rounded-component border border-line-alternative bg-background-normal px-4 py-3">
+              <View className="flex-row items-center gap-x-1.5">
+                <Ionicons
+                  name="videocam-outline"
+                  size={18}
+                  color={SEMANTIC_COLORS.primary.normal}
+                />
+                <Text className="text-caption font-medium text-primary-normal">
+                  첨부 시나리오
+                </Text>
+              </View>
+
+              {scenarioAttachment.scenario ? (
+                <>
+                  <Text className="mt-1.5 text-body font-bold text-label-normal">
+                    {scenarioAttachment.scenario.title}
+                  </Text>
+                  <Text
+                    numberOfLines={3}
+                    className="mt-1 text-label text-label-alternative"
+                  >
+                    {scenarioAttachment.scenario.content}
+                  </Text>
+
+                  {scenarioAttachment.scenario.is_mine ? (
+                    <Text className="mt-2 text-right text-caption font-medium text-label-alternative">
+                      내가 만든 시나리오
+                    </Text>
+                  ) : scenarioAttachment.scenario.is_available === false ? (
+                    <Text className="mt-2 text-right text-caption text-status-error">
+                      더 이상 가져올 수 없는 시나리오예요.
+                    </Text>
+                  ) : (
+                    <View className="mt-3 self-end w-[132px]">
+                      <CustomButton
+                        label={
+                          copiedScenarioId
+                            ? "가져온 시나리오"
+                            : copyScenarioMutation.isPending
+                              ? "가져오는 중..."
+                              : "내 목록에 가져오기"
+                        }
+                        variant="md"
+                        tone="primary"
+                        disabled={
+                          Boolean(copiedScenarioId) ||
+                          copyScenarioMutation.isPending
+                        }
+                        onPress={() => copyScenarioMutation.mutate()}
+                      />
+                    </View>
+                  )}
+                </>
+              ) : (
+                <Text className="mt-2 text-label text-label-alternative">
+                  첨부된 시나리오 정보를 불러올 수 없어요.
+                </Text>
+              )}
+            </View>
+          )}
+
+          {trainingRecordAttachment && (
+            <View className="mt-4 rounded-component border border-line-alternative bg-background-normal px-4 py-3">
+              <View className="flex-row items-center gap-x-1.5">
+                <Ionicons
+                  name="time-outline"
+                  size={18}
+                  color={SEMANTIC_COLORS.status.info}
+                />
+                <Text className="text-caption font-medium text-status-info">
+                  첨부 훈련 기록
+                </Text>
+              </View>
+
+              {trainingRecordAttachment.training_record ? (
+                <>
+                  <Text className="mt-1.5 text-body font-bold text-label-normal">
+                    {trainingRecordAttachment.training_record.scenario_name ??
+                      "훈련 기록"}
+                  </Text>
+                  <View className="mt-1 flex-row flex-wrap items-center gap-x-2 gap-y-1">
+                    {trainingRecordAttachment.training_record.started_at && (
+                      <Text className="text-label text-label-alternative">
+                        {formatCommunityTimestamp(
+                          trainingRecordAttachment.training_record.started_at,
+                        )}
+                      </Text>
+                    )}
+                    {typeof trainingRecordAttachment.training_record
+                      .duration_seconds === "number" && (
+                      <Text className="text-label text-label-alternative">
+                        {`${Math.max(
+                          1,
+                          Math.ceil(
+                            trainingRecordAttachment.training_record
+                              .duration_seconds / 60,
+                          ),
+                        )}분 훈련`}
+                      </Text>
+                    )}
+                    {typeof trainingRecordAttachment.training_record
+                      .anxiety_score === "number" && (
+                      <Text className="text-label text-label-alternative">
+                        {`불안도 ${trainingRecordAttachment.training_record.anxiety_score}점`}
+                      </Text>
+                    )}
+                  </View>
+                  {trainingRecordAttachment.training_record.is_available ===
+                    false && (
+                    <Text className="mt-2 text-caption text-status-error">
+                      더 이상 확인할 수 없는 훈련 기록이에요.
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text className="mt-2 text-label text-label-alternative">
+                  첨부된 훈련 기록 정보를 불러올 수 없어요.
+                </Text>
+              )}
+            </View>
           )}
 
           <View className="mt-5 flex-row justify-end gap-x-1">
@@ -968,7 +1129,7 @@ export default function CommunityPostDetailScreen() {
                     <View className="flex-row items-start gap-x-1.5">
                       <CommunityAvatar author={comment.author} size={22} />
                       <View className="flex-1">
-                        <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center justify-between px-2.5">
                           <View className="flex-row items-center gap-x-1">
                             <Text className="text-label text-label-alternative">
                               {getCommunityAuthorName(comment.author.name)}
@@ -1016,7 +1177,7 @@ export default function CommunityPostDetailScreen() {
                             onPress={() =>
                               selectReplyTarget(comment.comment_id)
                             }
-                            className="py-0.5"
+                            className="min-h-[32px] px-2.5 py-1"
                           >
                             <Text
                               className={`text-body ${
@@ -1047,7 +1208,7 @@ export default function CommunityPostDetailScreen() {
                           >
                             <CommunityAvatar author={reply.author} size={22} />
                             <View className="flex-1">
-                              <View className="flex-row items-center justify-between">
+                              <View className="flex-row items-center justify-between px-2.5">
                                 <View className="flex-row items-center gap-x-1">
                                   <Text className="text-label text-label-alternative">
                                     {getCommunityAuthorName(reply.author.name)}
@@ -1092,9 +1253,11 @@ export default function CommunityPostDetailScreen() {
                                   onSave={saveComment}
                                 />
                               ) : (
-                                <Text className="mt-0.5 text-body text-label-normal">
-                                  {reply.content}
-                                </Text>
+                                <View className="min-h-[32px] px-2.5 py-1">
+                                  <Text className="text-body text-label-normal">
+                                    {reply.content}
+                                  </Text>
+                                </View>
                               )}
                             </View>
                           </View>
