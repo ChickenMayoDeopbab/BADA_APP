@@ -4,7 +4,11 @@ import {
   getCommunityPosts,
   getMyCommunityPosts,
 } from "@/api/communityApi";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 
 const COMMUNITY_PAGE_SIZE = 20;
 
@@ -15,6 +19,7 @@ interface UseCommunityPostsParams {
   query?: string;
   enabled?: boolean;
   size?: number;
+  preservePreviousData?: boolean;
 }
 
 export const communityQueryKeys = {
@@ -33,6 +38,7 @@ export const useCommunityPosts = ({
   query = "",
   enabled = true,
   size = COMMUNITY_PAGE_SIZE,
+  preservePreviousData = false,
 }: UseCommunityPostsParams = {}) => {
   const normalizedQuery = query.trim();
 
@@ -56,6 +62,7 @@ export const useCommunityPosts = ({
     getNextPageParam: (lastPage) =>
       lastPage.has_next ? lastPage.page + 1 : undefined,
     enabled,
+    placeholderData: preservePreviousData ? keepPreviousData : undefined,
   });
 };
 
@@ -64,6 +71,7 @@ export const useCommunityPost = (postId: number) =>
     queryKey: communityQueryKeys.post(postId),
     queryFn: ({ signal }) => getCommunityPost(postId, signal),
     enabled: Number.isSafeInteger(postId) && postId > 0,
+    refetchOnMount: "always",
   });
 
 export const useCommunityComments = (postId: number) =>

@@ -7,7 +7,7 @@ import { useCommunityPosts } from "@/hooks/useCommunityPosts";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -19,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CommunitySearchScreen() {
   const [keyword, setKeyword] = useState("");
-  const [submittedKeyword, setSubmittedKeyword] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
   const {
     recentSearches,
     addRecentSearch,
@@ -27,9 +27,24 @@ export default function CommunitySearchScreen() {
     clearRecentSearches,
   } = useRecentSearches({ storageKey: "recentCommunitySearches" });
   const searchQuery = useCommunityPosts({
-    query: submittedKeyword,
-    enabled: Boolean(submittedKeyword),
+    query: debouncedKeyword,
+    enabled: Boolean(debouncedKeyword),
+    preservePreviousData: true,
   });
+
+  useEffect(() => {
+    const trimmed = keyword.trim();
+    if (!trimmed) {
+      setDebouncedKeyword("");
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(trimmed);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [keyword]);
 
   const results = useMemo(() => {
     return searchQuery.data?.pages.flatMap((page) => page.posts) ?? [];
@@ -41,17 +56,12 @@ export default function CommunitySearchScreen() {
     setKeyword(trimmed);
     addRecentSearch(trimmed);
 
-    if (trimmed === submittedKeyword) {
+    if (trimmed === debouncedKeyword) {
       void searchQuery.refetch();
       return;
     }
 
-    setSubmittedKeyword(trimmed);
-  };
-
-  const changeKeyword = (value: string) => {
-    setKeyword(value);
-    if (!value.trim()) setSubmittedKeyword("");
+    setDebouncedKeyword(trimmed);
   };
 
   return (
@@ -72,14 +82,14 @@ export default function CommunitySearchScreen() {
             autoFocus
             placeholder="제목 또는 설명으로 검색"
             value={keyword}
-            onChangeText={changeKeyword}
+            onChangeText={setKeyword}
             onSubmitEditing={() => submitSearch(keyword)}
             onSearch={() => submitSearch(keyword)}
           />
         </View>
       </View>
 
-      {submittedKeyword ? (
+      {keyword.trim() ? (
         <FlatList
           data={results}
           keyExtractor={(post) => String(post.post_id)}
@@ -133,10 +143,6 @@ export default function CommunitySearchScreen() {
               <ActivityIndicator className="py-5" />
             ) : null
           }
-          refreshing={
-            searchQuery.isRefetching && !searchQuery.isFetchingNextPage
-          }
-          onRefresh={() => void searchQuery.refetch()}
           onEndReachedThreshold={0.4}
           onEndReached={() => {
             if (searchQuery.hasNextPage && !searchQuery.isFetchingNextPage) {
