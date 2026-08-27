@@ -101,7 +101,7 @@ export interface MyPageResponse {
 
 export type Personality = 'kind' | 'neutral' | 'tough' | 'rude';
 export type Difficulty = 'high' | 'medium' | 'low';
-export type ScenarioCategory = 'restaurant' | 'hospital' | 'complaint' | 'delivery' | 'bank' | 'custom';
+export type ScenarioCategory = 'work' | 'daily' | 'school' | 'other';
 
 // Spring 서버 전용 타입 (대문자 enum, neutral → NORMAL)
 export type SpringSessionType = 'SCENARIO' | 'CUSTOM' | 'WARMUP';
@@ -118,6 +118,8 @@ export interface ScenarioInfo {
   tts_voice_id: string | null;
   ai_prompt: string;
   is_custom: boolean;
+  /** 커뮤니티에서 공유받아 복사한 커스텀 시나리오 */
+  is_copied?: boolean;
 }
 
 export interface ScenarioListResponse {
@@ -305,11 +307,53 @@ export interface CommunityAuthorInfo {
   profile_image_url?: string | null;
 }
 
+export type CommunityAttachmentKind = "SCENARIO" | "TRAINING_RECORD";
+
+export interface CommunityAttachmentRequest {
+  kind: CommunityAttachmentKind;
+  ref_id: number;
+}
+
+export interface CommunityAttachedScenario {
+  title: string;
+  content: string;
+  category: string;
+  is_available?: boolean;
+  is_mine?: boolean;
+}
+
+export interface CommunityAttachedTrainingRecord {
+  scenario_name?: string | null;
+  session_type?: string | null;
+  started_at?: string | null;
+  duration_seconds?: number | null;
+  anxiety_score?: number | null;
+  audio_url?: string | null;
+  audio_status?: string;
+  is_available?: boolean;
+}
+
+export interface CommunityPostAttachment {
+  kind: CommunityAttachmentKind;
+  ref_id: number;
+  scenario?: CommunityAttachedScenario | null;
+  training_record?: CommunityAttachedTrainingRecord | null;
+}
+
+export interface CommunityScenarioCopyResponse {
+  scenario_id: number;
+  title: string;
+  category: string;
+  already_copied?: boolean;
+}
+
 export interface CommunityPostCreateRequest {
   /** 1자 이상 100자 이하 */
   title: string;
   /** 1자 이상 5,000자 이하 */
   content: string;
+  /** 종류별 최대 1개 */
+  attachments?: CommunityAttachmentRequest[];
 }
 
 export interface CommunityPostUpdateRequest {
@@ -356,6 +400,7 @@ export interface CommunityPostSummary {
   comment_count: number;
   reactions: CommunityReactionCounts;
   my_reaction?: CommunityReactionKind | null;
+  attachment_kinds?: CommunityAttachmentKind[];
   created_at: string;
   updated_at: string;
 }
@@ -369,6 +414,7 @@ export interface CommunityPostDetailResponse {
   comment_count?: number;
   reactions?: CommunityReactionCounts;
   my_reaction?: CommunityReactionKind | null;
+  attachments?: CommunityPostAttachment[];
   created_at: string;
   updated_at: string;
 }
