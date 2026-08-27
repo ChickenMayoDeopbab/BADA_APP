@@ -295,3 +295,117 @@ export interface FeedbackResponse {
   goodSegments: GoodSegment[];
   recordingUrl: string;
 }
+
+// AI 서버 커뮤니티 API
+export type CommunityReactionKind = "CHEER" | "RELATE" | "LIKE";
+
+export interface CommunityAuthorInfo {
+  user_id: number;
+  name?: string | null;
+  profile_image_url?: string | null;
+}
+
+export interface CommunityPostCreateRequest {
+  /** 1자 이상 100자 이하 */
+  title: string;
+  /** 1자 이상 5,000자 이하 */
+  content: string;
+}
+
+export interface CommunityPostUpdateRequest {
+  /** 값이 있으면 1자 이상 100자 이하 */
+  title?: string | null;
+  /** 값이 있으면 1자 이상 5,000자 이하 */
+  content?: string | null;
+}
+
+export interface GetCommunityPostsParams {
+  /** 1부터 시작 */
+  page?: number;
+  /** 1 이상 50 이하 */
+  size?: number;
+  /** 제목 또는 내용 검색어 */
+  q?: string | null;
+}
+
+export type GetMyCommunityPostsParams = Omit<GetCommunityPostsParams, "q">;
+
+export interface CommunityReactionCounts {
+  cheer?: number;
+  relate?: number;
+  like?: number;
+  total?: number;
+}
+
+export interface CommunityReactionRequest {
+  kind: CommunityReactionKind;
+}
+
+export interface CommunityReactionStateResponse {
+  post_id: number;
+  reactions: CommunityReactionCounts;
+  my_reaction?: CommunityReactionKind | null;
+}
+
+export interface CommunityPostSummary {
+  post_id: number;
+  title: string;
+  content_preview: string;
+  author: CommunityAuthorInfo;
+  view_count: number;
+  comment_count: number;
+  reactions: CommunityReactionCounts;
+  my_reaction?: CommunityReactionKind | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityPostDetailResponse {
+  post_id: number;
+  title: string;
+  content: string;
+  author: CommunityAuthorInfo;
+  view_count: number;
+  comment_count?: number;
+  reactions?: CommunityReactionCounts;
+  my_reaction?: CommunityReactionKind | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityPostListResponse {
+  posts: CommunityPostSummary[];
+  page: number;
+  size: number;
+  total: number;
+  has_next: boolean;
+}
+
+export interface CommunityCommentCreateRequest {
+  /** 1자 이상 1,000자 이하 */
+  content: string;
+  /** 지정하면 최상위 댓글에 대한 답글로 등록 */
+  parent_comment_id?: number | null;
+}
+
+export interface CommunityCommentUpdateRequest {
+  /** 1자 이상 1,000자 이하 */
+  content: string;
+}
+
+export interface CommunityCommentResponse {
+  comment_id: number;
+  parent_comment_id?: number | null;
+  content: string;
+  author: CommunityAuthorInfo;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityCommentThread extends CommunityCommentResponse {
+  replies?: CommunityCommentResponse[];
+}
+
+export interface CommunityCommentListResponse {
+  comments: CommunityCommentThread[];
+}
