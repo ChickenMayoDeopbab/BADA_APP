@@ -1,9 +1,8 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
-import { DIAGNOSIS } from "@/constants/diagnosis";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import type { TextStyle } from "react-native";
 import Loading from "@/components/common/Loading";
 import { calculateLevel, getQuestion } from "@/api";
