@@ -29,18 +29,23 @@ export type CustomScenarioCategory =
 /**
  * 훈련 종료 직후 불안 점수 입력 전에 순서대로 보여주는 안내 메시지.
  * face는 assets에 있는 이모지 SVG 키를 가리킨다.
+ * 줄바꿈(\n)은 디자인에 지정된 위치 그대로다. 자동 줄바꿈에 맡기면
+ * "골라주 / 면 돼요!"처럼 단어 중간에서 끊긴다.
  */
 export const TRAIN_END_MESSAGES = [
   { face: "thinking", text: "이번 전화는 어땠나요?" },
-  { face: "thinking", text: "어때요? 지난 번보다 괜찮아진 것 같나요?" },
+  { face: "thinking", text: "어때요?\n지난 번보다 괜찮아진 것 같나요?" },
   { face: "grinning", text: "그렇지 않아도 괜찮아요!" },
-  { face: "grinning", text: "바다와 함께라면 두려움이 사라질거라 믿어요!" },
-  { face: "winking", text: "자, 이제 이번 훈련이 어땠는지 알려줄래요?" },
-  { face: "winking", text: "불안 점수를 0-10 중 하나로 골라주면 돼요!" },
+  { face: "grinning", text: "바다와 함께라면\n두려움이 사라질거라 믿어요!" },
+  { face: "winking", text: "자, 이제\n이번 훈련이 어땠는지 알려줄래요?" },
+  { face: "winking", text: "불안 점수를\n0-10 중 하나로 골라주면 돼요!" },
 ] as const;
 
-/** 안내 메시지 한 개가 화면에 머무는 시간(ms) */
-export const TRAIN_END_MESSAGE_DURATION_MS = 2000;
+/** 안내 메시지 한 글자가 타이핑되는 간격(ms) */
+export const TRAIN_END_MESSAGE_TYPING_MS = 45;
+
+/** 타이핑이 끝난 뒤 다음 메시지로 넘어가기까지 머무는 시간(ms) */
+export const TRAIN_END_MESSAGE_HOLD_MS = 900;
 
 /**
  * 불안 점수 막대 10칸의 색상.
