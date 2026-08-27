@@ -81,6 +81,7 @@ export default function TabLayout() {
           name="(train)"
           options={{
             title: "훈련",
+            popToTopOnBlur: true,
           }}
         />
 

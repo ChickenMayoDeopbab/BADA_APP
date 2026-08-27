@@ -235,30 +235,59 @@ export default function RecordDetailScreen() {
             >
               <View className="relative flex-1 overflow-hidden rounded-component">
                 <SummaryBackground />
-                <View className="justify-between flex-1 px-[17px] py-4">
-                  <View>
-                    <Text
-                      className="font-medium text-body"
-                      style={{ color: `${PALETTE.common[0]}99` }}
-                    >
-                      시나리오명
-                    </Text>
-                    <Text
-                      className="font-bold text-body text-common-0"
-                      numberOfLines={1}
-                    >
-                      {data.scenarioName}
-                    </Text>
+                <View className="flex-row items-start justify-between flex-1 px-[17px] py-4">
+                  <View className="justify-between flex-1 h-full min-w-0 pr-4">
+                    <View>
+                      <Text
+                        className="font-medium text-body"
+                        style={{ color: `${PALETTE.common[0]}99` }}
+                      >
+                        시나리오명
+                      </Text>
+                      <Text
+                        className="font-bold text-body text-common-0"
+                        numberOfLines={1}
+                      >
+                        {data.scenarioName}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text
+                        className="font-medium text-body"
+                        style={{ color: `${PALETTE.common[0]}99` }}
+                      >
+                        훈련시간
+                      </Text>
+                      <Text className="font-bold text-body text-common-0">
+                        {formatDuration(data.durationSeconds)}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
+                  <View className="items-end shrink-0">
                     <Text
-                      className="font-medium text-body"
-                      style={{ color: `${PALETTE.common[0]}99` }}
+                      allowFontScaling={false}
+                      className="font-medium font-pretendard text-body"
+                      numberOfLines={1}
+                      style={{
+                        color: `${PALETTE.common[0]}99`,
+                        includeFontPadding: false,
+                      }}
                     >
-                      훈련시간
+                      불안 점수
                     </Text>
-                    <Text className="font-bold text-body text-common-0">
-                      {formatDuration(data.durationSeconds)}
+                    <Text
+                      allowFontScaling={false}
+                      className="font-bold font-pretendard text-common-0"
+                      style={{
+                        fontSize: 48,
+                        lineHeight: 52,
+                        letterSpacing: -0.96,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {Number.isFinite(data.anxietyScore)
+                        ? data.anxietyScore
+                        : "-"}
                     </Text>
                   </View>
                 </View>
@@ -323,7 +352,7 @@ export default function RecordDetailScreen() {
                           </View>
 
                           <View className={`flex-1 ${isLast ? "" : "pb-4"}`}>
-                            <Text className="h-7 font-medium text-headline2 text-label-neutral">
+                            <Text className="font-medium h-7 text-headline2 text-label-neutral">
                               {formatTimelineTime(feedback.startSecond)}
                             </Text>
                             <Animated.View
@@ -333,7 +362,7 @@ export default function RecordDetailScreen() {
                             >
                               <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                 <Pressable
-                                  className="flex-row items-center justify-between"
+                                  className="flex-row items-start justify-between"
                                   onPress={() => toggleFeedback(index)}
                                 >
                                   <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
