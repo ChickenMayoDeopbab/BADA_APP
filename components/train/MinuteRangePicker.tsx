@@ -70,7 +70,7 @@ function MinuteWheel({ label, value, onChange }: MinuteWheelProps) {
 
   return (
     <View className="flex-1 items-center">
-      <Text className="text-caption font-medium text-label-alternative mb-3">
+      <Text className="text-label font-medium text-label-alternative mb-3">
         {label}
       </Text>
       <ScrollView
