@@ -7,9 +7,10 @@ import { communityQueryKeys } from "@/hooks/useCommunityPosts";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,13 +19,37 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 export default function CreateCommunityPostScreen() {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   const createPostMutation = useMutation({
     mutationFn: postCommunityPost,
     onSuccess: (post) => {
@@ -64,13 +89,13 @@ export default function CreateCommunityPostScreen() {
 
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
+      edges={["top"]}
       className="flex-1 bg-background-normal"
     >
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+        keyboardVerticalOffset={0}
       >
         <CommunityHeader title="새 게시물 작성" />
 
@@ -78,7 +103,11 @@ export default function CreateCommunityPostScreen() {
           className="flex-1"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 33, paddingBottom: 18 }}
+          contentContainerStyle={{
+            paddingHorizontal: 33,
+            paddingTop: 16,
+            paddingBottom: 18,
+          }}
         >
           <Text className="mb-1.5 text-label text-label-alternative">
             게시물 제목
@@ -95,7 +124,7 @@ export default function CreateCommunityPostScreen() {
           <TextInput
             value={content}
             onChangeText={setContent}
-            maxLength={5000}
+            maxLength={1000}
             placeholder="게시물 본문을 입력해주세요."
             placeholderTextColor={SEMANTIC_COLORS.line.normal}
             multiline
@@ -104,7 +133,7 @@ export default function CreateCommunityPostScreen() {
           />
 
           <Text className="mt-2 text-right text-caption text-label-alternative">
-            {content.length}/5000
+            {content.length}/1000
           </Text>
 
           <View className="relative z-20 mt-4 flex-row items-center justify-between">
@@ -186,7 +215,12 @@ export default function CreateCommunityPostScreen() {
           </View>
         </ScrollView>
 
-        <View className="px-[33px] pb-6 pt-3">
+        <View
+          className="px-[33px] pt-3"
+          style={{
+            paddingBottom: isKeyboardVisible ? 6 : Math.max(insets.bottom, 24),
+          }}
+        >
           <CustomButton
             label={createPostMutation.isPending ? "등록 중..." : "등록하기"}
             tone="primary"

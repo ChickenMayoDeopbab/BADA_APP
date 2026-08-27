@@ -7,6 +7,7 @@ import {
   useCommunityPosts,
 } from "@/hooks/useCommunityPosts";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -57,7 +58,7 @@ export default function Community() {
             size={34}
             color="#BDBEBE"
           />
-          <Text className="mt-3 text-body font-medium text-label-alternative">
+          <Text className="mt-3 font-medium text-body text-label-alternative">
             공유 기능을 준비하고 있어요.
           </Text>
           <Text className="mt-1 text-center text-caption text-line-normal">
@@ -89,9 +90,9 @@ export default function Community() {
           </Text>
           <Pressable
             onPress={() => void postsQuery.refetch()}
-            className="mt-4 rounded-component bg-fill-normal px-4 py-2 active:opacity-70"
+            className="px-4 py-2 mt-4 rounded-component bg-fill-normal active:opacity-70"
           >
-            <Text className="text-label font-medium text-label-normal">
+            <Text className="font-medium text-label text-label-normal">
               다시 시도
             </Text>
           </Pressable>
@@ -111,7 +112,7 @@ export default function Community() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
       <View className="h-[60px] flex-row items-center justify-between px-8">
-        <Text className="text-title2 font-bold text-label-normal">커뮤니티</Text>
+        <Text className="font-bold text-title2 text-label-normal">커뮤니티</Text>
         <SearchIconButton
           onPress={() => router.push("/(tabs)/(community)/search")}
           size={30}
@@ -188,7 +189,7 @@ export default function Community() {
         accessibilityRole="button"
         accessibilityLabel="새 게시물 작성"
         onPress={() => router.push("/(tabs)/(community)/create")}
-        className="absolute bottom-8 right-8 h-16 w-16 items-center justify-center rounded-pill bg-primary-normal active:opacity-80"
+        className="absolute items-center justify-center w-16 h-16 bottom-8 right-8 rounded-pill bg-primary-normal active:opacity-80"
         style={{
           shadowColor: "#000000",
           shadowOpacity: 0.18,
@@ -197,7 +198,7 @@ export default function Community() {
           elevation: 5,
         }}
       >
-        <Ionicons name="pencil" size={29} color="white" />
+        <FontAsweome5 name="pen" size={29} color="white" />
       </Pressable>
     </SafeAreaView>
   );
