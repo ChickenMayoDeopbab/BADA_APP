@@ -2,7 +2,12 @@ export const getCommunityAuthorName = (name?: string | null) =>
   name?.trim() || "이름 없는 사용자";
 
 export const formatCommunityTimestamp = (value: string) => {
-  const timestamp = new Date(value).getTime();
+  const trimmedValue = value.trim();
+  const hasTime = /[T ]\d{2}:\d{2}/.test(trimmedValue);
+  const hasTimezone = /(Z|[+-]\d{2}:?\d{2})$/i.test(trimmedValue);
+  const normalizedValue =
+    hasTime && !hasTimezone ? `${trimmedValue}Z` : trimmedValue;
+  const timestamp = new Date(normalizedValue).getTime();
   if (!Number.isFinite(timestamp)) return value;
 
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
