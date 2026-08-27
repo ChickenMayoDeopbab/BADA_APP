@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 interface PhotoLibrarySheetProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (uri: string) => void;
+  onSelect: (uri: string, fileName?: string) => void;
 }
 
 type LibraryState = "loading" | "ready" | "denied" | "unavailable" | "error";
@@ -38,6 +38,7 @@ export default function PhotoLibrarySheet({
     null,
   );
   const [libraryState, setLibraryState] = useState<LibraryState>("loading");
+  const [isApplying, setIsApplying] = useState(false);
 
   const tileSize = (width - 4) / 3;
 
@@ -79,6 +80,7 @@ export default function PhotoLibrarySheet({
 
     translateY.setValue(height);
     setSelectedAsset(null);
+    setIsApplying(false);
     void loadPhotos();
 
     const animationFrame = requestAnimationFrame(() => {
@@ -104,9 +106,21 @@ export default function PhotoLibrarySheet({
     });
   };
 
-  const confirmSelection = () => {
-    if (!selectedAsset) return;
-    onSelect(selectedAsset.uri);
+  const confirmSelection = async () => {
+    if (!selectedAsset || isApplying) return;
+
+    setIsApplying(true);
+    try {
+      const assetInfo = await MediaLibrary.getAssetInfoAsync(selectedAsset, {
+        shouldDownloadFromNetwork: true,
+      });
+      onSelect(
+        assetInfo.localUri ?? assetInfo.uri ?? selectedAsset.uri,
+        assetInfo.filename ?? selectedAsset.filename,
+      );
+    } catch {
+      onSelect(selectedAsset.uri, selectedAsset.filename);
+    }
     dismiss();
   };
 
@@ -233,20 +247,20 @@ export default function PhotoLibrarySheet({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="선택한 사진 적용"
-                accessibilityState={{ disabled: !selectedAsset }}
-                disabled={!selectedAsset}
-                onPress={confirmSelection}
+                accessibilityState={{ disabled: !selectedAsset || isApplying }}
+                disabled={!selectedAsset || isApplying}
+                onPress={() => void confirmSelection()}
                 hitSlop={10}
                 className="min-h-[42px] min-w-[42px] items-center justify-center"
               >
                 <Text
                   className={
-                    selectedAsset
+                    selectedAsset && !isApplying
                       ? "text-body font-bold text-primary-normal"
                       : "text-body font-bold text-line-normal"
                   }
                 >
-                  완료
+                  {isApplying ? "적용 중" : "완료"}
                 </Text>
               </Pressable>
             </View>
