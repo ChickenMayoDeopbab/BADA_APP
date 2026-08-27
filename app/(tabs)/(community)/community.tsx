@@ -6,7 +6,6 @@ import {
   CommunityPostListMode,
   useCommunityPosts,
 } from "@/hooks/useCommunityPosts";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -19,27 +18,22 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type CommunityTab = CommunityPostListMode | "shared";
+type CommunityTab = CommunityPostListMode;
 
 const TABS: { key: CommunityTab; label: string }[] = [
   { key: "all", label: "전체 글" },
   { key: "mine", label: "내 글" },
-  { key: "shared", label: "공유됨" },
 ];
 
 export default function Community() {
   const [selectedTab, setSelectedTab] = useState<CommunityTab>("all");
   const postsQuery = useCommunityPosts({
-    mode: selectedTab === "mine" ? "mine" : "all",
-    enabled: selectedTab !== "shared",
+    mode: selectedTab,
   });
 
   const posts = useMemo(
-    () =>
-      selectedTab === "shared"
-        ? []
-        : (postsQuery.data?.pages.flatMap((page) => page.posts) ?? []),
-    [postsQuery.data, selectedTab],
+    () => postsQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+    [postsQuery.data],
   );
 
   const openPost = (post: CommunityPostSummary) => {
@@ -50,24 +44,6 @@ export default function Community() {
   };
 
   const emptyContent = () => {
-    if (selectedTab === "shared") {
-      return (
-        <View className="items-center justify-center px-8 py-20">
-          <Ionicons
-            name="share-social-outline"
-            size={34}
-            color="#BDBEBE"
-          />
-          <Text className="mt-3 font-medium text-body text-label-alternative">
-            공유 기능을 준비하고 있어요.
-          </Text>
-          <Text className="mt-1 text-center text-caption text-line-normal">
-            첨부 API가 연결되면 공유된 게시물이 여기에 표시돼요.
-          </Text>
-        </View>
-      );
-    }
-
     if (postsQuery.isPending) {
       return (
         <View className="items-center justify-center py-20">
@@ -159,24 +135,18 @@ export default function Community() {
         )}
         ListEmptyComponent={emptyContent}
         ListFooterComponent={
-          selectedTab !== "shared" && postsQuery.isFetchingNextPage ? (
+          postsQuery.isFetchingNextPage ? (
             <ActivityIndicator className="py-5" />
           ) : null
         }
         refreshing={
-          selectedTab !== "shared" &&
           postsQuery.isRefetching &&
           !postsQuery.isFetchingNextPage
         }
-        onRefresh={
-          selectedTab === "shared"
-            ? undefined
-            : () => void postsQuery.refetch()
-        }
+        onRefresh={() => void postsQuery.refetch()}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
           if (
-            selectedTab !== "shared" &&
             postsQuery.hasNextPage &&
             !postsQuery.isFetchingNextPage
           ) {
