@@ -5,7 +5,7 @@ import MagnifyingGlass from "@/assets/magnifyingGlass.svg";
 import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
 import CustomButton from "@/components/common/CustomButton";
-import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
+import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TextStyle,
   View,
 } from "react-native";
 import Animated, {
@@ -42,12 +43,24 @@ type ReportParams = {
 };
 
 const cardShadow = {
-  shadowColor: "#000000",
+  shadowColor: PALETTE.common[100],
   shadowOpacity: 0.04,
   shadowRadius: 5.3,
   shadowOffset: { width: 0, height: 2 },
   elevation: 1,
 };
+
+const reportTextStyles = StyleSheet.create({
+  regular: {
+    fontWeight: FONT_WEIGHT.regular as TextStyle["fontWeight"],
+  },
+  medium: {
+    fontWeight: FONT_WEIGHT.medium as TextStyle["fontWeight"],
+  },
+  bold: {
+    fontWeight: FONT_WEIGHT.bold as TextStyle["fontWeight"],
+  },
+});
 
 const MINIMUM_LOADING_TIME = 3000;
 
@@ -96,10 +109,10 @@ function ReportLoading() {
         <MagnifyingGlass width={84} height={84} />
       </Animated.View>
       <View className="items-center mt-10 gap-y-2">
-        <Text className="font-bold text-center text-title2 text-label-normal">
+        <Text className="text-center text-title2 text-label-normal" style={reportTextStyles.bold}>
           AI가 내 훈련 세션을{"\n"}분석하는 중이에요.
         </Text>
-        <Text className="font-medium text-body text-label-alternative">
+        <Text className="text-body text-label-alternative" style={reportTextStyles.medium}>
           잠시만 기다려 주세요.
         </Text>
       </View>
@@ -207,7 +220,7 @@ export default function Report() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedIndexes, setExpandedIndexes] = useState(
-    () => new Set<number>([0]),
+    () => new Set<number>([]),
   );
 
   const finishReport = useCallback(() => {
@@ -266,7 +279,7 @@ export default function Report() {
         ) : (
           <>
             <View className="items-center justify-center h-16">
-              <Text className="font-bold text-headline1 text-label-neutral">
+              <Text className="text-headline1 text-label-neutral" style={reportTextStyles.bold}>
                 훈련 리포트
               </Text>
             </View>
@@ -277,14 +290,14 @@ export default function Report() {
               size={48}
               color={SEMANTIC_COLORS.status.error}
             />
-            <Text className="font-medium text-body text-label-neutral">
+            <Text className="text-body text-label-neutral" style={reportTextStyles.medium}>
               {error ?? "훈련 결과 데이터가 비어 있습니다."}
             </Text>
             <TouchableOpacity
               className="px-6 py-2 mt-2 bg-primary-normal rounded-control"
               onPress={fetchFeedback}
             >
-              <Text className="font-bold text-common-0">재시도</Text>
+              <Text className="text-label text-common-0" style={reportTextStyles.bold}>재시도</Text>
             </TouchableOpacity>
           </View>
             ) : (
@@ -297,7 +310,8 @@ export default function Report() {
                 <Clap width={60} height={60} />
               </View>
               <Text
-                className="absolute bottom-4 left-[17px] max-w-[205px] font-bold text-title2 text-common-0"
+                className="absolute bottom-4 left-[17px] max-w-[205px] text-title2 text-common-0"
+                style={reportTextStyles.bold}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
@@ -309,13 +323,14 @@ export default function Report() {
                 {mode === "scenario" && (
                   <View className="items-end">
                     <Text
-                      className="font-medium text-body"
-                      style={{ color: `${PALETTE.common[0]}99` }}
+                      className="text-body text-common-0 opacity-60"
+                      style={reportTextStyles.medium}
                     >
                       시나리오명
                     </Text>
                     <Text
-                      className="font-bold text-body text-common-0"
+                      className="text-body text-common-0"
+                      style={reportTextStyles.bold}
                       numberOfLines={1}
                     >
                       {feedback.scenarioName}
@@ -324,12 +339,12 @@ export default function Report() {
                 )}
                 <View className="items-end">
                   <Text
-                    className="font-medium text-body"
-                    style={{ color: `${PALETTE.common[0]}99` }}
+                    className="text-body text-common-0 opacity-60"
+                    style={reportTextStyles.medium}
                   >
                     {mode === "warmUp" ? "워밍업 시간" : "훈련시간"}
                   </Text>
-                  <Text className="font-bold text-body text-common-0">
+                  <Text className="text-body text-common-0" style={reportTextStyles.bold}>
                     {formatTrainingTime(feedback.trainingTime)}
                   </Text>
                 </View>
@@ -342,7 +357,7 @@ export default function Report() {
               showsVerticalScrollIndicator={false}
             >
               <View className="px-[33px]">
-                <Text className="font-medium text-label text-label-alternative">
+                <Text className="text-label text-label-alternative" style={reportTextStyles.medium}>
                   통화 타임라인
                 </Text>
 
@@ -353,7 +368,7 @@ export default function Report() {
                       size={44}
                       color={SEMANTIC_COLORS.line.normal}
                     />
-                    <Text className="mt-3 text-center text-body text-label-alternative">
+                    <Text className="mt-3 text-center text-body text-label-alternative" style={reportTextStyles.regular}>
                       제공된 피드백이 없습니다
                     </Text>
                   </View>
@@ -370,11 +385,11 @@ export default function Report() {
                         >
                           <View className="items-center w-7 mr-[6px]">
                             <View
-                              className="z-10 items-center justify-center w-7 h-7 border-[4px] rounded-full bg-background-alternative"
+                              className="z-10 items-center justify-center w-7 h-7 border-[4px] rounded-pill bg-background-alternative"
                               style={{ borderColor: PALETTE.green[40] }}
                             >
                               <View
-                                className="w-3 h-3 rounded-full"
+                                className="w-3 h-3 rounded-pill"
                                 style={{ backgroundColor: PALETTE.green[40] }}
                               />
                             </View>
@@ -384,7 +399,7 @@ export default function Report() {
                           </View>
 
                           <View className={`flex-1 ${isLast ? "" : "pb-4"}`}>
-                            <Text className="h-7 font-medium text-headline2 text-label-neutral">
+                            <Text className="h-7 text-headline2 text-label-neutral" style={reportTextStyles.medium}>
                               {formatTimelineTime(segment.start)}
                             </Text>
                             <View
@@ -395,7 +410,7 @@ export default function Report() {
                                 className="flex-row items-start justify-between"
                                 onPress={() => toggleFeedback(index)}
                               >
-                                <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
+                                <Text className="flex-1 pr-2 text-body text-label-neutral" style={reportTextStyles.medium}>
                                   {keepWordsTogether(segment.good_point)}
                                 </Text>
                                 <Ionicons
@@ -431,8 +446,8 @@ export default function Report() {
               <BottomFade />
               <CustomButton
                 label="저장하고 끝내기"
-                backgroundColor={SEMANTIC_COLORS.primary.normal}
                 onPress={finishReport}
+                tone="primary"
               />
             </View>
           </View>
