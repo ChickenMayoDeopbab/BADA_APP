@@ -12,6 +12,8 @@ const ITEM_HEIGHT = 44; // 휠 한 칸 높이
 const VISIBLE_COUNT = 5; // 화면에 보이는 칸 수 (가운데가 선택 값)
 const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT;
 const PADDING_COUNT = Math.floor(VISIBLE_COUNT / 2);
+/** 칸마다 정확히 멈출 오프셋 — snapToInterval은 딱 떨어지지 않고 멈추는 경우가 있다 */
+const SNAP_OFFSETS = CALL_DELAY_MINUTES.map((minute) => minute * ITEM_HEIGHT);
 
 interface MinuteWheelProps {
   label: string;
@@ -32,25 +34,22 @@ function MinuteWheel({ label, value, onChange }: MinuteWheelProps) {
     return Math.max(0, Math.min(CALL_DELAY_MINUTES.length - 1, index));
   };
 
+  /** 스크롤 중 강조 표시용 — 칸이 실제로 바뀔 때만 리렌더한다 */
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setFocusedMinute(getMinuteAt(event.nativeEvent.contentOffset.y));
+    const minute = getMinuteAt(event.nativeEvent.contentOffset.y);
+    setFocusedMinute((prev) => (prev === minute ? prev : minute));
   };
 
   /**
-   * 고른 값을 확정하고 칸 경계에 정확히 맞춘다.
-   * snapToInterval이 딱 떨어지지 않고 멈추는 경우가 있는데, 남은 잔여 오프셋만큼
-   * 글씨가 강조 영역에서 밀려 보인다. 값이 커질수록 눈에 띄므로 직접 보정한다.
+   * 멈춘 자리의 값을 확정한다.
+   * 스냅은 snapToOffsets에 맡기고 여기서 스크롤 위치를 건드리지 않는다.
+   * 예전에는 scrollTo로 직접 보정했는데, 그 보정 스크롤이 다시
+   * onMomentumScrollEnd를 불러 보정이 재귀하면서 휠이 멈춰버렸다.
    */
   const commitMinute = (offsetY: number) => {
     const minute = getMinuteAt(offsetY);
     setFocusedMinute(minute);
     onChange(minute);
-
-    const snappedY = minute * ITEM_HEIGHT;
-    // 이미 칸에 맞아 있으면 scrollTo를 다시 부르지 않는다 (보정 → 이벤트 → 보정 반복 방지)
-    if (Math.abs(offsetY - snappedY) > 0.5) {
-      scrollRef.current?.scrollTo({ y: snappedY, animated: true });
-    }
   };
 
   const handleMomentumScrollEnd = (
@@ -78,7 +77,7 @@ function MinuteWheel({ label, value, onChange }: MinuteWheelProps) {
         ref={scrollRef}
         style={{ height: WHEEL_HEIGHT }}
         showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
+        snapToOffsets={SNAP_OFFSETS}
         decelerationRate="fast"
         scrollEventThrottle={16}
         onScroll={handleScroll}
