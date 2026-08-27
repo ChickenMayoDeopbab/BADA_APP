@@ -1,19 +1,9 @@
 import CustomButton from "@/components/common/CustomButton";
+import Loading from "@/components/common/Loading";
 import Top from "@/components/common/Top";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useDiagnosisQuestion } from "@/hooks/useDiagnosisQuestion";
 import { Text, TouchableOpacity, View } from "react-native";
 import type { TextStyle } from "react-native";
-import Loading from "@/components/common/Loading";
-import { calculateLevel, getQuestion } from "@/api";
-import { Question as QuestionType } from "@/api/types";
-import { jwtDecode } from "jwt-decode";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
-import { getAccessToken } from "@/utils/authTokenStorage";
-import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
-import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { FONT_WEIGHT } from "@/design-system/typography";
 
@@ -66,100 +56,16 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
   );
 };
 
-type Status = "loading" | "done" | "error" | null;
-
-interface Token {
-  sub: string;
-}
-
 export default function Question() {
-  const [nowStep, setNowStep] = useState<number>(0);
-  const [answers, setAnswers] = useState<number[]>(Array(10).fill(3));
-  const [status, setStatus] = useState<Status>(null);
-  const [questionsList, setQusetionList] = useState<QuestionType[]>([]);
-
-  useEffect(() => {
-    const getQuestionList = async () => {
-      try {
-        const data = await getQuestion();
-        setQusetionList(data.data);
-      } catch {
-        console.log("질문 리스트 가져오기 실패");
-      }
-    };
-
-    getQuestionList();
-  }, []);
-
-  useEffect(() => {
-    if (status === 'loading') {
-      submitAnswers(answers);
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (status === 'done') {
-      const timer = setTimeout(() => {
-        router.push('/diagnosis/result');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [status]);
-
-  const submitAnswers = async (answers: number[]) => {
-    const token = await getAccessToken();
-    if (!token) {
-      setStatus('error')
-      return;
-    }
-    const { sub: userId } = jwtDecode<Token>(token);
-
-    const id = uuidv4();
-
-    try {
-      const data = await calculateLevel({
-        userId: Number(userId),
-        sessionId: id,
-        type: "SIGNUP",
-        answers: answers,
-      });
-      await AsyncStorage.setItem('diagnosisResult', JSON.stringify(data.data));
-      await completeRequiredDiagnosis();
-      setStatus('done');
-    } catch (e) {
-      console.log('레벨 계산 실패');
-      setStatus('error');
-    }
-  };
-
-  const handleChange = (value: number) => {
-    setAnswers(prev => {
-      const next = [...prev];
-      next[nowStep] = value;
-      return next;
-    });
-  };
-
-  const handleNext = () => {
-    if (nowStep < 9) {
-      setNowStep(prev => prev + 1);
-    } else {
-      setStatus('loading');
-    }
-  };
-
-  const handleBack = () => {
-    if (nowStep > 0) {
-      setNowStep(prev => prev - 1);
-    } else {
-      router.back();
-    }
-  };
-
-  useAndroidBackHandler(() => {
-    handleBack();
-    return true;
-  });
+  const {
+    nowStep,
+    currentAnswer,
+    currentQuestion,
+    status,
+    handleChange,
+    handleNext,
+    handleBack,
+  } = useDiagnosisQuestion();
 
   const PercentBar = ({ step }: { step: number }) => {
     const percent = (step / 10) * 100;
@@ -199,7 +105,7 @@ export default function Question() {
         </View>
         <View className="flex-col items-center justify-center flex-1 gap-6">
           <View className="flex-row flex-wrap justify-center">
-            {questionsList[nowStep]?.content.split(' ').map((word, index) => (
+            {currentQuestion?.content.split(' ').map((word, index) => (
               <Text key={index} className="text-center text-headline1" style={{ fontWeight: FONT_WEIGHT.bold as TextStyle["fontWeight"] }}>{word} </Text>
             ))}
           </View>
@@ -212,7 +118,7 @@ export default function Question() {
             { value: 4, size: 'sm' },
             { value: 5, size: 'lg' },
           ]}
-          value={answers[nowStep]}
+          value={currentAnswer}
           onChange={handleChange}
         />
         <View className="my-10 border border-line-alternative" />
