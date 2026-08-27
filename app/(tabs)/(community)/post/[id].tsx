@@ -1,6 +1,8 @@
 import {
-  deleteCommunityReaction,
   deleteCommunityComment,
+  deleteCommunityPost,
+  deleteCommunityReaction,
+  patchCommunityComment,
   patchCommunityPost,
   postCommunityComment,
   putCommunityReaction,
@@ -8,12 +10,15 @@ import {
 import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
 import type {
   CommunityCommentListResponse,
+  CommunityCommentResponse,
   CommunityPostDetailResponse,
   CommunityReactionKind,
 } from "@/api/types";
+import CustomButton from "@/components/common/CustomButton";
 import CommunityAvatar from "@/components/community/CommunityAvatar";
 import CommunityHeader from "@/components/community/CommunityHeader";
 import DeleteCommunityCommentModal from "@/components/community/DeleteCommunityCommentModal";
+import DeleteCommunityPostModal from "@/components/community/DeleteCommunityPostModal";
 import ReactionPill from "@/components/community/ReactionPill";
 import { SEMANTIC_COLORS } from "@/design-system";
 import {
@@ -28,10 +33,11 @@ import {
 } from "@/utils/community";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -40,7 +46,16 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const REACTION_COUNT_KEYS: Record<
   CommunityReactionKind,
@@ -51,7 +66,154 @@ const REACTION_COUNT_KEYS: Record<
   LIKE: "like",
 };
 
+const editorLayoutTransition = LinearTransition.duration(180).easing(
+  Easing.inOut(Easing.quad),
+);
+
+const replaceCommunityComment = (
+  currentComments: CommunityCommentListResponse,
+  updatedComment: CommunityCommentResponse,
+): CommunityCommentListResponse => ({
+  comments: currentComments.comments.map((comment) => {
+    if (comment.comment_id === updatedComment.comment_id) {
+      return { ...updatedComment, replies: comment.replies ?? [] };
+    }
+
+    return {
+      ...comment,
+      replies: (comment.replies ?? []).map((reply) =>
+        reply.comment_id === updatedComment.comment_id ? updatedComment : reply,
+      ),
+    };
+  }),
+});
+
+interface CommentActionButtonsProps {
+  canEdit: boolean;
+  canDelete: boolean;
+  editLabel: string;
+  deleteLabel: string;
+  editDisabled: boolean;
+  deleteDisabled: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function CommentActionButtons({
+  canEdit,
+  canDelete,
+  editLabel,
+  deleteLabel,
+  editDisabled,
+  deleteDisabled,
+  onEdit,
+  onDelete,
+}: CommentActionButtonsProps) {
+  if (!canEdit && !canDelete) return null;
+
+  return (
+    <View className="ml-2 flex-row items-center gap-x-1">
+      {canEdit && (
+        <Pressable
+          accessibilityLabel={editLabel}
+          disabled={editDisabled}
+          hitSlop={8}
+          onPress={onEdit}
+          className="p-1 active:opacity-60"
+        >
+          <Ionicons
+            name="pencil"
+            size={18}
+            color={SEMANTIC_COLORS.line.normal}
+          />
+        </Pressable>
+      )}
+      {canDelete && (
+        <Pressable
+          accessibilityLabel={deleteLabel}
+          disabled={deleteDisabled}
+          hitSlop={8}
+          onPress={onDelete}
+          className="p-1 active:opacity-60"
+        >
+          <Ionicons
+            name="trash"
+            size={19}
+            color={SEMANTIC_COLORS.line.normal}
+          />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+interface CommentEditorProps {
+  value: string;
+  errorMessage: string | null;
+  isSaving: boolean;
+  onChangeText: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}
+
+function CommentEditor({
+  value,
+  errorMessage,
+  isSaving,
+  onChangeText,
+  onCancel,
+  onSave,
+}: CommentEditorProps) {
+  return (
+    <Animated.View
+      entering={FadeIn.duration(160)}
+      exiting={FadeOut.duration(120)}
+      layout={editorLayoutTransition}
+    >
+      <View>
+        <TextInput
+          autoFocus
+          value={value}
+          onChangeText={onChangeText}
+          maxLength={1000}
+          multiline
+          textAlignVertical="top"
+          editable={!isSaving}
+          selectionColor={SEMANTIC_COLORS.primary.normal}
+          className="min-h-[32px] max-h-28 rounded-component bg-fill-neutral px-2.5 py-1 text-body text-label-normal"
+        />
+        {errorMessage && (
+          <Text className="mt-1 text-caption text-status-error">
+            {errorMessage}
+          </Text>
+        )}
+        <View className="mt-1.5 flex-row justify-end gap-x-1.5">
+          <View className="w-[48px]">
+            <CustomButton
+              label="취소"
+              variant="sm"
+              tone="neutral"
+              disabled={isSaving}
+              onPress={onCancel}
+            />
+          </View>
+          <View className="w-[48px]">
+            <CustomButton
+              label="저장"
+              variant="sm"
+              tone="primary"
+              disabled={!value.trim() || isSaving}
+              onPress={onSave}
+            />
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
 export default function CommunityPostDetailScreen() {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const postId = Number(rawId);
@@ -74,59 +236,127 @@ export default function CommunityPostDetailScreen() {
   const [editingPost, setEditingPost] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [editCommentError, setEditCommentError] = useState<string | null>(null);
+  const [deletePostModalVisible, setDeletePostModalVisible] = useState(false);
+  const [deletePostError, setDeletePostError] = useState<string | null>(null);
+  const [isPostMenuVisible, setIsPostMenuVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     commentId: number;
     removedCount: number;
   } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
 
-  const reactionMutation = useMutation({
-    mutationFn: async (kind: CommunityReactionKind) => {
-      const currentPost = queryClient.getQueryData<CommunityPostDetailResponse>(
-        communityQueryKeys.post(postId),
-      );
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
 
-      if (currentPost?.my_reaction === kind) {
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const reactionMutation = useMutation({
+    mutationFn: async ({
+      kind,
+      previousKind,
+    }: {
+      kind: CommunityReactionKind;
+      previousKind: CommunityReactionKind | null;
+    }) => {
+      if (previousKind === kind) {
         await deleteCommunityReaction(postId);
         return null;
       }
 
       return putCommunityReaction(postId, { kind });
     },
-    onSuccess: (reactionState, requestedKind) => {
+    onMutate: ({ kind, previousKind }) => {
+      const previousPost =
+        queryClient.getQueryData<CommunityPostDetailResponse>(
+          communityQueryKeys.post(postId),
+        );
+
       queryClient.setQueryData<CommunityPostDetailResponse>(
         communityQueryKeys.post(postId),
         (currentPost) => {
           if (!currentPost) return currentPost;
 
-          if (reactionState) {
-            return {
-              ...currentPost,
-              reactions: reactionState.reactions,
-              my_reaction: reactionState.my_reaction ?? requestedKind,
-            };
+          const nextReactions = { ...(currentPost.reactions ?? {}) };
+          const requestedCountKey = REACTION_COUNT_KEYS[kind];
+
+          if (previousKind === kind) {
+            nextReactions[requestedCountKey] = Math.max(
+              0,
+              (nextReactions[requestedCountKey] ?? 0) - 1,
+            );
+            nextReactions.total = Math.max(
+              0,
+              (nextReactions.total ?? 0) - 1,
+            );
+          } else {
+            if (previousKind) {
+              const previousCountKey = REACTION_COUNT_KEYS[previousKind];
+              nextReactions[previousCountKey] = Math.max(
+                0,
+                (nextReactions[previousCountKey] ?? 0) - 1,
+              );
+            } else {
+              nextReactions.total = (nextReactions.total ?? 0) + 1;
+            }
+
+            nextReactions[requestedCountKey] =
+              (nextReactions[requestedCountKey] ?? 0) + 1;
           }
 
-          const countKey = REACTION_COUNT_KEYS[requestedKind];
-          const currentReactions = currentPost.reactions ?? {};
           return {
             ...currentPost,
-            reactions: {
-              ...currentReactions,
-              [countKey]: Math.max(0, (currentReactions[countKey] ?? 0) - 1),
-              total: Math.max(0, (currentReactions.total ?? 0) - 1),
-            },
-            my_reaction: null,
+            reactions: nextReactions,
+            my_reaction: previousKind === kind ? null : kind,
           };
         },
       );
+
+      return { previousPost };
+    },
+    onSuccess: (reactionState, request) => {
+      if (reactionState) {
+        queryClient.setQueryData<CommunityPostDetailResponse>(
+          communityQueryKeys.post(postId),
+          (currentPost) =>
+            currentPost
+              ? {
+                  ...currentPost,
+                  reactions: reactionState.reactions,
+                  my_reaction: reactionState.my_reaction ?? request.kind,
+                }
+              : currentPost,
+        );
+      }
       setInteractionError(null);
       void queryClient.invalidateQueries({
         queryKey: communityQueryKeys.postLists(),
       });
     },
-    onError: (error) => {
+    onError: (error, _request, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(
+          communityQueryKeys.post(postId),
+          context.previousPost,
+        );
+      }
       setInteractionError(
         getApiErrorMessage(error, "공감 상태를 변경하지 못했어요."),
       );
@@ -217,6 +447,56 @@ export default function CommunityPostDetailScreen() {
     },
   });
 
+  const deletePostMutation = useMutation({
+    mutationFn: () => deleteCommunityPost(postId),
+    onSuccess: () => {
+      queryClient.removeQueries({
+        queryKey: communityQueryKeys.post(postId),
+      });
+      setDeletePostModalVisible(false);
+      setDeletePostError(null);
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.postLists(),
+      });
+      router.replace("/(tabs)/(community)/community");
+    },
+    onError: (error) => {
+      setDeletePostError(
+        getApiErrorMessage(error, "게시글을 삭제하지 못했어요."),
+      );
+    },
+  });
+
+  const updateCommentMutation = useMutation({
+    mutationFn: ({
+      commentId,
+      content,
+    }: {
+      commentId: number;
+      content: string;
+    }) => patchCommunityComment(commentId, { content }),
+    onSuccess: (updatedComment) => {
+      queryClient.setQueryData<CommunityCommentListResponse>(
+        communityQueryKeys.comments(postId),
+        (currentComments) =>
+          currentComments
+            ? replaceCommunityComment(currentComments, updatedComment)
+            : currentComments,
+      );
+      setEditingCommentId(null);
+      setEditCommentContent("");
+      setEditCommentError(null);
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.comments(postId),
+      });
+    },
+    onError: (error) => {
+      setEditCommentError(
+        getApiErrorMessage(error, "댓글을 수정하지 못했어요."),
+      );
+    },
+  });
+
   const deleteCommentMutation = useMutation({
     mutationFn: ({ commentId }: { commentId: number; removedCount: number }) =>
       deleteCommunityComment(commentId),
@@ -253,6 +533,11 @@ export default function CommunityPostDetailScreen() {
             : currentPost,
       );
       if (replyTarget === target.commentId) setReplyTarget(null);
+      if (editingCommentId === target.commentId) {
+        setEditingCommentId(null);
+        setEditCommentContent("");
+        setEditCommentError(null);
+      }
       setDeleteTarget(null);
       setDeleteModalError(null);
       setInteractionError(null);
@@ -281,6 +566,7 @@ export default function CommunityPostDetailScreen() {
 
   const startEditingPost = () => {
     if (!post) return;
+    setIsPostMenuVisible(false);
     setEditTitle(post.title);
     setEditContent(post.content);
     setEditingPost(true);
@@ -292,6 +578,29 @@ export default function CommunityPostDetailScreen() {
     const content = editContent.trim();
     if (!title || !content || updatePostMutation.isPending) return;
     updatePostMutation.mutate({ title, content });
+  };
+
+  const startEditingComment = (commentId: number, content: string) => {
+    setEditingCommentId(commentId);
+    setEditCommentContent(content);
+    setEditCommentError(null);
+    setReplyTarget(null);
+  };
+
+  const cancelEditingComment = () => {
+    if (updateCommentMutation.isPending) return;
+    setEditingCommentId(null);
+    setEditCommentContent("");
+    setEditCommentError(null);
+  };
+
+  const saveComment = () => {
+    const content = editCommentContent.trim();
+    if (!editingCommentId || !content || updateCommentMutation.isPending) {
+      return;
+    }
+
+    updateCommentMutation.mutate({ commentId: editingCommentId, content });
   };
 
   const selectReplyTarget = (commentId: number) => {
@@ -421,32 +730,115 @@ export default function CommunityPostDetailScreen() {
 
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
+      edges={["top"]}
       className="flex-1 bg-background-alternative"
     >
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+        keyboardVerticalOffset={0}
       >
-        <CommunityHeader title="게시물" />
+        {isPostMenuVisible && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="게시글 설정 메뉴 닫기"
+            onPress={() => setIsPostMenuVisible(false)}
+            className="absolute inset-0 z-20"
+          />
+        )}
+
+        <View className="relative z-30">
+          <CommunityHeader
+            title="게시물"
+            right={
+              isPostAuthor && !editingPost ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="게시글 설정"
+                  accessibilityState={{ expanded: isPostMenuVisible }}
+                  hitSlop={8}
+                  onPress={() =>
+                    setIsPostMenuVisible((isVisible) => !isVisible)
+                  }
+                  className="h-16 w-16 items-center justify-center active:opacity-60"
+                >
+                  <Ionicons
+                    name="ellipsis-vertical"
+                    size={26}
+                    color={SEMANTIC_COLORS.label.alternative}
+                  />
+                </Pressable>
+              ) : null
+            }
+          />
+
+          {isPostAuthor && isPostMenuVisible && !editingPost && (
+            <View
+              className="absolute right-4 top-[53px] z-30 h-[104px] w-40 overflow-hidden rounded-component bg-background-normal"
+              style={{
+                shadowColor: "#000000",
+                shadowOpacity: 0.12,
+                shadowRadius: 4.3,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 5,
+              }}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="게시글 수정하기"
+                disabled={updatePostMutation.isPending}
+                onPress={startEditingPost}
+                className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+              >
+                <Text className="text-headline2 font-medium text-label-normal">
+                  게시글 수정하기
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="게시글 삭제하기"
+                disabled={deletePostMutation.isPending}
+                onPress={() => {
+                  setIsPostMenuVisible(false);
+                  setDeletePostError(null);
+                  setDeletePostModalVisible(true);
+                }}
+                className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+              >
+                <Text className="text-headline2 font-medium text-label-normal">
+                  게시글 삭제하기
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
 
         <ScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingHorizontal: 33, paddingBottom: 18 }}
+          contentContainerStyle={{
+            paddingHorizontal: 33,
+            paddingTop: 16,
+            paddingBottom: 18,
+          }}
         >
           {editingPost ? (
-            <>
-              <View className="min-h-[310px] rounded-component bg-background-normal px-[18px] py-4">
+            <Animated.View
+              key="post-editor"
+              entering={FadeIn.duration(180)}
+              exiting={FadeOut.duration(120)}
+              layout={editorLayoutTransition}
+            >
+              <View>
                 <TextInput
+                  autoFocus
                   value={editTitle}
                   onChangeText={setEditTitle}
                   maxLength={100}
                   editable={!updatePostMutation.isPending}
                   selectionColor={SEMANTIC_COLORS.primary.normal}
-                  className="p-0 text-title2 font-bold text-label-normal"
+                  className="min-h-[51px] rounded-component bg-fill-neutral px-3 py-2 text-title2 font-bold text-label-normal"
                 />
 
                 {postMetadata}
@@ -459,60 +851,52 @@ export default function CommunityPostDetailScreen() {
                   textAlignVertical="top"
                   editable={!updatePostMutation.isPending}
                   selectionColor={SEMANTIC_COLORS.primary.normal}
-                  className="mt-4 min-h-[210px] flex-1 p-0 text-body text-label-normal"
+                  className="mt-4 min-h-[275px] rounded-component bg-fill-neutral px-3 py-3 text-body text-label-normal"
                 />
-              </View>
 
-              <View className="mt-2 flex-row justify-end gap-x-4 pr-1">
-                <Pressable
-                  disabled={updatePostMutation.isPending}
-                  onPress={() => setEditingPost(false)}
-                  hitSlop={10}
-                >
-                  <Text className="text-caption text-label-alternative underline">
-                    취소
-                  </Text>
-                </Pressable>
-                <Pressable
-                  disabled={
-                    !editTitle.trim() ||
-                    !editContent.trim() ||
-                    updatePostMutation.isPending
-                  }
-                  onPress={savePost}
-                  hitSlop={10}
-                >
-                  <Text
-                    className={`text-caption underline ${
-                      editTitle.trim() && editContent.trim()
-                        ? "text-primary-normal"
-                        : "text-label-disabled"
-                    }`}
-                  >
-                    {updatePostMutation.isPending ? "저장 중" : "저장"}
-                  </Text>
-                </Pressable>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text className="text-title2 font-bold text-label-normal">
-                {post.title}
-              </Text>
-              {postMetadata}
-              <Text className="mt-4 text-body text-label-normal">
-                {post.content}
-              </Text>
-              {isPostAuthor && (
-                <View className="mt-2 flex-row justify-end">
-                  <Pressable onPress={startEditingPost} hitSlop={8}>
-                    <Text className="text-label text-label-alternative underline">
-                      수정
-                    </Text>
-                  </Pressable>
+                <View className="mt-2 flex-row justify-end gap-x-1.5 pr-1">
+                  <View className="w-[52px]">
+                    <CustomButton
+                      label="취소"
+                      variant="sm"
+                      tone="neutral"
+                      disabled={updatePostMutation.isPending}
+                      onPress={() => setEditingPost(false)}
+                    />
+                  </View>
+                  <View className="w-[52px]">
+                    <CustomButton
+                      label="저장"
+                      variant="sm"
+                      tone="primary"
+                      disabled={
+                        !editTitle.trim() ||
+                        !editContent.trim() ||
+                        updatePostMutation.isPending
+                      }
+                      onPress={savePost}
+                    />
+                  </View>
                 </View>
-              )}
-            </>
+              </View>
+            </Animated.View>
+          ) : (
+            <Animated.View
+              key="post-content"
+              entering={FadeIn.duration(180)}
+              exiting={FadeOut.duration(120)}
+              layout={editorLayoutTransition}
+            >
+              <View>
+                <Text className="text-title2 font-bold text-label-normal">
+                  {post.title}
+                </Text>
+                {postMetadata}
+                <Text className="mt-4 text-body text-label-normal">
+                  {post.content}
+                </Text>
+              </View>
+            </Animated.View>
           )}
 
           <View className="mt-5 flex-row justify-end gap-x-1">
@@ -523,7 +907,12 @@ export default function CommunityPostDetailScreen() {
                 count={reactionCounts[REACTION_COUNT_KEYS[reaction]] ?? 0}
                 selected={post.my_reaction === reaction}
                 loading={reactionMutation.isPending}
-                onPress={() => reactionMutation.mutate(reaction)}
+                onPress={() =>
+                  reactionMutation.mutate({
+                    kind: reaction,
+                    previousKind: post.my_reaction ?? null,
+                  })
+                }
               />
             ))}
           </View>
@@ -569,14 +958,14 @@ export default function CommunityPostDetailScreen() {
               {comments.map((comment) => {
                 const replies = comment.replies ?? [];
                 const repliesVisible = expandedReplies.has(comment.comment_id);
-                const canDeleteComment =
-                  isPostAuthor || currentUserId === comment.author.user_id;
+                const canEditComment =
+                  currentUserId === comment.author.user_id;
+                const canDeleteComment = canEditComment;
+                const isEditingComment =
+                  editingCommentId === comment.comment_id;
                 return (
                   <View key={comment.comment_id}>
-                    <Pressable
-                      onPress={() => selectReplyTarget(comment.comment_id)}
-                      className="flex-row items-start gap-x-1.5"
-                    >
+                    <View className="flex-row items-start gap-x-1.5">
                       <CommunityAvatar author={comment.author} size={22} />
                       <View className="flex-1">
                         <View className="flex-row items-center justify-between">
@@ -591,79 +980,126 @@ export default function CommunityPostDetailScreen() {
                               {formatCommunityTimestamp(comment.created_at)}
                             </Text>
                           </View>
-                          {canDeleteComment && (
-                            <Pressable
-                              accessibilityLabel="댓글 삭제"
-                              disabled={deleteCommentMutation.isPending}
-                              hitSlop={8}
-                              onPress={(event) => {
-                                event.stopPropagation();
-                                confirmDeleteComment(
-                                  comment.comment_id,
-                                  1 + replies.length,
-                                );
-                              }}
-                              className="ml-2 p-1 active:opacity-60"
-                            >
-                              <Ionicons
-                                name="trash"
-                                size={19}
-                                color={SEMANTIC_COLORS.line.normal}
-                              />
-                            </Pressable>
-                          )}
+                          <CommentActionButtons
+                            canEdit={canEditComment}
+                            canDelete={canDeleteComment}
+                            editLabel="댓글 수정"
+                            deleteLabel="댓글 삭제"
+                            editDisabled={updateCommentMutation.isPending}
+                            deleteDisabled={deleteCommentMutation.isPending}
+                            onEdit={() =>
+                              startEditingComment(
+                                comment.comment_id,
+                                comment.content,
+                              )
+                            }
+                            onDelete={() =>
+                              confirmDeleteComment(
+                                comment.comment_id,
+                                1 + replies.length,
+                              )
+                            }
+                          />
                         </View>
-                        <Text className="mt-0.5 text-body text-label-normal">
-                          {comment.content}
-                        </Text>
+
+                        {isEditingComment ? (
+                          <CommentEditor
+                            value={editCommentContent}
+                            errorMessage={editCommentError}
+                            isSaving={updateCommentMutation.isPending}
+                            onChangeText={setEditCommentContent}
+                            onCancel={cancelEditingComment}
+                            onSave={saveComment}
+                          />
+                        ) : (
+                          <Pressable
+                            onPress={() =>
+                              selectReplyTarget(comment.comment_id)
+                            }
+                            className="py-0.5"
+                          >
+                            <Text
+                              className={`text-body ${
+                                replyTarget === comment.comment_id
+                                  ? "text-status-info"
+                                  : "text-label-normal"
+                              }`}
+                            >
+                              {comment.content}
+                            </Text>
+                          </Pressable>
+                        )}
                       </View>
-                    </Pressable>
+                    </View>
 
                     {repliesVisible &&
-                      replies.map((reply) => (
-                        <View
-                          key={reply.comment_id}
-                          className="ml-7 mt-3 flex-row items-start gap-x-1.5"
-                        >
-                          <CommunityAvatar author={reply.author} size={22} />
-                          <View className="flex-1">
-                            <View className="flex-row items-center justify-between">
-                              <View className="flex-row items-center gap-x-1">
-                                <Text className="text-label text-label-alternative">
-                                  {getCommunityAuthorName(reply.author.name)}
-                                </Text>
-                                <Text className="text-label text-label-alternative">
-                                  ·
-                                </Text>
-                                <Text className="text-label text-label-alternative">
-                                  {formatCommunityTimestamp(reply.created_at)}
-                                </Text>
-                              </View>
-                              {(isPostAuthor ||
-                                currentUserId === reply.author.user_id) && (
-                                <Pressable
-                                  accessibilityLabel="답글 삭제"
-                                  disabled={deleteCommentMutation.isPending}
-                                  hitSlop={8}
-                                  onPress={() =>
+                      replies.map((reply) => {
+                        const canEditReply =
+                          currentUserId === reply.author.user_id;
+                        const canDeleteReply = canEditReply;
+                        const isEditingReply =
+                          editingCommentId === reply.comment_id;
+
+                        return (
+                          <View
+                            key={reply.comment_id}
+                            className="ml-7 mt-3 flex-row items-start gap-x-1.5"
+                          >
+                            <CommunityAvatar author={reply.author} size={22} />
+                            <View className="flex-1">
+                              <View className="flex-row items-center justify-between">
+                                <View className="flex-row items-center gap-x-1">
+                                  <Text className="text-label text-label-alternative">
+                                    {getCommunityAuthorName(reply.author.name)}
+                                  </Text>
+                                  <Text className="text-label text-label-alternative">
+                                    ·
+                                  </Text>
+                                  <Text className="text-label text-label-alternative">
+                                    {formatCommunityTimestamp(reply.created_at)}
+                                  </Text>
+                                </View>
+                                <CommentActionButtons
+                                  canEdit={canEditReply}
+                                  canDelete={canDeleteReply}
+                                  editLabel="답글 수정"
+                                  deleteLabel="답글 삭제"
+                                  editDisabled={
+                                    updateCommentMutation.isPending
+                                  }
+                                  deleteDisabled={
+                                    deleteCommentMutation.isPending
+                                  }
+                                  onEdit={() =>
+                                    startEditingComment(
+                                      reply.comment_id,
+                                      reply.content,
+                                    )
+                                  }
+                                  onDelete={() =>
                                     confirmDeleteComment(reply.comment_id, 1)
                                   }
-                                  className="ml-2 p-1 active:opacity-60"
-                                >
-                                  <Ionicons
-                                    name="trash"
-                                    size={19}
-                                    color={SEMANTIC_COLORS.line.normal}
-                                  />
-                                </Pressable>
+                                />
+                              </View>
+
+                              {isEditingReply ? (
+                                <CommentEditor
+                                  value={editCommentContent}
+                                  errorMessage={editCommentError}
+                                  isSaving={updateCommentMutation.isPending}
+                                  onChangeText={setEditCommentContent}
+                                  onCancel={cancelEditingComment}
+                                  onSave={saveComment}
+                                />
+                              ) : (
+                                <Text className="mt-0.5 text-body text-label-normal">
+                                  {reply.content}
+                                </Text>
                               )}
                             </View>
-                            <Text className="mt-0.5 text-body text-label-normal">
-                              {reply.content}
-                            </Text>
                           </View>
-                        </View>
-                      ))}
+                        );
+                      })}
 
                     {replies.length > 0 && (
                       <Pressable
@@ -685,17 +1121,37 @@ export default function CommunityPostDetailScreen() {
         </ScrollView>
 
         {replyTargetComment && (
-          <View className="flex-row items-center justify-between px-8 pb-1">
-            <Text className="text-caption text-label-alternative">
-              ↪ {getCommunityAuthorName(replyTargetComment.author.name)}님에게 답글
-            </Text>
-            <Pressable onPress={() => setReplyTarget(null)}>
-              <Text className="text-caption text-label-alternative">취소</Text>
-            </Pressable>
+          <View className="items-end px-8 pb-1">
+            <View className="flex-row items-center gap-x-1.5 rounded-[11px] bg-background-normal px-2 py-1">
+              <View className="flex-row items-center gap-x-[3px]">
+                <Ionicons
+                  name="arrow-undo"
+                  size={16}
+                  color={SEMANTIC_COLORS.label.alternative}
+                />
+                <Text className="text-label font-medium text-label-alternative">
+                  {`${getCommunityAuthorName(replyTargetComment.author.name)}님에게 답글`}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="답글 작성 취소"
+                hitSlop={8}
+                onPress={() => setReplyTarget(null)}
+              >
+                <Text className="text-label font-medium text-line-normal underline">
+                  취소
+                </Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
-        <View className="px-8 pb-5 pt-2">
+        <View
+          className="px-8 pt-2"
+          style={{
+            paddingBottom: isKeyboardVisible ? 6 : Math.max(insets.bottom, 20),
+          }}
+        >
           <View
             className="h-[51px] flex-row items-center rounded-component bg-fill-neutral px-3"
             style={{
@@ -757,6 +1213,17 @@ export default function CommunityPostDetailScreen() {
         onConfirm={() => {
           if (deleteTarget) deleteCommentMutation.mutate(deleteTarget);
         }}
+      />
+
+      <DeleteCommunityPostModal
+        visible={deletePostModalVisible}
+        isDeleting={deletePostMutation.isPending}
+        errorMessage={deletePostError}
+        onCancel={() => {
+          setDeletePostModalVisible(false);
+          setDeletePostError(null);
+        }}
+        onConfirm={() => deletePostMutation.mutate()}
       />
     </SafeAreaView>
   );
