@@ -83,9 +83,9 @@ function CalleeProfile({ name, phoneNumber, isSpeaking }: {
   isSpeaking?: boolean;
 }) {
   return (
-    <View className="items-center gap-y-4">
+    <View className="items-center gap-y-6">
       <View className="items-center">
-        <Text className="text-display1 font-bold text-label-normal">{name}</Text>
+        <Text className="text-title1 font-bold text-label-normal">{name}</Text>
         <Text className="text-body text-label-neutral">폰 {phoneNumber}</Text>
       </View>
       <View
@@ -96,6 +96,16 @@ function CalleeProfile({ name, phoneNumber, isSpeaking }: {
         <Ionicons name="person" size={80} color={PALETTE.neutral[80]} />
       </View>
     </View>
+  );
+}
+
+/** 어떤 시나리오로 훈련 중인지 화면 맨 아래에 작게 적어 둔다 */
+function ScenarioLabel({ title }: { title?: string }) {
+  if (!title) return null;
+  return (
+    <Text className="mt-[26px] text-caption font-medium text-label-alternative text-center opacity-60">
+      {title}
+    </Text>
   );
 }
 
@@ -123,6 +133,7 @@ export default function Train() {
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
+  const [calleeName, setCalleeName] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -163,7 +174,14 @@ export default function Train() {
       handleEndCall();
     },
   });
-  const roleName = displayName ?? "연결 중...";
+  /**
+   * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
+   * 그대로 두면 종료 화면에 다시 "연결 중..."이 뜨므로 한 번 받은 이름을 붙들어 둔다.
+   */
+  useEffect(() => {
+    if (displayName) setCalleeName(displayName);
+  }, [displayName]);
+  const roleName = calleeName ?? "연결 중...";
 
   // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
   useEffect(() => {
@@ -230,6 +248,7 @@ export default function Train() {
       setIsScriptVisible(false);
       setTranscript([]);
       setSeconds(0);
+      setCalleeName(null);
       setIsMuted(false);
       permissionGrantedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
@@ -287,8 +306,10 @@ export default function Train() {
   if (step === "receive") {
     return (
       <>
-        <View className="flex-1" style={safeArea}>
+        {/* 배경은 safe area 패딩 바깥에 둬야 화면 끝까지 깔린다 */}
+        <View className="flex-1">
           <CallBackground />
+          <View className="flex-1" style={safeArea}>
           <View className="items-center flex-1 pt-[22px]">
             <Text className="text-body font-medium text-label-alternative">
               바다 시나리오 훈련
@@ -297,7 +318,8 @@ export default function Train() {
               <CalleeProfile name={roleName} phoneNumber={generatedPhoneNumber} />
             </View>
           </View>
-          <View className="flex-row items-center justify-between self-center w-[300px] pb-[58px]">
+          <View className="items-center pb-6">
+            <View className="flex-row items-center justify-between w-[300px]">
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="전화 받기"
@@ -316,6 +338,9 @@ export default function Train() {
             >
               <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
             </TouchableOpacity>
+            </View>
+            <ScenarioLabel title={title} />
+          </View>
           </View>
         </View>
         <Modal visible={isMeditationVisible} transparent animationType="fade">
@@ -350,9 +375,11 @@ export default function Train() {
   const isEnd = step === "end";
 
   return (
-    <View className={`flex-1 ${isEnd ? "bg-background-normal" : ""}`} style={safeArea}>
+    <View className={`flex-1 ${isEnd ? "bg-background-normal" : ""}`}>
       {/* 통화가 끝나면 초록 배경을 걷어내 훈련이 종료됐음을 드러낸다 */}
+      {/* 배경은 safe area 패딩 바깥에 둬야 화면 끝까지 깔린다 */}
       {!isEnd && <CallBackground />}
+      <View className="flex-1" style={safeArea}>
 
       <View className="flex-row items-center justify-center mt-6 gap-x-2">
         <Ionicons
@@ -416,7 +443,7 @@ export default function Train() {
                 />
               </TouchableOpacity>
               <Text
-                className={`text-label font-medium mt-[3px] ${
+                className={`text-label font-medium mt-2 ${
                   btn.disabled ? "text-line-normal" : "text-label-normal"
                 }`}
               >
@@ -467,7 +494,7 @@ export default function Train() {
         </View>
       )}
 
-      <View className="items-center mt-auto pb-[58px]">
+      <View className="items-center mt-auto pb-6">
         <TouchableOpacity
           onPress={handleEndCall}
           activeOpacity={0.8}
@@ -479,6 +506,8 @@ export default function Train() {
         >
           <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
         </TouchableOpacity>
+        <ScenarioLabel title={title} />
+      </View>
       </View>
     </View>
   );
