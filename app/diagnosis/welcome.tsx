@@ -3,14 +3,17 @@ import { router } from "expo-router";
 import { Text, View } from "react-native";
 import PartyFace from "@/assets/partyFace.svg";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Welcome() {
+  const insets = useSafeAreaInsets();
+
   useAndroidBackHandler(() => {
     router.replace("/auth/login");
     return true;
   });
   return (
-    <View className="flex-col justify-between flex-1 p-10 bg-white">
+    <View className="flex-col justify-between flex-1 p-10 bg-white" style={{ paddingBottom: insets.bottom + 40 }}>
       <View className="mt-40">
         <PartyFace />
         <Text className="mt-6 text-2xl font-bold">바다에 오신 것을 환영해요!</Text>

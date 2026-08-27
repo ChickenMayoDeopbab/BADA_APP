@@ -4,7 +4,7 @@ import {
   PendingCallProvider,
   usePendingCall,
 } from "@/context/PendingCallContext";
-import { Tabs, router, usePathname } from "expo-router";
+import { Tabs, router, usePathname, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 
@@ -53,14 +53,23 @@ const FULL_SCREEN_PATHS = ["/train", "/anxiety"];
 
 export default function TabLayout() {
   const pathname = usePathname();
+  const segments = useSegments();
+  const isCommunityStack = segments.some(
+    (segment) => segment === "(community)",
+  );
+  const currentRoute = segments[segments.length - 1];
+  const isCommunityRoot =
+    currentRoute === "(community)" || currentRoute === "community";
+  const hideTabBar =
+    FULL_SCREEN_PATHS.includes(pathname) ||
+    pathname.endsWith("/search") ||
+    (isCommunityStack && !isCommunityRoot);
 
   return (
     <PendingCallProvider>
       <CallWatcher />
       <Tabs
-        tabBar={(props) =>
-          FULL_SCREEN_PATHS.includes(pathname) ? null : <BottomNav {...props} />
-        }
+        tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
