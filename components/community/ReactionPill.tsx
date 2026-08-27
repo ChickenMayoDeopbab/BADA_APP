@@ -1,5 +1,8 @@
 import type { CommunityReactionKind } from "@/api/types";
-import { Pressable, Text } from "react-native";
+import CheerReactionIcon from "@/assets/community/reaction-cheer.svg";
+import LikeReactionIcon from "@/assets/community/reaction-like.svg";
+import RelateReactionIcon from "@/assets/community/reaction-relate.svg";
+import { Pressable, Text, View } from "react-native";
 
 const REACTION_LABELS: Record<CommunityReactionKind, string> = {
   CHEER: "힘내요",
@@ -7,10 +10,10 @@ const REACTION_LABELS: Record<CommunityReactionKind, string> = {
   LIKE: "좋아요",
 };
 
-const REACTION_EMOJIS: Record<CommunityReactionKind, string> = {
-  CHEER: "👍",
-  RELATE: "🥺",
-  LIKE: "❤️",
+const REACTION_ICONS = {
+  CHEER: CheerReactionIcon,
+  RELATE: RelateReactionIcon,
+  LIKE: LikeReactionIcon,
 };
 
 interface ReactionPillProps {
@@ -30,6 +33,11 @@ export default function ReactionPill({
   loading = false,
   onPress,
 }: ReactionPillProps) {
+  const ReactionIcon = REACTION_ICONS[type];
+  const iconContainerSize = compact ? 20 : 22;
+  const iconSize =
+    type === "RELATE" ? iconContainerSize * 0.875 : iconContainerSize;
+
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
@@ -38,12 +46,17 @@ export default function ReactionPill({
       disabled={!onPress || loading}
       onPress={onPress}
       className={`flex-row items-center justify-center gap-1 rounded-[10px] px-1.5 py-1 ${
-        compact ? "" : "h-9 w-[94px]"
+        compact ? "" : "h-9 w-[94px] border border-[#F0F0F0]"
       } ${
         selected ? "bg-primary-normal" : "bg-transparent"
-      } ${loading ? "opacity-60" : ""}`}
+      }`}
     >
-      <Text style={{ fontSize: compact ? 20 : 22 }}>{REACTION_EMOJIS[type]}</Text>
+      <View
+        className="items-center justify-center"
+        style={{ width: iconContainerSize, height: iconContainerSize }}
+      >
+        <ReactionIcon width={iconSize} height={iconSize} />
+      </View>
       {!compact && (
         <Text
           className={`text-label font-medium ${
