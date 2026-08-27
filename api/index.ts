@@ -1,1 +1,2 @@
-export * from "./diagnosisApi"
+export * from "./communityApi";
+export * from "./diagnosisApi";
