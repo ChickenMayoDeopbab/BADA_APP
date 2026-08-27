@@ -1,10 +1,11 @@
-import type { CommunityAuthor } from "@/types/community";
+import type { CommunityAuthorInfo } from "@/api/types";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { getCommunityAuthorName } from "@/utils/community";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 
 interface CommunityAvatarProps {
-  author: CommunityAuthor;
+  author: CommunityAuthorInfo;
   size?: number;
 }
 
@@ -17,12 +18,20 @@ export default function CommunityAvatar({
       className="items-center justify-center overflow-hidden rounded-control bg-fill-neutral"
       style={{ width: size, height: size }}
     >
-      <Ionicons
-        name="person"
-        size={size * 0.82}
-        color={SEMANTIC_COLORS.label.alternative}
-        accessibilityLabel={`${author.handle} 프로필`}
-      />
+      {author.profile_image_url ? (
+        <Image
+          source={{ uri: author.profile_image_url }}
+          accessibilityLabel={`${getCommunityAuthorName(author.name)} 프로필`}
+          style={{ width: size, height: size }}
+        />
+      ) : (
+        <Ionicons
+          name="person"
+          size={size * 0.82}
+          color={SEMANTIC_COLORS.label.alternative}
+          accessibilityLabel={`${getCommunityAuthorName(author.name)} 프로필`}
+        />
+      )}
     </View>
   );
 }
