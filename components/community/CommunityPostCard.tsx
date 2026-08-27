@@ -1,12 +1,16 @@
 import { SEMANTIC_COLORS } from "@/design-system";
-import type { CommunityPost } from "@/types/community";
+import type { CommunityPostSummary } from "@/api/types";
+import {
+  formatCommunityTimestamp,
+  getCommunityAuthorName,
+} from "@/utils/community";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, Text, View } from "react-native";
 import CommunityAvatar from "./CommunityAvatar";
 import ReactionPill from "./ReactionPill";
 
 interface CommunityPostCardProps {
-  post: CommunityPost;
+  post: CommunityPostSummary;
   onPress: () => void;
 }
 
@@ -18,9 +22,6 @@ const cardShadow = {
   elevation: 2,
 };
 
-export const getPostCommentCount = (post: CommunityPost) =>
-  post.comments.reduce((count, comment) => count + 1 + comment.replies.length, 0);
-
 export default function CommunityPostCard({
   post,
   onPress,
@@ -28,14 +29,14 @@ export default function CommunityPostCard({
   return (
     <Pressable
       onPress={onPress}
-      className="min-h-[113px] justify-center rounded-component bg-background-normal px-[22px] py-3 active:opacity-90"
+      className="min-h-[145px] justify-center rounded-component bg-background-normal px-[22px] py-3 active:opacity-90"
       style={cardShadow}
     >
       <View className="gap-y-1.5">
         <View className="flex-row items-center gap-x-1.5">
           <CommunityAvatar author={post.author} size={20} />
           <Text className="text-label text-label-alternative">
-            {post.author.handle}
+            {getCommunityAuthorName(post.author.name)}
           </Text>
         </View>
         <Text
@@ -46,7 +47,29 @@ export default function CommunityPostCard({
         </Text>
       </View>
 
-      <View className="mt-2.5 flex-row items-center justify-between">
+      <View className="relative mt-1.5 h-10 overflow-hidden">
+        <Text
+          numberOfLines={2}
+          ellipsizeMode="clip"
+          className="text-label leading-5 text-label-alternative"
+        >
+          {post.content_preview}
+        </Text>
+        <View
+          pointerEvents="none"
+          className="absolute bottom-0 right-0 h-5 w-[45%] flex-row"
+        >
+          {[0.15, 0.35, 0.6, 0.82, 1].map((opacity) => (
+            <View
+              key={opacity}
+              className="flex-1"
+              style={{ backgroundColor: `rgba(254, 254, 254, ${opacity})` }}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View className="mt-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-x-2.5">
           <View className="flex-row items-center gap-x-[3px]">
             <Ionicons
@@ -55,7 +78,7 @@ export default function CommunityPostCard({
               color={SEMANTIC_COLORS.label.alternative}
             />
             <Text className="text-label text-label-alternative">
-              {post.viewCount}
+              {post.view_count}
             </Text>
           </View>
           <View className="flex-row items-center gap-x-[3px]">
@@ -65,18 +88,18 @@ export default function CommunityPostCard({
               color={SEMANTIC_COLORS.label.alternative}
             />
             <Text className="text-label text-label-alternative">
-              {getPostCommentCount(post)}
+              {post.comment_count}
             </Text>
           </View>
           <Text className="text-label text-label-alternative">
-            {post.createdAt}
+            {formatCommunityTimestamp(post.created_at)}
           </Text>
         </View>
 
         <View className="flex-row items-center gap-x-0.5">
-          <ReactionPill type="cheer" count={post.reactions.cheer} compact />
-          <ReactionPill type="empathy" count={post.reactions.empathy} compact />
-          <ReactionPill type="like" count={post.reactions.like} compact />
+          <ReactionPill type="CHEER" count={post.reactions.cheer ?? 0} compact />
+          <ReactionPill type="RELATE" count={post.reactions.relate ?? 0} compact />
+          <ReactionPill type="LIKE" count={post.reactions.like ?? 0} compact />
         </View>
       </View>
     </Pressable>
