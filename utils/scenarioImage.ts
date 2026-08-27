@@ -2,6 +2,10 @@ import { ImageSourcePropType } from "react-native";
 
 // 카테고리별 썸네일 (scenario_image가 없을 때 폴백)
 const CATEGORY_THUMBNAIL_MAP: Record<string, ImageSourcePropType> = {
+  work: require("@/assets/Q1_s.png"),
+  daily: require("@/assets/Q2_s.png"),
+  school: require("@/assets/Q3_s.png"),
+  other: require("@/assets/Q4_s.png"),
   restaurant: require("@/assets/Q1_s.png"),
   hospital: require("@/assets/Q2_s.png"),
   complaint: require("@/assets/Q3_s.png"),
@@ -12,6 +16,10 @@ const CATEGORY_THUMBNAIL_MAP: Record<string, ImageSourcePropType> = {
 
 // 카테고리별 대형 이미지 (추천 카드처럼 넓게 쓰는 자리의 폴백)
 const CATEGORY_COVER_MAP: Record<string, ImageSourcePropType> = {
+  work: require("@/assets/Q1_l.png"),
+  daily: require("@/assets/Q2_l.png"),
+  school: require("@/assets/Q3_l.png"),
+  other: require("@/assets/Q3_l.png"),
   restaurant: require("@/assets/Q1_l.png"),
   hospital: require("@/assets/Q2_l.png"),
   complaint: require("@/assets/Q3_l.png"),

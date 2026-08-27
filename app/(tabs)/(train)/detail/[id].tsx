@@ -348,7 +348,11 @@ export default function Detail() {
               <View className="flex-1 gap-y-3">
                 <View className="gap-y-[2px]">
                   <Text className="text-caption font-medium text-label-alternative">
-                    {scenario.is_custom ? "커스텀 시나리오" : "기본 제공 시나리오"}
+                    {scenario.is_copied
+                      ? "공유받은 시나리오"
+                      : scenario.is_custom
+                        ? "커스텀 시나리오"
+                        : "기본 제공 시나리오"}
                   </Text>
                   <Text className="text-headline1 font-bold text-label-normal">
                     {scenario.title}

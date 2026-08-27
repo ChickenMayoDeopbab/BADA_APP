@@ -7,7 +7,7 @@ interface CategoryChipsProps {
   onChange: (value: ScenarioCategory | null) => void;
 }
 
-/** 시나리오 카테고리 필터 칩 행 (전체 / 식당 / 병원 / 민원 / 배달 / 은행) */
+/** 시나리오 카테고리 필터 칩 행 (전체 / 업무 / 일상 / 학교 / 기타) */
 export default function CategoryChips({ value, onChange }: CategoryChipsProps) {
   return (
     <ScrollView
