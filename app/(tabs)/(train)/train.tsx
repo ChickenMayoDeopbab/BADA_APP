@@ -1,6 +1,7 @@
 import CallBackground from "@/components/train/CallBackground";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -235,6 +236,11 @@ export default function Train() {
       stopSendingAudio();
       resetStream();
     }, [stopSendingAudio, resetStream])
+  );
+
+  // 벨소리·진동은 벨이 울리는 동안만 — 전화를 받으면(명상 안내가 뜨면) 바로 멈춘다
+  useIncomingCallRinging(
+    step === "receive" && !isMeditationVisible && !isMeditationVideoVisible,
   );
 
   const handleAccept = () => setIsMeditationVisible(true);
