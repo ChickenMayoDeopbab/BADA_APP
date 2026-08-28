@@ -6,7 +6,7 @@ interface ScenarioTabsProps {
   onChange: (value: ScenarioTabValue) => void;
 }
 
-/** 시나리오 목록 상단 탭 (기본 제공 / 커스텀) */
+/** 시나리오 목록 상단 탭 (기본 제공 / 커스텀 / 공유받은) */
 export default function ScenarioTabs({ value, onChange }: ScenarioTabsProps) {
   return (
     <View className="flex-row items-center gap-x-4">
