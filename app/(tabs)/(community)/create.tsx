@@ -1,8 +1,8 @@
 import { postCommunityPost } from "@/api/communityApi";
 import { getApiErrorMessage } from "@/api/error";
+import type { CommunityAttachmentRequest } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
 import CommunityHeader from "@/components/community/CommunityHeader";
-import PhotoLibrarySheet from "@/components/profile/PhotoLibrarySheet";
 import { useCommunityPostDraft } from "@/context/CommunityPostDraftContext";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { communityQueryKeys } from "@/hooks/useCommunityPosts";
@@ -37,14 +37,10 @@ export default function CreateCommunityPostScreen() {
     clearScenario,
     selectedTrainingRecord,
     clearTrainingRecord,
-    selectedPhotoUri,
-    selectPhoto,
-    clearPhoto,
   } = useCommunityPostDraft();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
-  const [photoLibraryVisible, setPhotoLibraryVisible] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -68,15 +64,13 @@ export default function CreateCommunityPostScreen() {
   useEffect(() => {
     clearScenario();
     clearTrainingRecord();
-    clearPhoto();
-  }, [clearPhoto, clearScenario, clearTrainingRecord]);
+  }, [clearScenario, clearTrainingRecord]);
 
   const createPostMutation = useMutation({
     mutationFn: postCommunityPost,
     onSuccess: (post) => {
       clearScenario();
       clearTrainingRecord();
-      clearPhoto();
       queryClient.setQueryData(communityQueryKeys.post(post.post_id), post);
       void queryClient.invalidateQueries({
         queryKey: communityQueryKeys.postLists(),
@@ -102,7 +96,7 @@ export default function CreateCommunityPostScreen() {
       return;
     }
 
-    const attachments = [
+    const attachments: CommunityAttachmentRequest[] = [
       ...(selectedScenario
         ? [{ kind: "SCENARIO" as const, ref_id: selectedScenario.scenario_id }]
         : []),
@@ -121,22 +115,6 @@ export default function CreateCommunityPostScreen() {
       content: trimmedContent,
       attachments: attachments.length > 0 ? attachments : undefined,
     });
-  };
-
-  const publish = () => {
-    if (!selectedPhotoUri) {
-      submitPost();
-      return;
-    }
-
-    Alert.alert(
-      "사진 첨부 API가 아직 없어요",
-      "선택한 사진을 제외하고 게시물을 등록할까요?",
-      [
-        { text: "취소", style: "cancel" },
-        { text: "사진 제외하고 등록", onPress: submitPost },
-      ],
-    );
   };
 
   return (
@@ -210,7 +188,10 @@ export default function CreateCommunityPostScreen() {
                 <Pressable
                   onPress={() => {
                     setAttachmentMenuVisible(false);
-                    setPhotoLibraryVisible(true);
+                    Alert.alert(
+                      "파일 첨부는 아직 준비 중이에요",
+                      "백엔드 연결이 완료되면 사용할 수 있어요.",
+                    );
                   }}
                   className="justify-center h-10 px-3 active:bg-fill-pressed"
                 >
@@ -279,41 +260,6 @@ export default function CreateCommunityPostScreen() {
               </View>
             )}
 
-            {selectedPhotoUri && (
-              <View className="flex-row items-center justify-between border-line-alternative py-2.5">
-                <View className="flex-1 flex-row items-center gap-x-1.5">
-                  <MaterialDesignIcons
-                    name="file"
-                    size={16}
-                    color={SEMANTIC_COLORS.label.alternative}
-                  />
-                  <Text className="text-label text-label-alternative">
-                    파일
-                  </Text>
-                </View>
-                <View className="flex-row items-center gap-x-2">
-                  <Text
-                    numberOfLines={1}
-                    className="max-w-[180px] text-label font-medium text-label-normal"
-                  >
-                    {selectedPhotoUri.split("/").pop() ?? "사진"}
-                  </Text>
-                  <Pressable
-                    accessibilityLabel="첨부 사진 삭제"
-                    hitSlop={8}
-                    onPress={clearPhoto}
-                    className="p-1 active:opacity-60"
-                  >
-                    <MaterialDesignIcons
-                      name="trash-can"
-                      size={24}
-                      color={SEMANTIC_COLORS.line.normal}
-                    />
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
             {selectedTrainingRecord && (
               <View className="flex-row items-center justify-between border-line-alternative py-2.5">
                 <View className="flex-1 flex-row items-center gap-x-1.5">
@@ -351,9 +297,7 @@ export default function CreateCommunityPostScreen() {
               </View>
             )}
 
-            {!selectedPhotoUri &&
-              !selectedScenario &&
-              !selectedTrainingRecord && (
+            {!selectedScenario && !selectedTrainingRecord && (
                 <View className="items-center justify-center px-4 py-3 min-h-20 rounded-component bg-fill-normal">
                   <Ionicons
                     name="attach-outline"
@@ -378,16 +322,11 @@ export default function CreateCommunityPostScreen() {
             label={createPostMutation.isPending ? "등록 중..." : "등록하기"}
             tone="primary"
             disabled={createPostMutation.isPending}
-            onPress={publish}
+            onPress={submitPost}
           />
         </View>
       </KeyboardAvoidingView>
 
-      <PhotoLibrarySheet
-        visible={photoLibraryVisible}
-        onClose={() => setPhotoLibraryVisible(false)}
-        onSelect={selectPhoto}
-      />
     </SafeAreaView>
   );
 }
