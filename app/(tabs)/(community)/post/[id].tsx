@@ -4,7 +4,6 @@ import {
   deleteCommunityReaction,
   patchCommunityComment,
   patchCommunityPost,
-  postCopyCommunityScenario,
   postCommunityComment,
   putCommunityReaction,
 } from "@/api/communityApi";
@@ -20,6 +19,7 @@ import CommunityAvatar from "@/components/community/CommunityAvatar";
 import CommunityHeader from "@/components/community/CommunityHeader";
 import DeleteCommunityCommentModal from "@/components/community/DeleteCommunityCommentModal";
 import DeleteCommunityPostModal from "@/components/community/DeleteCommunityPostModal";
+import CommunityPostAttachments from "@/components/community/CommunityPostAttachments";
 import ReactionPill from "@/components/community/ReactionPill";
 import { SEMANTIC_COLORS } from "@/design-system";
 import {
@@ -38,7 +38,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -48,12 +47,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-} from "react-native-reanimated";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -67,10 +60,6 @@ const REACTION_COUNT_KEYS: Record<
   RELATE: "relate",
   LIKE: "like",
 };
-
-const editorLayoutTransition = LinearTransition.duration(180).easing(
-  Easing.inOut(Easing.quad),
-);
 
 const replaceCommunityComment = (
   currentComments: CommunityCommentListResponse,
@@ -154,8 +143,6 @@ interface CommentEditorProps {
   errorMessage: string | null;
   isSaving: boolean;
   onChangeText: (value: string) => void;
-  onCancel: () => void;
-  onSave: () => void;
 }
 
 function CommentEditor({
@@ -163,54 +150,101 @@ function CommentEditor({
   errorMessage,
   isSaving,
   onChangeText,
+}: CommentEditorProps) {
+  const [editorHeight, setEditorHeight] = useState(21);
+  const [measuredTextHeight, setMeasuredTextHeight] = useState(21);
+  const explicitLineHeight = Math.max(21, value.split("\n").length * 21);
+  const resolvedEditorHeight = Math.max(
+    editorHeight,
+    measuredTextHeight,
+    explicitLineHeight,
+  );
+
+  return (
+    <View className="relative py-0.5">
+      <Text
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        onTextLayout={(event) =>
+          setMeasuredTextHeight(
+            Math.max(21, event.nativeEvent.lines.length * 21),
+          )
+        }
+        className="absolute left-0 right-0 top-0 text-body text-label-normal opacity-0"
+        style={{ includeFontPadding: false }}
+      >
+        {value || " "}
+      </Text>
+      <TextInput
+        autoFocus
+        value={value}
+        onChangeText={onChangeText}
+        onContentSizeChange={(event) =>
+          setEditorHeight(
+            Math.max(21, event.nativeEvent.contentSize.height),
+          )
+        }
+        maxLength={1000}
+        multiline
+        submitBehavior="newline"
+        scrollEnabled={false}
+        textAlignVertical="top"
+        editable={!isSaving}
+        underlineColorAndroid="transparent"
+        selectionColor={SEMANTIC_COLORS.primary.normal}
+        className="w-full rounded-[6px] bg-fill-neutral text-body text-label-normal"
+        style={{
+          height: resolvedEditorHeight,
+          margin: 0,
+          padding: 0,
+          includeFontPadding: false,
+          transform: [{ translateY: -2 }],
+        }}
+      />
+      {errorMessage && (
+        <Text className="mt-1 text-caption text-status-error">
+          {errorMessage}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+interface InlineEditButtonsProps {
+  isSaving: boolean;
+  saveDisabled: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+}
+
+function InlineEditButtons({
+  isSaving,
+  saveDisabled,
   onCancel,
   onSave,
-}: CommentEditorProps) {
+}: InlineEditButtonsProps) {
   return (
-    <Animated.View
-      entering={FadeIn.duration(160)}
-      exiting={FadeOut.duration(120)}
-      layout={editorLayoutTransition}
-    >
-      <View>
-        <TextInput
-          autoFocus
-          value={value}
-          onChangeText={onChangeText}
-          maxLength={1000}
-          multiline
-          textAlignVertical="top"
-          editable={!isSaving}
-          selectionColor={SEMANTIC_COLORS.primary.normal}
-          className="min-h-[32px] max-h-28 rounded-component bg-fill-neutral px-2.5 py-1 text-body text-label-normal"
+    <View className="ml-2 flex-row items-center gap-x-1">
+      <View className="w-[44px]">
+        <CustomButton
+          label="취소"
+          variant="sm"
+          tone="neutral"
+          disabled={isSaving}
+          onPress={onCancel}
         />
-        {errorMessage && (
-          <Text className="mt-1 text-caption text-status-error">
-            {errorMessage}
-          </Text>
-        )}
-        <View className="mt-1.5 flex-row justify-end gap-x-1.5">
-          <View className="w-[48px]">
-            <CustomButton
-              label="취소"
-              variant="sm"
-              tone="neutral"
-              disabled={isSaving}
-              onPress={onCancel}
-            />
-          </View>
-          <View className="w-[48px]">
-            <CustomButton
-              label="저장"
-              variant="sm"
-              tone="primary"
-              disabled={!value.trim() || isSaving}
-              onPress={onSave}
-            />
-          </View>
-        </View>
       </View>
-    </Animated.View>
+      <View className="w-[44px]">
+        <CustomButton
+          label="저장"
+          variant="sm"
+          tone="primary"
+          disabled={saveDisabled || isSaving}
+          onPress={onSave}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -238,6 +272,10 @@ export default function CommunityPostDetailScreen() {
   const [editingPost, setEditingPost] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [postTitleHeight, setPostTitleHeight] = useState(32);
+  const [postContentHeight, setPostContentHeight] = useState(21);
+  const [postContentMeasuredHeight, setPostContentMeasuredHeight] =
+    useState(21);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentContent, setEditCommentContent] = useState("");
   const [editCommentError, setEditCommentError] = useState<string | null>(null);
@@ -250,7 +288,6 @@ export default function CommunityPostDetailScreen() {
   } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [copiedScenarioId, setCopiedScenarioId] = useState<number | null>(null);
   const commentInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -470,26 +507,6 @@ export default function CommunityPostDetailScreen() {
     },
   });
 
-  const copyScenarioMutation = useMutation({
-    mutationFn: () => postCopyCommunityScenario(postId),
-    onSuccess: (copiedScenario) => {
-      setCopiedScenarioId(copiedScenario.scenario_id);
-      void queryClient.invalidateQueries({ queryKey: ["scenarios"] });
-      Alert.alert(
-        copiedScenario.already_copied
-          ? "이미 가져온 시나리오예요"
-          : "시나리오를 가져왔어요",
-        `시나리오 훈련의 공유받은 탭에서 ${copiedScenario.title}을 확인할 수 있어요.`,
-      );
-    },
-    onError: (error) => {
-      Alert.alert(
-        "시나리오를 가져오지 못했어요",
-        getApiErrorMessage(error, "잠시 후 다시 시도해주세요."),
-      );
-    },
-  });
-
   const updateCommentMutation = useMutation({
     mutationFn: ({
       commentId,
@@ -590,9 +607,6 @@ export default function CommunityPostDetailScreen() {
   const startEditingPost = () => {
     if (!post) return;
     setIsPostMenuVisible(false);
-    setEditingCommentId(null);
-    setEditCommentContent("");
-    setEditCommentError(null);
     setEditTitle(post.title);
     setEditContent(post.content);
     setEditingPost(true);
@@ -607,8 +621,6 @@ export default function CommunityPostDetailScreen() {
   };
 
   const startEditingComment = (commentId: number, content: string) => {
-    setEditingPost(false);
-    setIsPostMenuVisible(false);
     setEditingCommentId(commentId);
     setEditCommentContent(content);
     setEditCommentError(null);
@@ -720,45 +732,57 @@ export default function CommunityPostDetailScreen() {
   const reactionCounts = post.reactions ?? {};
   const currentUserId = currentUserIdQuery.data;
   const isPostAuthor = currentUserId === post.author.user_id;
-  const scenarioAttachment = post.attachments?.find(
-    (attachment) => attachment.kind === "SCENARIO",
+  const postContentExplicitHeight = Math.max(
+    21,
+    editContent.split("\n").length * 21,
   );
-  const trainingRecordAttachment = post.attachments?.find(
-    (attachment) => attachment.kind === "TRAINING_RECORD",
+  const resolvedPostContentEditorHeight = Math.max(
+    postContentHeight,
+    postContentMeasuredHeight,
+    postContentExplicitHeight,
   );
   const postMetadata = (
-    <View className="mt-1.5 flex-row items-center justify-between px-3">
+    <View className="mt-1.5 flex-row items-center justify-between">
       <View className="flex-row items-center gap-x-1.5">
         <CommunityAvatar author={post.author} size={22} />
         <Text className="text-body text-label-alternative">
           {getCommunityAuthorName(post.author.name)}
         </Text>
       </View>
-      <View className="flex-row items-center gap-x-2.5">
-        <View className="flex-row items-center gap-x-[3px]">
-          <Ionicons
-            name="eye"
-            size={20}
-            color={SEMANTIC_COLORS.label.alternative}
-          />
+      {editingPost ? (
+        <InlineEditButtons
+          isSaving={updatePostMutation.isPending}
+          saveDisabled={!editTitle.trim() || !editContent.trim()}
+          onCancel={() => setEditingPost(false)}
+          onSave={savePost}
+        />
+      ) : (
+        <View className="flex-row items-center gap-x-2.5">
+          <View className="flex-row items-center gap-x-[3px]">
+            <Ionicons
+              name="eye"
+              size={20}
+              color={SEMANTIC_COLORS.label.alternative}
+            />
+            <Text className="text-body text-label-alternative">
+              {post.view_count}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-x-[3px]">
+            <Ionicons
+              name="chatbubble"
+              size={20}
+              color={SEMANTIC_COLORS.label.alternative}
+            />
+            <Text className="text-body text-label-alternative">
+              {commentCount}
+            </Text>
+          </View>
           <Text className="text-body text-label-alternative">
-            {post.view_count}
+            {formatCommunityTimestamp(post.created_at)}
           </Text>
         </View>
-        <View className="flex-row items-center gap-x-[3px]">
-          <Ionicons
-            name="chatbubble"
-            size={20}
-            color={SEMANTIC_COLORS.label.alternative}
-          />
-          <Text className="text-body text-label-alternative">
-            {commentCount}
-          </Text>
-        </View>
-        <Text className="text-body text-label-alternative">
-          {formatCommunityTimestamp(post.created_at)}
-        </Text>
-      </View>
+      )}
     </View>
   );
 
@@ -858,206 +882,107 @@ export default function CommunityPostDetailScreen() {
           }}
         >
           {editingPost ? (
-            <Animated.View
-              key="post-editor"
-              entering={FadeIn.duration(180)}
-              exiting={FadeOut.duration(120)}
-              layout={editorLayoutTransition}
-            >
+            <View>
               <View>
                 <TextInput
                   autoFocus
                   value={editTitle}
-                  onChangeText={setEditTitle}
+                  onChangeText={(value) =>
+                    setEditTitle(value.replace(/[\r\n]+/g, " "))
+                  }
                   maxLength={100}
+                  multiline={false}
+                  submitBehavior="blurAndSubmit"
                   editable={!updatePostMutation.isPending}
+                  underlineColorAndroid="transparent"
                   selectionColor={SEMANTIC_COLORS.primary.normal}
-                  className="min-h-[51px] rounded-component bg-fill-neutral px-3 py-2 text-title2 font-bold text-label-normal"
+                  className="rounded-[6px] bg-fill-neutral text-title2 font-bold text-label-normal"
+                  style={{
+                    height: postTitleHeight,
+                    margin: 0,
+                    padding: 0,
+                    includeFontPadding: false,
+                    transform: [{ translateY: -2 }],
+                  }}
                 />
 
                 {postMetadata}
 
-                <TextInput
-                  value={editContent}
-                  onChangeText={setEditContent}
-                  maxLength={5000}
-                  multiline
-                  textAlignVertical="top"
-                  editable={!updatePostMutation.isPending}
-                  selectionColor={SEMANTIC_COLORS.primary.normal}
-                  className="mt-4 min-h-[275px] rounded-component bg-fill-neutral px-3 py-3 text-body text-label-normal"
-                />
-
-                <View className="mt-2 flex-row justify-end gap-x-1.5 pr-1">
-                  <View className="w-[52px]">
-                    <CustomButton
-                      label="취소"
-                      variant="sm"
-                      tone="neutral"
-                      disabled={updatePostMutation.isPending}
-                      onPress={() => setEditingPost(false)}
-                    />
-                  </View>
-                  <View className="w-[52px]">
-                    <CustomButton
-                      label="저장"
-                      variant="sm"
-                      tone="primary"
-                      disabled={
-                        !editTitle.trim() ||
-                        !editContent.trim() ||
-                        updatePostMutation.isPending
-                      }
-                      onPress={savePost}
-                    />
-                  </View>
-                </View>
-              </View>
-            </Animated.View>
-          ) : (
-            <Animated.View
-              key="post-content"
-              entering={FadeIn.duration(180)}
-              exiting={FadeOut.duration(120)}
-              layout={editorLayoutTransition}
-            >
-              <View>
-                <View className="min-h-[51px] justify-center px-3 py-2">
-                  <Text className="text-title2 font-bold text-label-normal">
-                    {post.title}
-                  </Text>
-                </View>
-                {postMetadata}
-                <View className="mt-4 px-3 py-3">
-                  <Text className="text-body text-label-normal">
-                    {post.content}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
-          )}
-
-          {scenarioAttachment && (
-            <View className="mt-4 rounded-component border border-line-alternative bg-background-normal px-4 py-3">
-              <View className="flex-row items-center gap-x-1.5">
-                <Ionicons
-                  name="videocam-outline"
-                  size={18}
-                  color={SEMANTIC_COLORS.primary.normal}
-                />
-                <Text className="text-caption font-medium text-primary-normal">
-                  첨부 시나리오
-                </Text>
-              </View>
-
-              {scenarioAttachment.scenario ? (
-                <>
-                  <Text className="mt-1.5 text-body font-bold text-label-normal">
-                    {scenarioAttachment.scenario.title}
-                  </Text>
+                <View
+                  className="relative mt-4 rounded-[6px] bg-fill-neutral"
+                  style={{ height: resolvedPostContentEditorHeight }}
+                >
                   <Text
-                    numberOfLines={3}
-                    className="mt-1 text-label text-label-alternative"
+                    pointerEvents="none"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    onTextLayout={(event) =>
+                      setPostContentMeasuredHeight(
+                        Math.max(21, event.nativeEvent.lines.length * 21),
+                      )
+                    }
+                    className="absolute left-0 right-0 top-0 text-body text-label-normal opacity-0"
+                    style={{ includeFontPadding: false }}
                   >
-                    {scenarioAttachment.scenario.content}
+                    {editContent || " "}
                   </Text>
-
-                  {scenarioAttachment.scenario.is_mine ? (
-                    <Text className="mt-2 text-right text-caption font-medium text-label-alternative">
-                      내가 만든 시나리오
-                    </Text>
-                  ) : scenarioAttachment.scenario.is_available === false ? (
-                    <Text className="mt-2 text-right text-caption text-status-error">
-                      더 이상 가져올 수 없는 시나리오예요.
-                    </Text>
-                  ) : (
-                    <View className="mt-3 self-end w-[132px]">
-                      <CustomButton
-                        label={
-                          copiedScenarioId
-                            ? "가져온 시나리오"
-                            : copyScenarioMutation.isPending
-                              ? "가져오는 중..."
-                              : "내 목록에 가져오기"
-                        }
-                        variant="md"
-                        tone="primary"
-                        disabled={
-                          Boolean(copiedScenarioId) ||
-                          copyScenarioMutation.isPending
-                        }
-                        onPress={() => copyScenarioMutation.mutate()}
-                      />
-                    </View>
-                  )}
-                </>
-              ) : (
-                <Text className="mt-2 text-label text-label-alternative">
-                  첨부된 시나리오 정보를 불러올 수 없어요.
+                  <TextInput
+                    value={editContent}
+                    onChangeText={setEditContent}
+                    onContentSizeChange={(event) =>
+                      setPostContentHeight(
+                        Math.max(21, event.nativeEvent.contentSize.height),
+                      )
+                    }
+                    maxLength={5000}
+                    multiline
+                    submitBehavior="newline"
+                    scrollEnabled={false}
+                    textAlignVertical="top"
+                    editable={!updatePostMutation.isPending}
+                    underlineColorAndroid="transparent"
+                    selectionColor={SEMANTIC_COLORS.primary.normal}
+                    className="w-full text-body text-label-normal"
+                    style={{
+                      height: resolvedPostContentEditorHeight,
+                      margin: 0,
+                      padding: 0,
+                      includeFontPadding: false,
+                      transform: [{ translateY: -2 }],
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View>
+              <View>
+                <Text
+                  onLayout={(event) =>
+                    setPostTitleHeight(event.nativeEvent.layout.height)
+                  }
+                  className="text-title2 font-bold text-label-normal"
+                >
+                  {post.title}
                 </Text>
-              )}
+                {postMetadata}
+                <Text
+                  onLayout={(event) =>
+                    setPostContentHeight(event.nativeEvent.layout.height)
+                  }
+                  className="mt-4 text-body text-label-normal"
+                >
+                  {post.content}
+                </Text>
+              </View>
             </View>
           )}
 
-          {trainingRecordAttachment && (
-            <View className="mt-4 rounded-component border border-line-alternative bg-background-normal px-4 py-3">
-              <View className="flex-row items-center gap-x-1.5">
-                <Ionicons
-                  name="time-outline"
-                  size={18}
-                  color={SEMANTIC_COLORS.status.info}
-                />
-                <Text className="text-caption font-medium text-status-info">
-                  첨부 훈련 기록
-                </Text>
-              </View>
-
-              {trainingRecordAttachment.training_record ? (
-                <>
-                  <Text className="mt-1.5 text-body font-bold text-label-normal">
-                    {trainingRecordAttachment.training_record.scenario_name ??
-                      "훈련 기록"}
-                  </Text>
-                  <View className="mt-1 flex-row flex-wrap items-center gap-x-2 gap-y-1">
-                    {trainingRecordAttachment.training_record.started_at && (
-                      <Text className="text-label text-label-alternative">
-                        {formatCommunityTimestamp(
-                          trainingRecordAttachment.training_record.started_at,
-                        )}
-                      </Text>
-                    )}
-                    {typeof trainingRecordAttachment.training_record
-                      .duration_seconds === "number" && (
-                      <Text className="text-label text-label-alternative">
-                        {`${Math.max(
-                          1,
-                          Math.ceil(
-                            trainingRecordAttachment.training_record
-                              .duration_seconds / 60,
-                          ),
-                        )}분 훈련`}
-                      </Text>
-                    )}
-                    {typeof trainingRecordAttachment.training_record
-                      .anxiety_score === "number" && (
-                      <Text className="text-label text-label-alternative">
-                        {`불안도 ${trainingRecordAttachment.training_record.anxiety_score}점`}
-                      </Text>
-                    )}
-                  </View>
-                  {trainingRecordAttachment.training_record.is_available ===
-                    false && (
-                    <Text className="mt-2 text-caption text-status-error">
-                      더 이상 확인할 수 없는 훈련 기록이에요.
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text className="mt-2 text-label text-label-alternative">
-                  첨부된 훈련 기록 정보를 불러올 수 없어요.
-                </Text>
-              )}
-            </View>
+          {!editingPost && (
+            <CommunityPostAttachments
+              postId={postId}
+              attachments={post.attachments}
+            />
           )}
 
           <View className="mt-5 flex-row justify-end gap-x-1">
@@ -1129,7 +1054,7 @@ export default function CommunityPostDetailScreen() {
                     <View className="flex-row items-start gap-x-1.5">
                       <CommunityAvatar author={comment.author} size={22} />
                       <View className="flex-1">
-                        <View className="flex-row items-center justify-between px-2.5">
+                        <View className="flex-row items-center justify-between">
                           <View className="flex-row items-center gap-x-1">
                             <Text className="text-label text-label-alternative">
                               {getCommunityAuthorName(comment.author.name)}
@@ -1141,26 +1066,35 @@ export default function CommunityPostDetailScreen() {
                               {formatCommunityTimestamp(comment.created_at)}
                             </Text>
                           </View>
-                          <CommentActionButtons
-                            canEdit={canEditComment}
-                            canDelete={canDeleteComment}
-                            editLabel="댓글 수정"
-                            deleteLabel="댓글 삭제"
-                            editDisabled={updateCommentMutation.isPending}
-                            deleteDisabled={deleteCommentMutation.isPending}
-                            onEdit={() =>
-                              startEditingComment(
-                                comment.comment_id,
-                                comment.content,
-                              )
-                            }
-                            onDelete={() =>
-                              confirmDeleteComment(
-                                comment.comment_id,
-                                1 + replies.length,
-                              )
-                            }
-                          />
+                          {isEditingComment ? (
+                            <InlineEditButtons
+                              isSaving={updateCommentMutation.isPending}
+                              saveDisabled={!editCommentContent.trim()}
+                              onCancel={cancelEditingComment}
+                              onSave={saveComment}
+                            />
+                          ) : (
+                            <CommentActionButtons
+                              canEdit={canEditComment}
+                              canDelete={canDeleteComment}
+                              editLabel="댓글 수정"
+                              deleteLabel="댓글 삭제"
+                              editDisabled={updateCommentMutation.isPending}
+                              deleteDisabled={deleteCommentMutation.isPending}
+                              onEdit={() =>
+                                startEditingComment(
+                                  comment.comment_id,
+                                  comment.content,
+                                )
+                              }
+                              onDelete={() =>
+                                confirmDeleteComment(
+                                  comment.comment_id,
+                                  1 + replies.length,
+                                )
+                              }
+                            />
+                          )}
                         </View>
 
                         {isEditingComment ? (
@@ -1169,15 +1103,13 @@ export default function CommunityPostDetailScreen() {
                             errorMessage={editCommentError}
                             isSaving={updateCommentMutation.isPending}
                             onChangeText={setEditCommentContent}
-                            onCancel={cancelEditingComment}
-                            onSave={saveComment}
                           />
                         ) : (
                           <Pressable
                             onPress={() =>
                               selectReplyTarget(comment.comment_id)
                             }
-                            className="min-h-[32px] px-2.5 py-1"
+                            className="py-0.5"
                           >
                             <Text
                               className={`text-body ${
@@ -1208,7 +1140,7 @@ export default function CommunityPostDetailScreen() {
                           >
                             <CommunityAvatar author={reply.author} size={22} />
                             <View className="flex-1">
-                              <View className="flex-row items-center justify-between px-2.5">
+                              <View className="flex-row items-center justify-between">
                                 <View className="flex-row items-center gap-x-1">
                                   <Text className="text-label text-label-alternative">
                                     {getCommunityAuthorName(reply.author.name)}
@@ -1220,27 +1152,36 @@ export default function CommunityPostDetailScreen() {
                                     {formatCommunityTimestamp(reply.created_at)}
                                   </Text>
                                 </View>
-                                <CommentActionButtons
-                                  canEdit={canEditReply}
-                                  canDelete={canDeleteReply}
-                                  editLabel="답글 수정"
-                                  deleteLabel="답글 삭제"
-                                  editDisabled={
-                                    updateCommentMutation.isPending
-                                  }
-                                  deleteDisabled={
-                                    deleteCommentMutation.isPending
-                                  }
-                                  onEdit={() =>
-                                    startEditingComment(
-                                      reply.comment_id,
-                                      reply.content,
-                                    )
-                                  }
-                                  onDelete={() =>
-                                    confirmDeleteComment(reply.comment_id, 1)
-                                  }
-                                />
+                                {isEditingReply ? (
+                                  <InlineEditButtons
+                                    isSaving={updateCommentMutation.isPending}
+                                    saveDisabled={!editCommentContent.trim()}
+                                    onCancel={cancelEditingComment}
+                                    onSave={saveComment}
+                                  />
+                                ) : (
+                                  <CommentActionButtons
+                                    canEdit={canEditReply}
+                                    canDelete={canDeleteReply}
+                                    editLabel="답글 수정"
+                                    deleteLabel="답글 삭제"
+                                    editDisabled={
+                                      updateCommentMutation.isPending
+                                    }
+                                    deleteDisabled={
+                                      deleteCommentMutation.isPending
+                                    }
+                                    onEdit={() =>
+                                      startEditingComment(
+                                        reply.comment_id,
+                                        reply.content,
+                                      )
+                                    }
+                                    onDelete={() =>
+                                      confirmDeleteComment(reply.comment_id, 1)
+                                    }
+                                  />
+                                )}
                               </View>
 
                               {isEditingReply ? (
@@ -1249,15 +1190,11 @@ export default function CommunityPostDetailScreen() {
                                   errorMessage={editCommentError}
                                   isSaving={updateCommentMutation.isPending}
                                   onChangeText={setEditCommentContent}
-                                  onCancel={cancelEditingComment}
-                                  onSave={saveComment}
                                 />
                               ) : (
-                                <View className="min-h-[32px] px-2.5 py-1">
-                                  <Text className="text-body text-label-normal">
-                                    {reply.content}
-                                  </Text>
-                                </View>
+                                <Text className="mt-0.5 text-body text-label-normal">
+                                  {reply.content}
+                                </Text>
                               )}
                             </View>
                           </View>
