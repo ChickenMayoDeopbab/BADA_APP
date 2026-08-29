@@ -15,6 +15,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -77,10 +78,11 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
 }
 
 /** 통화 상대 이름 · 번호 · 프로필 사진 묶음 */
-function CalleeProfile({ name, phoneNumber, isSpeaking }: {
+function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
   name: string;
   phoneNumber: string;
   isSpeaking?: boolean;
+  avatarSize?: number;
 }) {
   return (
     <View className="items-center gap-y-6">
@@ -89,11 +91,16 @@ function CalleeProfile({ name, phoneNumber, isSpeaking }: {
         <Text className="text-body text-label-neutral">폰 {phoneNumber}</Text>
       </View>
       <View
-        className={`size-[140px] items-center justify-center rounded-pill ${
+        style={{ width: avatarSize, height: avatarSize }}
+        className={`items-center justify-center rounded-pill ${
           isSpeaking ? "bg-primary-alternative" : "bg-fill-neutral"
         }`}
       >
-        <Ionicons name="person" size={80} color={PALETTE.neutral[80]} />
+        <Ionicons
+          name="person"
+          size={Math.round(avatarSize * 0.57)}
+          color={PALETTE.neutral[80]}
+        />
       </View>
     </View>
   );
@@ -137,6 +144,9 @@ export default function Train() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  /** iPhone SE·8처럼 세로가 짧은 기기에서 통화 버튼이 잘리지 않도록 값을 줄인다 */
+  const { height: windowHeight } = useWindowDimensions();
+  const isCompactScreen = windowHeight < 700;
 
   const [isMuted, setIsMuted] = useState(false);
   const permissionGrantedRef = useRef(false);
@@ -397,11 +407,12 @@ export default function Train() {
         </Text>
       </View>
 
-      <View className="items-center pt-10">
+      <View className={`items-center ${isCompactScreen ? "pt-3" : "pt-10"}`}>
         <CalleeProfile
           name={roleName}
           phoneNumber={generatedPhoneNumber}
           isSpeaking={isAiSpeaking}
+          avatarSize={isCompactScreen ? 112 : 140}
         />
         {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
         {!isConnected && step === "training" && (
@@ -409,6 +420,8 @@ export default function Train() {
         )}
       </View>
 
+      {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
+      <View className="flex-1 justify-center">
       {!isEnd && !isScriptVisible && (
         <View style={styles.gridContainer}>
           {[
@@ -423,7 +436,10 @@ export default function Train() {
             { label: "영상통화", onPress: undefined, icon: "videocam", active: false, disabled: true },
             { label: "키패드", onPress: undefined, icon: "keypad", active: false, disabled: true },
           ].map((btn, index) => (
-            <View key={index} style={styles.gridItem}>
+            <View
+              key={index}
+              style={[styles.gridItem, isCompactScreen && styles.gridItemCompact]}
+            >
               <TouchableOpacity
                 activeOpacity={0.8}
                 disabled={btn.disabled}
@@ -455,7 +471,7 @@ export default function Train() {
       )}
 
       {!isEnd && isScriptVisible && (
-        <View className="flex-1 mx-[33px] mt-[83px]">
+        <View className="flex-1 mx-[33px]">
           <TouchableOpacity
             onPress={() => setIsScriptVisible(false)}
             activeOpacity={0.8}
@@ -494,7 +510,9 @@ export default function Train() {
         </View>
       )}
 
-      <View className="items-center mt-auto pb-6">
+      </View>
+
+      <View className="items-center pb-6">
         <TouchableOpacity
           onPress={handleEndCall}
           activeOpacity={0.8}
@@ -533,12 +551,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     marginHorizontal: 47,
-    marginTop: 101,
   },
   gridItem: {
     width: "33.33%",
     alignItems: "center",
     marginBottom: 15,
+  },
+  gridItemCompact: {
+    marginBottom: 6,
   },
   gridButton: {
     width: 72,
