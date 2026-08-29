@@ -1,6 +1,7 @@
 import CallBackground from "@/components/train/CallBackground";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
@@ -144,6 +145,12 @@ export default function Train() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  /**
+   * 예약 발신(CallWatcher)은 params에 시나리오 정보를 싣지 않고 scenarioId만 넘긴다.
+   * 목록 캐시를 공유하는 useScenario로 조회해 두 경로 모두 이름이 뜨게 한다.
+   */
+  const { data: scenario } = useScenario(scenarioId);
+  const scenarioTitle = title ?? scenario?.title;
   /** iPhone SE·8처럼 세로가 짧은 기기에서 통화 버튼이 잘리지 않도록 값을 줄인다 */
   const { height: windowHeight } = useWindowDimensions();
   const isCompactScreen = windowHeight < 700;
@@ -349,7 +356,7 @@ export default function Train() {
               <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
             </TouchableOpacity>
             </View>
-            <ScenarioLabel title={title} />
+            <ScenarioLabel title={scenarioTitle} />
           </View>
           </View>
         </View>
@@ -524,7 +531,7 @@ export default function Train() {
         >
           <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
         </TouchableOpacity>
-        <ScenarioLabel title={title} />
+        <ScenarioLabel title={scenarioTitle} />
       </View>
       </View>
     </View>
