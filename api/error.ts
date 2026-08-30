@@ -9,7 +9,9 @@ type ApiErrorBody = {
 };
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
-  if (!isAxiosError<ApiErrorBody>(error)) return fallback;
+  if (!isAxiosError<ApiErrorBody>(error)) {
+    return error instanceof Error && error.message ? error.message : fallback;
+  }
 
   const detail = error.response?.data?.detail;
   const detailMessage = Array.isArray(detail)
