@@ -2,8 +2,10 @@ import { deleteSignout } from "@/api/authApi";
 import { MyPageResponse } from "@/api/types";
 import { getMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
+import StyledImage from "@/components/common/StyledImage";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { useProfileImage } from "@/hooks/useProfileImage";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -60,6 +62,7 @@ function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
 function ProfileScreen() {
   const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const profileImage = useProfileImage(myPage?.s3Key);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,7 +104,7 @@ function ProfileScreen() {
     router.replace("/auth");
   };
 
-  const displayName = myPage?.name?.trim() || myPage?.username || "";
+  const displayName = myPage?.name?.trim() ?? "";
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
@@ -122,12 +125,24 @@ function ProfileScreen() {
         >
           <View className="items-center gap-3">
             <View className="h-[107px] w-[100px] items-center justify-center overflow-hidden rounded-[36px] bg-fill-neutral">
-              <Ionicons
+              {profileImage.uri ? (
+                <StyledImage
+                  source={{ uri: profileImage.uri }}
+                  contentFit="cover"
+                  className="absolute inset-0 size-full"
+                  onError={profileImage.onError}
+                />
+              ) : <Ionicons
                 name="person"
                 size={52}
                 color={SEMANTIC_COLORS.line.normal}
-              />
+              />}
             </View>
+            {profileImage.error ? (
+              <Pressable onPress={profileImage.retry} accessibilityRole="button" accessibilityLabel="프로필 사진 다시 불러오기">
+                <Text className="text-center text-caption text-status-error">{profileImage.error}</Text>
+              </Pressable>
+            ) : null}
 
             <View className="w-full items-center gap-0.5">
               <Text
