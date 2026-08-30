@@ -8,7 +8,9 @@ type ApiErrorBody = {
 };
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
-  if (!isAxiosError<ApiErrorBody>(error)) return fallback;
+  if (!isAxiosError<ApiErrorBody>(error)) {
+    return error instanceof Error && error.message ? error.message : fallback;
+  }
 
   return (
     error.response?.data?.error?.message ??
