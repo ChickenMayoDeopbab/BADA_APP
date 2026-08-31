@@ -118,7 +118,7 @@ export interface FileUrlResponse {
 
 export type Personality = 'kind' | 'neutral' | 'tough' | 'rude';
 export type Difficulty = 'high' | 'medium' | 'low';
-export type ScenarioCategory = 'restaurant' | 'hospital' | 'complaint' | 'delivery' | 'bank' | 'custom';
+export type ScenarioCategory = 'work' | 'daily' | 'school' | 'other';
 
 // Spring 서버 전용 타입 (대문자 enum, neutral → NORMAL)
 export type SpringSessionType = 'SCENARIO' | 'CUSTOM' | 'WARMUP';
@@ -135,6 +135,8 @@ export interface ScenarioInfo {
   tts_voice_id: string | null;
   ai_prompt: string;
   is_custom: boolean;
+  /** 커뮤니티에서 공유받아 복사한 커스텀 시나리오 */
+  is_copied?: boolean;
 }
 
 export interface ScenarioListResponse {
@@ -299,13 +301,6 @@ export interface GetFeedbackParams {
 export type ApiVoidData = Record<string, never> | null;
 export type ApiResponseVoid = ApiResponse<ApiVoidData>;
 
-export interface TrainingTime {
-  hour: number;
-  minute: number;
-  second: number;
-  nano: number;
-}
-
 export interface GoodSegment {
   start: number;
   end: number;
@@ -315,7 +310,165 @@ export interface GoodSegment {
 export interface FeedbackResponse {
   sessionType: SpringSessionType;
   scenarioName: string;
-  trainingTime: TrainingTime;
+  trainingTime: string;
   goodSegments: GoodSegment[];
   recordingUrl: string;
+}
+
+// AI 서버 커뮤니티 API
+export type CommunityReactionKind = "CHEER" | "RELATE" | "LIKE";
+
+export interface CommunityAuthorInfo {
+  user_id: number;
+  name?: string | null;
+  profile_image_url?: string | null;
+}
+
+export type CommunityAttachmentKind = "SCENARIO" | "TRAINING_RECORD";
+
+export interface CommunityAttachmentRequest {
+  kind: CommunityAttachmentKind;
+  ref_id: number;
+}
+
+export interface CommunityAttachedScenario {
+  title: string;
+  content: string;
+  category: string;
+  is_available?: boolean;
+  is_mine?: boolean;
+}
+
+export interface CommunityAttachedTrainingRecord {
+  scenario_name?: string | null;
+  session_type?: string | null;
+  started_at?: string | null;
+  duration_seconds?: number | null;
+  anxiety_score?: number | null;
+  audio_url?: string | null;
+  audio_status?: string;
+  is_available?: boolean;
+}
+
+export interface CommunityPostAttachment {
+  kind: CommunityAttachmentKind;
+  ref_id: number;
+  scenario?: CommunityAttachedScenario | null;
+  training_record?: CommunityAttachedTrainingRecord | null;
+}
+
+export interface CommunityScenarioCopyResponse {
+  scenario_id: number;
+  title: string;
+  category: string;
+  already_copied?: boolean;
+}
+
+export interface CommunityPostCreateRequest {
+  /** 1자 이상 100자 이하 */
+  title: string;
+  /** 1자 이상 5,000자 이하 */
+  content: string;
+  /** 종류별 최대 1개 */
+  attachments?: CommunityAttachmentRequest[];
+}
+
+export interface CommunityPostUpdateRequest {
+  /** 값이 있으면 1자 이상 100자 이하 */
+  title?: string | null;
+  /** 값이 있으면 1자 이상 5,000자 이하 */
+  content?: string | null;
+}
+
+export interface GetCommunityPostsParams {
+  /** 1부터 시작 */
+  page?: number;
+  /** 1 이상 50 이하 */
+  size?: number;
+  /** 제목 또는 내용 검색어 */
+  q?: string | null;
+}
+
+export type GetMyCommunityPostsParams = Omit<GetCommunityPostsParams, "q">;
+
+export interface CommunityReactionCounts {
+  cheer?: number;
+  relate?: number;
+  like?: number;
+  total?: number;
+}
+
+export interface CommunityReactionRequest {
+  kind: CommunityReactionKind;
+}
+
+export interface CommunityReactionStateResponse {
+  post_id: number;
+  reactions: CommunityReactionCounts;
+  my_reaction?: CommunityReactionKind | null;
+}
+
+export interface CommunityPostSummary {
+  post_id: number;
+  title: string;
+  content_preview: string;
+  author: CommunityAuthorInfo;
+  view_count: number;
+  comment_count: number;
+  reactions: CommunityReactionCounts;
+  my_reaction?: CommunityReactionKind | null;
+  attachment_kinds?: CommunityAttachmentKind[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityPostDetailResponse {
+  post_id: number;
+  title: string;
+  content: string;
+  author: CommunityAuthorInfo;
+  view_count: number;
+  comment_count?: number;
+  reactions?: CommunityReactionCounts;
+  my_reaction?: CommunityReactionKind | null;
+  attachments?: CommunityPostAttachment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityPostListResponse {
+  posts: CommunityPostSummary[];
+  page: number;
+  size: number;
+  total: number;
+  has_next: boolean;
+}
+
+export interface CommunityCommentCreateRequest {
+  /** 1자 이상 1,000자 이하 */
+  content: string;
+  /** 지정하면 최상위 댓글에 대한 답글로 등록 */
+  parent_comment_id?: number | null;
+}
+
+export interface CommunityCommentUpdateRequest {
+  /** 1자 이상 1,000자 이하 */
+  content: string;
+}
+
+export interface CommunityCommentResponse {
+  comment_id: number;
+  parent_comment_id?: number | null;
+  content: string;
+  author: CommunityAuthorInfo;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityCommentThread extends CommunityCommentResponse {
+  replies?: CommunityCommentResponse[];
+}
+
+export interface CommunityCommentListResponse {
+  comments: CommunityCommentThread[];
 }
