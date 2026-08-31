@@ -162,6 +162,8 @@ export interface CustomSessionRequest {
   title: string;
   call_target: string;
   call_purpose: string;
+  /** 서버 기본값은 "other" */
+  category?: ScenarioCategory;
   personality?: SpringPersonality;
   difficulty?: Difficulty;
   is_warmup?: boolean;

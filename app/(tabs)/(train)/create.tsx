@@ -1,13 +1,19 @@
+import { createCustomScenario } from "@/api/trainApi";
 import AnimatedCheck from "@/components/common/AnimatedCheck";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CustomButton from "@/components/common/CustomButton";
 import Loading from "@/components/common/Loading";
 import Top from "@/components/common/Top";
-import { createCustomScenario } from "@/api/trainApi";
+import CategorySelect from "@/components/train/CategorySelect";
+import StepProgress from "@/components/train/StepProgress";
+import { ScenarioCategory } from "@/api/types";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
+import AnxiousFace from "@/assets/anxiousFace.svg";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,50 +21,74 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
-type CreateStep = "write" | "loading" | "done" | "fail";
+type CreateStep = "info" | "detail" | "loading" | "done" | "fail";
+
+/** 입력을 받는 단계만 상단 진행 막대에 표시한다 */
+const INPUT_STEPS: CreateStep[] = ["info", "detail"];
 
 type CustomScenarioForm = {
   title: string;
-  purpose: string;
+  category: ScenarioCategory | null;
   callee: string;
+  purpose: string;
+};
+
+const EMPTY_FORM: CustomScenarioForm = {
+  title: "",
+  category: null,
+  callee: "",
+  purpose: "",
 };
 
 const FieldBox = ({ label, children }: { label: string; children: ReactNode }) => (
   <View className="gap-y-2">
-    <Text className="text-sm font-medium text-[#3B3D3E]">{label}</Text>
-    <View className="bg-[#F5F5F5] rounded-xl px-4 py-3">{children}</View>
+    <Text className="text-label font-medium text-label-neutral">{label}</Text>
+    {children}
   </View>
 );
 
 export default function Create() {
-  const [step, setStep] = useState<CreateStep>("write");
-  const [form, setForm] = useState<CustomScenarioForm>({
-    title: "",
-    purpose: "",
-    callee: "",
-  });
+  const [step, setStep] = useState<CreateStep>("info");
+  const [form, setForm] = useState<CustomScenarioForm>(EMPTY_FORM);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isExitDialogVisible, setIsExitDialogVisible] = useState(false);
+  const isKeyboardVisible = useKeyboardVisible();
   const createdScenarioIdRef = useRef<number | null>(null);
   const queryClient = useQueryClient();
 
-  useAndroidBackHandler(() => {
-    router.replace("/(tabs)/(train)/list");
-    return true;
-  });
-
   useFocusEffect(
     useCallback(() => {
-      setStep("write");
-      setForm({ title: "", purpose: "", callee: "" });
+      setStep("info");
+      setForm(EMPTY_FORM);
+      setIsCategoryOpen(false);
+      setIsExitDialogVisible(false);
       createdScenarioIdRef.current = null;
     }, [])
   );
 
-  const isSubmittable =
-    form.title.trim().length > 0 &&
-    form.purpose.trim().length > 0 &&
-    form.callee.trim().length > 0;
+  const goToList = useCallback(() => router.replace("/(tabs)/(train)/list"), []);
+
+  /** 뒤로 가기: 두 번째 단계면 첫 단계로, 첫 단계면 나가기 확인 */
+  const handleBack = useCallback(() => {
+    if (step === "detail") {
+      setStep("info");
+      return;
+    }
+    setIsExitDialogVisible(true);
+  }, [step]);
+
+  useAndroidBackHandler(() => {
+    // 입력 단계가 아니면 되돌릴 내용이 없으므로 바로 목록으로 보낸다
+    if (step === "info" || step === "detail") handleBack();
+    else goToList();
+    return true;
+  });
+
+  const isInfoSubmittable =
+    form.title.trim().length > 0 && form.category !== null;
+  const isDetailSubmittable =
+    form.callee.trim().length > 0 && form.purpose.trim().length > 0;
 
   useEffect(() => {
     if (step !== "loading") return;
@@ -71,6 +101,8 @@ export default function Create() {
           title: form.title,
           call_target: form.callee,
           call_purpose: form.purpose,
+          // 화면에서 카테고리를 고르지 않고는 넘어올 수 없다(다음 버튼이 막힘)
+          ...(form.category ? { category: form.category } : {}),
         });
         if (cancelled) return;
         createdScenarioIdRef.current = result.scenario.scenario_id;
@@ -85,36 +117,28 @@ export default function Create() {
 
     run();
     return () => { cancelled = true; };
-  }, [queryClient, step]);
+  }, [queryClient, step, form.title, form.callee, form.purpose, form.category]);
 
   if (step === "fail") {
     return (
-      <View className="flex-1 bg-white">
+      <View className="flex-1 bg-background-normal">
         <Top title="커스텀 시나리오 생성" />
         <View className="flex-1 items-center justify-center px-10">
-          <Image
-            source={require("@/assets/sadFace.gif")}
-            style={{ width: 90, height: 90 }}
-          />
-          <Text className="text-2xl font-bold mt-8 mb-2 text-center">
+          <AnxiousFace width={90} height={90} />
+          <Text className="mt-8 mb-2 text-title2 font-bold text-label-normal text-center">
             시나리오 생성에 실패했어요.
           </Text>
-          <Text className="text-base font-medium text-[#5C5E5E] text-center">
-            다시 시도해 주세요.
+          <Text className="text-body font-medium text-label-alternative text-center">
+            생성 시 입력한 내용을 다시 확인해주세요.
           </Text>
         </View>
-        <View className="px-10 pb-10 gap-y-3">
+        <View className="px-10 pb-10 gap-y-1">
           <CustomButton
             label="다시 시도하기"
-            backgroundColor="#0AE365"
-            color="white"
-            onPress={() => setStep("write")}
+            tone="primary"
+            onPress={() => setStep("detail")}
           />
-          <CustomButton
-            label="홈으로 돌아가기"
-            color="#3B3D3E"
-            onPress={() => router.push("/(tabs)/(train)/list")}
-          />
+          <CustomButton label="홈으로 돌아가기" tone="neutral" onPress={goToList} />
         </View>
       </View>
     );
@@ -125,7 +149,7 @@ export default function Create() {
       <Loading
         status="loading"
         title="커스텀 시나리오 생성"
-        loadingText="AI가 시나리오를 생성하고 있어요."
+        loadingText={"나만을 위한 커스텀 시나리오가\n만들어지고 있어요!"}
         loadingSubText="잠시만 기다려 주세요."
       />
     );
@@ -133,22 +157,21 @@ export default function Create() {
 
   if (step === "done") {
     return (
-      <View className="flex-1 bg-white">
+      <View className="flex-1 bg-background-normal">
         <Top title="커스텀 시나리오 생성" />
         <View className="flex-1 items-center justify-center px-10">
           <AnimatedCheck />
-          <Text className="text-2xl font-bold mt-8 mb-2 text-center">
-            시나리오가 생성됐어요.
+          <Text className="mt-8 mb-2 text-title2 font-bold text-label-normal text-center">
+            커스텀 시나리오가 완성됐어요.
           </Text>
-          <Text className="text-base font-medium text-[#5C5E5E] text-center">
+          <Text className="text-body font-medium text-label-alternative text-center">
             내가 만든 시나리오로 훈련을 시작해볼까요?
           </Text>
         </View>
-        <View className="px-10 pb-10 gap-y-3">
+        <View className="px-10 pb-10 gap-y-1">
           <CustomButton
             label="훈련 바로 시작하기"
-            backgroundColor="#0AE365"
-            color="white"
+            tone="primary"
             onPress={() =>
               router.push({
                 pathname: "/(tabs)/(train)/start",
@@ -159,11 +182,7 @@ export default function Create() {
               })
             }
           />
-          <CustomButton
-            label="시나리오 보러가기"
-            color="#3B3D3E"
-            onPress={() => router.push("/(tabs)/(train)/list")}
-          />
+          <CustomButton label="시나리오 보러가기" tone="neutral" onPress={goToList} />
         </View>
       </View>
     );
@@ -171,56 +190,114 @@ export default function Create() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background-normal"
+      /* Android는 매니페스트의 adjustResize가 창을 줄여주므로 여기서 또 줄이면 이중 보정된다 */
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Top title="커스텀 시나리오 생성" back={true} onBack={() => router.push("/(tabs)/(train)/list")} />
-      <ScrollView
-        className="flex-1 px-10"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      >
-        <View className="gap-y-6 mt-2">
-          <FieldBox label="시나리오 제목">
-            <TextInput
-              className="text-base text-[#3B3D3E]"
-              placeholder="시나리오를 나타낼 제목을 입력해주세요."
-              placeholderTextColor="#BDBEBE"
-              value={form.title}
-              onChangeText={(v) => setForm((prev) => ({ ...prev, title: v }))}
-            />
-          </FieldBox>
-          <FieldBox label="전화 목적">
-            <TextInput
-              className="text-base text-[#3B3D3E]"
-              placeholder="전화의 목적을 설명해주세요."
-              placeholderTextColor="#BDBEBE"
-              value={form.purpose}
-              onChangeText={(v) => setForm((prev) => ({ ...prev, purpose: v }))}
-              multiline
-              style={{ minHeight: 120, textAlignVertical: "top" }}
-            />
-          </FieldBox>
-          <FieldBox label="전화 상대">
-            <TextInput
-              className="text-base text-[#3B3D3E]"
-              placeholder="전화 상대에 대해 설명해주세요."
-              placeholderTextColor="#BDBEBE"
-              value={form.callee}
-              onChangeText={(v) => setForm((prev) => ({ ...prev, callee: v }))}
-            />
-          </FieldBox>
-        </View>
-      </ScrollView>
-      <View className="px-10 pb-10 pt-4">
-        <CustomButton
-          label="시나리오 생성하기"
-          backgroundColor="#0AE365"
-          color="white"
-          disabled={!isSubmittable}
-          onPress={() => setStep("loading")}
+      <Top title="커스텀 시나리오 생성" back onBack={handleBack} />
+      <View className="px-[33px]">
+        <StepProgress
+          total={INPUT_STEPS.length}
+          current={INPUT_STEPS.indexOf(step) + 1}
         />
       </View>
+
+      <ScrollView
+        className="flex-1 px-[33px]"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
+        {step === "info" ? (
+          <View className="gap-y-6 mt-8">
+            <FieldBox label="시나리오 제목">
+              <TextInput
+                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                placeholder="시나리오를 나타낼 제목을 입력해주세요."
+                placeholderTextColor="#BDBEBE"
+                value={form.title}
+                onChangeText={(value) =>
+                  setForm((prev) => ({ ...prev, title: value }))
+                }
+                onFocus={() => setIsCategoryOpen(false)}
+              />
+            </FieldBox>
+            <FieldBox label="카테고리">
+              <CategorySelect
+                value={form.category}
+                isOpen={isCategoryOpen}
+                onToggle={() => setIsCategoryOpen((prev) => !prev)}
+                onSelect={(category) => {
+                  setForm((prev) => ({ ...prev, category }));
+                  setIsCategoryOpen(false);
+                }}
+              />
+            </FieldBox>
+          </View>
+        ) : (
+          <View className="gap-y-6 mt-8">
+            <FieldBox label="전화 상대">
+              <TextInput
+                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                placeholder="전화 상대에 대해 설명해주세요."
+                placeholderTextColor="#BDBEBE"
+                value={form.callee}
+                onChangeText={(value) =>
+                  setForm((prev) => ({ ...prev, callee: value }))
+                }
+              />
+            </FieldBox>
+            <FieldBox label="전화 목적">
+              <TextInput
+                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                placeholder="전화의 목적을 설명해주세요."
+                placeholderTextColor="#BDBEBE"
+                value={form.purpose}
+                onChangeText={(value) =>
+                  setForm((prev) => ({ ...prev, purpose: value }))
+                }
+                multiline
+                style={{ minHeight: 168, textAlignVertical: "top" }}
+              />
+            </FieldBox>
+          </View>
+        )}
+      </ScrollView>
+
+      <View
+        className={`px-[33px] pt-4 ${isKeyboardVisible ? "pb-5" : "pb-10"}`}
+      >
+        {step === "info" ? (
+          <CustomButton
+            label="다음으로"
+            tone="primary"
+            disabled={!isInfoSubmittable}
+            onPress={() => {
+              setIsCategoryOpen(false);
+              setStep("detail");
+            }}
+          />
+        ) : (
+          <CustomButton
+            label="시나리오 생성하기"
+            tone="primary"
+            disabled={!isDetailSubmittable}
+            onPress={() => setStep("loading")}
+          />
+        )}
+      </View>
+
+      <ConfirmDialog
+        visible={isExitDialogVisible}
+        title="정말 나갈까요?"
+        description="작성하시던 커스텀 시나리오는 저장되지 않아요."
+        confirmLabel="나가기"
+        onCancel={() => setIsExitDialogVisible(false)}
+        onConfirm={() => {
+          setIsExitDialogVisible(false);
+          goToList();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
