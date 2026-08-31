@@ -46,5 +46,6 @@ app-example
 .env
 
 .idea/
+docs/
 
 AGENTS.md
