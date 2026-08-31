@@ -1,7 +1,7 @@
 import { postCheckUsername } from "@/api/authApi";
 import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
 import { ProfileImageFile, uploadProfileImage } from "@/api/fileApi";
-import { FileUploadResponse, MyPageResponse } from "@/api/types";
+import { MyPageResponse } from "@/api/types";
 import { getMyPage, patchMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
 import StyledImage from "@/components/common/StyledImage";
@@ -76,7 +76,7 @@ export default function ProfileEditScreen() {
   const [saveError, setSaveError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [selectedImage, setSelectedImage] = useState<ProfileImageFile | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<FileUploadResponse | null>(null);
+  const [uploadedS3Key, setUploadedS3Key] = useState<string | null>(null);
   const [libraryVisible, setLibraryVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
@@ -84,7 +84,6 @@ export default function ProfileEditScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const mounted = useRef(false);
   const checkRequest = useRef(0);
-  const uploadRequest = useRef(0);
   const saving = useRef(false);
   const savedImage = useProfileImage(myPage?.s3Key);
 
@@ -112,7 +111,6 @@ export default function ProfileEditScreen() {
     return () => {
       mounted.current = false;
       checkRequest.current += 1;
-      uploadRequest.current += 1;
     };
   }, [loadProfile]);
 
@@ -150,45 +148,51 @@ export default function ProfileEditScreen() {
     }
   };
 
-  const selectImage = async (uri: string, fileName?: string) => {
+  const selectImage = (uri: string, fileName?: string) => {
     if (!canEdit || saving.current) return;
-    const request = ++uploadRequest.current;
     setSelectedImage({ uri, fileName });
-    setUploadedImage(null);
+    setUploadedS3Key(null);
     setUploadError("");
     setSaveError("");
-    setIsUploading(true);
-    try {
-      const prepared = await prepareProfileImageForUpload(uri, fileName);
-      const uploaded = await uploadProfileImage(prepared);
-      if (mounted.current && request === uploadRequest.current) setUploadedImage(uploaded);
-    } catch (error) {
-      if (mounted.current && request === uploadRequest.current) {
-        setUploadError(getApiErrorMessage(error, "사진 업로드에 실패했어요. 다시 시도해주세요."));
-      }
-    } finally {
-      if (mounted.current && request === uploadRequest.current) setIsUploading(false);
-    }
   };
 
   const saveChanges = async () => {
-    if (!myPage || !hasChanges || saving.current || isUploading || isChecking) return;
+    if (!myPage || !hasChanges || saving.current || isChecking) return;
     const nextNameError = validateProfileName(name);
     const nextUsernameError = validateProfileUsername(username) ||
       (usernameChanged && checkedUsername !== username.trim() ? "아이디 중복 확인을 완료해주세요." : "");
     setNameError(nextNameError);
     setUsernameError(nextUsernameError);
-    if (nextNameError || nextUsernameError || (selectedImage && !uploadedImage)) return;
+    if (nextNameError || nextUsernameError) return;
 
     saving.current = true;
     setIsSaving(true);
     setSaveError("");
+    setUploadError("");
+    let stage: "upload" | "profile" = selectedImage && !uploadedS3Key
+      ? "upload"
+      : "profile";
     try {
+      let nextS3Key = uploadedS3Key ?? myPage.s3Key ?? undefined;
+      if (selectedImage && !uploadedS3Key) {
+        setIsUploading(true);
+        const prepared = await prepareProfileImageForUpload(
+          selectedImage.uri,
+          selectedImage.fileName,
+        );
+        const uploaded = await uploadProfileImage(prepared);
+        nextS3Key = uploaded.s3Key;
+        if (!mounted.current) return;
+        setUploadedS3Key(uploaded.s3Key);
+        setIsUploading(false);
+      }
+
+      stage = "profile";
       await patchMyPage({
         name: name.trim(),
         username: username.trim(),
         // 사진을 바꾸지 않았다면 기존 key를 보존합니다. 로컬 URI는 전송하지 않습니다.
-        s3Key: uploadedImage?.s3Key ?? myPage.s3Key ?? undefined,
+        s3Key: nextS3Key,
       });
       if (usernameChanged) {
         await setAuthenticatedUsername(username.trim()).catch(() => {
@@ -198,8 +202,15 @@ export default function ProfileEditScreen() {
       if (mounted.current) router.back();
     } catch (error) {
       if (!mounted.current) return;
-      const message = getApiErrorMessage(error, "프로필 저장에 실패했어요. 다시 시도해주세요.");
-      if (usernameChanged && getApiErrorStatus(error) === 409) {
+      const message = getApiErrorMessage(
+        error,
+        stage === "upload"
+          ? "사진 업로드에 실패했어요. 저장 버튼을 눌러 다시 시도해주세요."
+          : "프로필 저장에 실패했어요. 다시 시도해주세요.",
+      );
+      if (stage === "upload") {
+        setUploadError(message);
+      } else if (usernameChanged && getApiErrorStatus(error) === 409) {
         setCheckedUsername(null);
         setUsernameError(message);
       } else {
@@ -207,14 +218,16 @@ export default function ProfileEditScreen() {
       }
     } finally {
       saving.current = false;
-      if (mounted.current) setIsSaving(false);
+      if (mounted.current) {
+        setIsUploading(false);
+        setIsSaving(false);
+      }
     }
   };
 
   const cancelChanges = () => {
     if (saving.current) return;
     checkRequest.current += 1;
-    uploadRequest.current += 1;
     router.back();
   };
   const imageUri = selectedImage?.uri || savedImage.uri;
@@ -255,7 +268,7 @@ export default function ProfileEditScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="프로필 사진 변경"
-              disabled={!canEdit || isUploading}
+              disabled={!canEdit}
               onPress={() => setLibraryVisible(true)}
               className="h-[116px] w-[104px] self-center active:opacity-70"
             >
@@ -280,12 +293,7 @@ export default function ProfileEditScreen() {
             </Pressable>
             {isUploading && <Text className="mt-2 text-center text-caption text-label-alternative">사진을 업로드하고 있어요.</Text>}
             {uploadError ? (
-              <View className="mt-2 gap-2">
-                <Text accessibilityLiveRegion="polite" className="text-center text-caption text-status-error">{uploadError}</Text>
-                <CustomButton label="사진 업로드 다시 시도" variant="md" disabled={isUploading || isSaving} onPress={() => {
-                  if (selectedImage) void selectImage(selectedImage.uri, selectedImage.fileName);
-                }} />
-              </View>
+              <Text accessibilityLiveRegion="polite" className="mt-2 text-center text-caption text-status-error">{uploadError}</Text>
             ) : !selectedImage && savedImage.error ? (
               <Pressable onPress={savedImage.retry} accessibilityRole="button" accessibilityLabel="프로필 사진 다시 불러오기">
                 <Text className="mt-2 text-center text-caption text-status-error">{savedImage.error}</Text>
@@ -347,7 +355,7 @@ export default function ProfileEditScreen() {
               {saveError ? <Text accessibilityLiveRegion="polite" className="mb-2 text-center text-label text-status-error">{saveError}</Text> : null}
               <CustomButton
                 label={isSaving ? "저장 중" : "변경사항 저장하기"}
-                disabled={!canEdit || !hasChanges || isChecking || isUploading || Boolean(selectedImage && !uploadedImage)}
+                disabled={!canEdit || !hasChanges || isChecking}
                 onPress={() => void saveChanges()}
                 tone="primary"
               />
@@ -357,7 +365,7 @@ export default function ProfileEditScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <PhotoLibrarySheet visible={libraryVisible} onClose={() => setLibraryVisible(false)} onSelect={(uri, fileName) => void selectImage(uri, fileName)} />
+      <PhotoLibrarySheet visible={libraryVisible} onClose={() => setLibraryVisible(false)} onSelect={selectImage} />
     </SafeAreaView>
   );
 }
