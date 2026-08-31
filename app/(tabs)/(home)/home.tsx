@@ -65,7 +65,7 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 
 export default function Home() {
   useDoubleBackExit();
-  const [username, setUsername] = useState("");
+  const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const today = useMemo(() => new Date(), []);
@@ -102,7 +102,7 @@ export default function Home() {
           const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
           setAttendedDates(dates);
         }
-        if (results[1].status === "fulfilled") setUsername(results[1].value.data.username);
+        if (results[1].status === "fulfilled") setName(results[1].value.data.name ?? "");
       };
       loadHome();
       return () => { isActive = false; };
@@ -130,7 +130,7 @@ export default function Home() {
           <View className="absolute rounded-full right-1 top-px size-2 bg-status-error" />
         </View>
         <View className="flex-row items-center gap-0.5">
-          <Text className="text-body font-medium text-label-normal">다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
+          <Text className="font-medium text-body text-label-normal">다시 만나서 반가워요{name ? `, ${name}님!` : "!"}</Text>
           <SmileIllustration width={26} height={26} />
         </View>
         <Text className="mt-0.5 text-headline1 font-bold text-label-normal">오늘은 어떤 시나리오로 연습할까요?</Text>
