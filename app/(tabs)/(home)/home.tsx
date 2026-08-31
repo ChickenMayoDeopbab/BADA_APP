@@ -6,7 +6,7 @@ import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
+import { Href, router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -115,10 +115,15 @@ export default function Home() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-[33px] pb-6">
         <View className="pt-[13px]">
-        <View className="relative h-[38px] items-end">
+        <Pressable
+          accessibilityLabel="알림 보기"
+          hitSlop={8}
+          onPress={() => router.push("/(tabs)/(home)/notifications" as Href)}
+          className="relative h-[38px] items-end"
+        >
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
           <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
-        </View>
+        </Pressable>
         <View className="flex-row items-center gap-0.5">
           <Text className="text-body font-medium text-label-normal">다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
           <SmileIllustration width={26} height={26} />

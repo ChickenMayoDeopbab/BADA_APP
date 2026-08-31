@@ -62,6 +62,7 @@ export default function TabLayout() {
     currentRoute === "(community)" || currentRoute === "community";
   const hideTabBar =
     FULL_SCREEN_PATHS.includes(pathname) ||
+    pathname.endsWith("/notifications") ||
     pathname.endsWith("/search") ||
     (isCommunityStack && !isCommunityRoot);
 
