@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -50,6 +51,7 @@ const cardShadow = {
 };
 
 const MINIMUM_LOADING_TIME = 3000;
+const FEEDBACK_AUDIO_HEIGHT = 88;
 
 const wait = (duration: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, duration));
@@ -129,6 +131,62 @@ const keepWordsTogether = (text: string) =>
     .split(" ")
     .map((word) => word.split("").join("\u2060"))
     .join(" ");
+
+function FeedbackAudio({
+  isExpanded,
+  audioUrl,
+  startTime,
+  endTime,
+}: {
+  isExpanded: boolean;
+  audioUrl: string;
+  startTime: number;
+  endTime: number;
+}) {
+  const [shouldRender, setShouldRender] = useState(isExpanded);
+  const progress = useSharedValue(isExpanded ? 1 : 0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    const animation = {
+      duration: reducedMotion ? 0 : 220,
+      easing: Easing.inOut(Easing.quad),
+    };
+
+    if (isExpanded) {
+      setShouldRender(true);
+      progress.value = withTiming(1, animation);
+      return;
+    }
+
+    progress.value = withTiming(0, animation, (finished) => {
+      if (finished) runOnJS(setShouldRender)(false);
+    });
+  }, [isExpanded, progress, reducedMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: FEEDBACK_AUDIO_HEIGHT * progress.value,
+    opacity: progress.value,
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents={isExpanded ? "auto" : "none"}
+      className="overflow-hidden"
+      style={animatedStyle}
+    >
+      {shouldRender && (
+        <View className="pt-4">
+          <AudioSegmentButton
+            audioUrl={audioUrl}
+            startTime={startTime}
+            endTime={endTime}
+          />
+        </View>
+      )}
+    </Animated.View>
+  );
+}
 
 function SummaryBackground() {
   return (
@@ -387,33 +445,29 @@ export default function Report() {
                             <Text className="h-7 font-medium text-headline2 text-label-neutral">
                               {formatTimelineTime(segment.start)}
                             </Text>
-                            <View
-                              className="px-3 py-4 overflow-hidden bg-background-normal rounded-component"
-                              style={cardShadow}
-                            >
-                              <Pressable
-                                className="flex-row items-start justify-between"
-                                onPress={() => toggleFeedback(index)}
-                              >
-                                <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
-                                  {keepWordsTogether(segment.good_point)}
-                                </Text>
-                                <Ionicons
-                                  name={isExpanded ? "chevron-up" : "chevron-down"}
-                                  size={24}
-                                  color={SEMANTIC_COLORS.line.normal}
-                                />
-                              </Pressable>
-
-                              {isExpanded && (
-                                <View className="mt-4">
-                                  <AudioSegmentButton
-                                    audioUrl={feedback.recordingUrl}
-                                    startTime={segment.start}
-                                    endTime={segment.end}
+                            <View className="rounded-component" style={cardShadow}>
+                              <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
+                                <Pressable
+                                  className="flex-row items-start justify-between"
+                                  onPress={() => toggleFeedback(index)}
+                                >
+                                  <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
+                                    {keepWordsTogether(segment.good_point)}
+                                  </Text>
+                                  <Ionicons
+                                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                                    size={24}
+                                    color={SEMANTIC_COLORS.line.normal}
                                   />
-                                </View>
-                              )}
+                                </Pressable>
+
+                                <FeedbackAudio
+                                  isExpanded={isExpanded}
+                                  audioUrl={feedback.recordingUrl}
+                                  startTime={segment.start}
+                                  endTime={segment.end}
+                                />
+                              </View>
                             </View>
                           </View>
                         </View>
