@@ -48,6 +48,9 @@ function CallWatcher() {
   return null;
 }
 
+/** 하단 탭 바를 감추고 화면 전체를 쓰는 경로 (통화·불안 점수 입력) */
+const FULL_SCREEN_PATHS = ["/train", "/anxiety"];
+
 export default function TabLayout() {
   const pathname = usePathname();
   const segments = useSegments();
@@ -58,7 +61,7 @@ export default function TabLayout() {
   const isCommunityRoot =
     currentRoute === "(community)" || currentRoute === "community";
   const hideTabBar =
-    pathname === "/train" ||
+    FULL_SCREEN_PATHS.includes(pathname) ||
     pathname.endsWith("/search") ||
     (isCommunityStack && !isCommunityRoot);
 
