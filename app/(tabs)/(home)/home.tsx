@@ -1,4 +1,4 @@
-import { checkAttendance, getAttendantDays } from "@/api/AttendanceApi";
+import { getAttendantDays } from "@/api/AttendanceApi";
 import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
 import PizzaIllustration from "@/assets/home-pizza.svg";
@@ -6,8 +6,8 @@ import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -89,24 +89,25 @@ export default function Home() {
     return Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
   }, [today]);
 
-  useEffect(() => {
-    let isActive = true;
-    const loadHome = async () => {
-      try { await checkAttendance(); } catch {}
-      const results = await Promise.allSettled([
-        getAttendantDays(today.getFullYear(), today.getMonth() + 1),
-        getMyPage(),
-      ]);
-      if (!isActive) return;
-      if (results[0].status === "fulfilled") {
-        const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
-        setAttendedDates(dates);
-      }
-      if (results[1].status === "fulfilled") setUsername(results[1].value.data.username);
-    };
-    loadHome();
-    return () => { isActive = false; };
-  }, [today]);
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const loadHome = async () => {
+        const results = await Promise.allSettled([
+          getAttendantDays(today.getFullYear(), today.getMonth() + 1),
+          getMyPage(),
+        ]);
+        if (!isActive) return;
+        if (results[0].status === "fulfilled") {
+          const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
+          setAttendedDates(dates);
+        }
+        if (results[1].status === "fulfilled") setUsername(results[1].value.data.username);
+      };
+      loadHome();
+      return () => { isActive = false; };
+    }, [today]),
+  );
 
   const streak = useMemo(() => {
     const attended = new Set(attendedDates);

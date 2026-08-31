@@ -1,3 +1,4 @@
+import { checkAttendance } from "@/api/AttendanceApi";
 import { getFeedback } from "@/api/recordApi";
 import { FeedbackResponse } from "@/api/types";
 import Clap from "@/assets/clap.svg";
@@ -293,6 +294,7 @@ export default function Report() {
         wait(MINIMUM_LOADING_TIME),
       ]);
       setFeedback(result);
+      try { await checkAttendance(); } catch {}
     } catch {
       setError("훈련 결과를 불러오지 못했습니다.");
     } finally {
