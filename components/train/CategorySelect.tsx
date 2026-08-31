@@ -1,16 +1,14 @@
-import {
-  CUSTOM_SCENARIO_CATEGORIES,
-  CustomScenarioCategory,
-} from "@/constants/train";
+import { ScenarioCategory } from "@/api/types";
+import { SCENARIO_CATEGORIES } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, Text, View } from "react-native";
 
 interface CategorySelectProps {
-  value: CustomScenarioCategory | null;
+  value: ScenarioCategory | null;
   isOpen: boolean;
   onToggle: () => void;
-  onSelect: (category: CustomScenarioCategory) => void;
+  onSelect: (category: ScenarioCategory) => void;
 }
 
 /** 커스텀 시나리오 카테고리 드롭다운 */
@@ -20,7 +18,7 @@ export default function CategorySelect({
   onToggle,
   onSelect,
 }: CategorySelectProps) {
-  const selected = CUSTOM_SCENARIO_CATEGORIES.find((item) => item.value === value);
+  const selected = SCENARIO_CATEGORIES.find((item) => item.value === value);
 
   return (
     <View className="gap-2">
@@ -47,7 +45,7 @@ export default function CategorySelect({
       {/* 드롭다운이 열렸을 때만 카테고리 목록을 펼친다 */}
       {isOpen && (
         <View className="overflow-hidden rounded-component bg-fill-normal">
-          {CUSTOM_SCENARIO_CATEGORIES.map((category) => (
+          {SCENARIO_CATEGORIES.map((category) => (
             <Pressable
               key={category.value}
               accessibilityRole="button"

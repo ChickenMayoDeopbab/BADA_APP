@@ -12,19 +12,15 @@ export const SPRING_PERSONALITY_MAP = ["KIND", "NORMAL", "TOUGH", "RUDE"] as con
 export const CALL_DELAY_MINUTES = Array.from({ length: 61 }, (_, minute) => minute);
 
 /**
- * 커스텀 시나리오 생성 시 고르는 카테고리.
- * 현재 AI 서버(CustomSessionRequest)에는 대응하는 필드가 없어 화면 상태로만 사용하고
- * 요청 본문에는 포함하지 않는다. 서버 스펙이 확정되면 value를 그대로 전달하면 된다.
+ * 시나리오 카테고리. value는 서버 ScenarioCategory enum을 그대로 쓴다.
+ * 목록 필터 칩과 커스텀 시나리오 생성 드롭다운이 같은 목록을 공유한다.
  */
-export const CUSTOM_SCENARIO_CATEGORIES = [
+export const SCENARIO_CATEGORIES = [
   { value: "work", label: "업무" },
   { value: "daily", label: "일상" },
   { value: "school", label: "학교" },
-  { value: "etc", label: "기타" },
+  { value: "other", label: "기타" },
 ] as const;
-
-export type CustomScenarioCategory =
-  (typeof CUSTOM_SCENARIO_CATEGORIES)[number]["value"];
 
 /**
  * 훈련 종료 직후 불안 점수 입력 전에 순서대로 보여주는 안내 메시지.
@@ -68,18 +64,13 @@ export const ANXIETY_SCORE_COLORS = [
 export const ANXIETY_SCORE_MAX = 10;
 
 /**
- * 시나리오 카테고리 칩 목록.
- * 라벨만 한글이고 value는 서버 enum(ScenarioCategory)을 그대로 사용한다.
+ * 시나리오 목록 필터 칩.
  * value가 null이면 카테고리 필터를 걸지 않는다(전체).
- * custom은 커스텀 탭에서 따로 노출되므로 칩에서 제외한다.
+ * 커스텀 시나리오는 카테고리가 아니라 is_custom으로 구분해 별도 탭에 노출한다.
  */
 export const SCENARIO_CATEGORY_CHIPS = [
   { value: null, label: "전체" },
-  { value: "restaurant", label: "식당" },
-  { value: "hospital", label: "병원" },
-  { value: "complaint", label: "민원" },
-  { value: "delivery", label: "배달" },
-  { value: "bank", label: "은행" },
+  ...SCENARIO_CATEGORIES,
 ] as const;
 
 /** 시나리오 목록 탭 (기본 제공 / 커스텀) */
