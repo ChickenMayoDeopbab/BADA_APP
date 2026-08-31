@@ -10,6 +10,7 @@ import {
   CommunityPostUpdateRequest,
   CommunityReactionRequest,
   CommunityReactionStateResponse,
+  CommunityScenarioCopyResponse,
   GetCommunityPostsParams,
   GetMyCommunityPostsParams,
 } from "./types";
@@ -85,6 +86,16 @@ export const deleteCommunityReaction = async (
   postId: number,
 ): Promise<void> => {
   await aiApiClient.delete(`${COMMUNITY_POSTS_PATH}/${postId}/reaction`);
+};
+
+/** 게시글에 첨부된 시나리오를 로그인 사용자의 목록으로 복사 */
+export const postCopyCommunityScenario = async (
+  postId: number,
+): Promise<CommunityScenarioCopyResponse> => {
+  const response = await aiApiClient.post<CommunityScenarioCopyResponse>(
+    `${COMMUNITY_POSTS_PATH}/${postId}/scenario/copy`,
+  );
+  return response.data;
 };
 
 /** 게시글 댓글 또는 답글 작성 */

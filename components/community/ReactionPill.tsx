@@ -48,7 +48,7 @@ export default function ReactionPill({
       className={`flex-row items-center justify-center gap-1 rounded-[10px] px-1.5 py-1 ${
         compact ? "" : "h-9 w-[94px] border border-[#F0F0F0]"
       } ${
-        selected ? "bg-primary-normal" : "bg-transparent"
+        selected ? "bg-green-40" : "bg-transparent"
       }`}
     >
       <View
