@@ -43,21 +43,17 @@ export const uploadProfileImage = async ({ uri, fileName }: ProfileImageFile) =>
     },
   );
   const uploaded = response.data.data;
-  if (
-    !uploaded?.s3Key ||
-    !Number.isSafeInteger(uploaded.fileId) ||
-    uploaded.fileId <= 0
-  ) {
+  if (!uploaded?.s3Key) {
     throw new Error("사진 업로드 응답에 파일 정보가 없습니다.");
   }
   return uploaded;
 };
 
-export const getFileUrl = async (fileId: number): Promise<string> => {
+export const getFileUrl = async (s3Key: string): Promise<string> => {
   const response = await apiClient.post<ApiResponse<FileUrlResponse>>(
     "/api/v1/file",
     null,
-    { params: { fileId } },
+    { params: { s3Key } },
   );
   const url = response.data.data?.url;
   if (!url || !/^https?:\/\//i.test(url)) {

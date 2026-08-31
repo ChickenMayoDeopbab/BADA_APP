@@ -17,7 +17,6 @@ import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { setAuthenticatedUsername } from "@/utils/diagnosisFlow";
 import { prepareProfileImageForUpload } from "@/utils/profileImageProcessing";
-import { rememberProfileImage } from "@/utils/profileImage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -162,7 +161,6 @@ export default function ProfileEditScreen() {
     try {
       const prepared = await prepareProfileImageForUpload(uri, fileName);
       const uploaded = await uploadProfileImage(prepared);
-      await rememberProfileImage(uploaded);
       if (mounted.current && request === uploadRequest.current) setUploadedImage(uploaded);
     } catch (error) {
       if (mounted.current && request === uploadRequest.current) {
