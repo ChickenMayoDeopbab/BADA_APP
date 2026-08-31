@@ -101,7 +101,7 @@ export interface MyPageResponse {
 
 export type Personality = 'kind' | 'neutral' | 'tough' | 'rude';
 export type Difficulty = 'high' | 'medium' | 'low';
-export type ScenarioCategory = 'restaurant' | 'hospital' | 'complaint' | 'delivery' | 'bank' | 'custom';
+export type ScenarioCategory = 'work' | 'daily' | 'school' | 'other';
 
 // Spring 서버 전용 타입 (대문자 enum, neutral → NORMAL)
 export type SpringSessionType = 'SCENARIO' | 'CUSTOM' | 'WARMUP';
@@ -160,6 +160,8 @@ export interface CustomSessionRequest {
   title: string;
   call_target: string;
   call_purpose: string;
+  /** 서버 기본값은 "other" */
+  category?: ScenarioCategory;
   personality?: SpringPersonality;
   difficulty?: Difficulty;
   is_warmup?: boolean;

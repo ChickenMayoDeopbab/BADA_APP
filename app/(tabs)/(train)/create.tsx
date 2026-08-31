@@ -6,7 +6,7 @@ import Loading from "@/components/common/Loading";
 import Top from "@/components/common/Top";
 import CategorySelect from "@/components/train/CategorySelect";
 import StepProgress from "@/components/train/StepProgress";
-import { CustomScenarioCategory } from "@/constants/train";
+import { ScenarioCategory } from "@/api/types";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 import AnxiousFace from "@/assets/anxiousFace.svg";
@@ -29,7 +29,7 @@ const INPUT_STEPS: CreateStep[] = ["info", "detail"];
 
 type CustomScenarioForm = {
   title: string;
-  category: CustomScenarioCategory | null;
+  category: ScenarioCategory | null;
   callee: string;
   purpose: string;
 };
@@ -97,11 +97,12 @@ export default function Create() {
 
     const run = async () => {
       try {
-        // category는 AI 서버 요청 스펙에 없어 화면 상태로만 유지한다
         const result = await createCustomScenario({
           title: form.title,
           call_target: form.callee,
           call_purpose: form.purpose,
+          // 화면에서 카테고리를 고르지 않고는 넘어올 수 없다(다음 버튼이 막힘)
+          ...(form.category ? { category: form.category } : {}),
         });
         if (cancelled) return;
         createdScenarioIdRef.current = result.scenario.scenario_id;
@@ -116,7 +117,7 @@ export default function Create() {
 
     run();
     return () => { cancelled = true; };
-  }, [queryClient, step, form.title, form.callee, form.purpose]);
+  }, [queryClient, step, form.title, form.callee, form.purpose, form.category]);
 
   if (step === "fail") {
     return (
