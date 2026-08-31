@@ -73,10 +73,11 @@ export const SCENARIO_CATEGORY_CHIPS = [
   ...SCENARIO_CATEGORIES,
 ] as const;
 
-/** 시나리오 목록 탭 (기본 제공 / 커스텀) */
+/** 시나리오 목록 탭 (기본 제공 / 직접 만든 커스텀 / 공유받은 복사본) */
 export const SCENARIO_TABS = [
   { value: "basic", label: "기본 제공" },
   { value: "custom", label: "커스텀" },
+  { value: "shared", label: "공유받은" },
 ] as const;
 
 export type ScenarioTabValue = (typeof SCENARIO_TABS)[number]["value"];
