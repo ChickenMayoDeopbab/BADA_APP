@@ -5,6 +5,7 @@ import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
+import { useRecommendedScenario } from "@/hooks/useScenarios";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -65,6 +66,7 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 
 export default function Home() {
   useDoubleBackExit();
+  const { data: recommendedScenario } = useRecommendedScenario();
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -211,14 +213,13 @@ export default function Home() {
           layout={calendarLayoutTransition}
           className="flex-row gap-3 mt-3"
         >
-        <Pressable
-          onPress={() => router.push("/(tabs)/(train)/list")}
-          className="h-[148px] w-[59%] rounded-component shadow-md"
-        >
+        <Pressable onPress={() => router.push("/(tabs)/(train)/list")} className="h-[148px] w-[59%] rounded-component shadow-md">
             <View className="flex-1 overflow-hidden rounded-component bg-[#FFB184] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
               <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
-              <Text className="mt-1 font-bold text-white text-headline1">배준하피자{"\n"}배달 주문하기</Text>
+              <Text className="mt-1 font-bold text-white text-headline1" numberOfLines={2}>
+                {recommendedScenario?.title}
+              </Text>
               <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
                 <Ionicons name="call" size={14} color={PALETTE.common[0]} />
                 <Text className="font-medium text-white text-label">훈련 하러가기</Text>
