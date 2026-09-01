@@ -38,6 +38,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -289,6 +291,7 @@ export default function CommunityPostDetailScreen() {
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
+  const commentRefreshRotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const showEvent =
@@ -663,6 +666,28 @@ export default function CommunityPostDetailScreen() {
     });
   };
 
+  const refreshComments = () => {
+    if (commentsQuery.isFetching) return;
+
+    commentRefreshRotation.setValue(0);
+    Animated.timing(commentRefreshRotation, {
+      toValue: 1,
+      duration: 650,
+      easing: Easing.bezier(0.22, 0.78, 0.28, 1),
+      useNativeDriver: true,
+    }).start();
+    void commentsQuery.refetch();
+  };
+
+  const commentRefreshSpin = commentRefreshRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+  const commentRefreshScale = commentRefreshRotation.interpolate({
+    inputRange: [0, 0.4, 0.72, 1],
+    outputRange: [1, 0.88, 1.04, 1],
+  });
+
   const commentCount = commentsQuery.data
     ? comments.reduce(
         (count, comment) => count + 1 + (comment.replies?.length ?? 0),
@@ -1009,11 +1034,39 @@ export default function CommunityPostDetailScreen() {
             </Text>
           )}
 
-          <View className="mt-9 flex-row items-center gap-x-2">
-            <Text className="text-headline2 font-bold text-label-neutral">
-              댓글
-            </Text>
-            <Text className="text-body text-label-neutral">{commentCount}</Text>
+          <View className="mt-9 flex-row items-center justify-between">
+            <View className="flex-row items-center gap-x-2">
+              <Text className="text-headline2 font-bold text-label-neutral">
+                댓글
+              </Text>
+              <Text className="text-body text-label-neutral">
+                {commentCount}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="댓글 새로고침"
+              accessibilityState={{ disabled: commentsQuery.isFetching }}
+              disabled={commentsQuery.isFetching}
+              hitSlop={8}
+              onPress={refreshComments}
+              className="h-9 w-9 items-center justify-center rounded-full active:bg-fill-neutral"
+            >
+              <Animated.View
+                style={{
+                  transform: [
+                    { rotate: commentRefreshSpin },
+                    { scale: commentRefreshScale },
+                  ],
+                }}
+              >
+                <Ionicons
+                  name="refresh"
+                  size={22}
+                  color={SEMANTIC_COLORS.label.alternative}
+                />
+              </Animated.View>
+            </Pressable>
           </View>
 
           {commentsQuery.isPending ? (
