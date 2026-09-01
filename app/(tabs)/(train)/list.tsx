@@ -9,7 +9,7 @@ import ScenarioTabs from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
 import { ScenarioTabValue } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
-import { useScenarios } from "@/hooks/useScenarios";
+import { useRecommendedScenario, useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -52,6 +52,7 @@ export default function List() {
   // 시나리오 목록은 페이지네이션이 없어 한 번에 받고 탭·카테고리는 클라이언트에서 거른다
   const { data: scenarios, isPending, isError, isFetching, refetch } =
     useScenarios();
+  const { data: recommendedScenario } = useRecommendedScenario();
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -87,8 +88,6 @@ export default function List() {
     selectedTab,
     sharedScenarios,
   ]);
-
-  const recommendedScenario = basicScenarios[0];
 
   return (
     <View className="flex-1 bg-background-alternative">
