@@ -1,4 +1,4 @@
-import { checkAttendance, getAttendantDays } from "@/api/AttendanceApi";
+import { getAttendantDays } from "@/api/AttendanceApi";
 import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
 import PizzaIllustration from "@/assets/home-pizza.svg";
@@ -6,8 +6,8 @@ import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -15,10 +15,19 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const calendarLayoutTransition = LinearTransition.duration(220).easing(
+  Easing.inOut(Easing.quad),
+);
 
 const formatDate = (date: Date) => {
   const year = date.getFullYear();
@@ -56,7 +65,7 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 
 export default function Home() {
   useDoubleBackExit();
-  const [username, setUsername] = useState("");
+  const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const today = useMemo(() => new Date(), []);
@@ -80,24 +89,25 @@ export default function Home() {
     return Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
   }, [today]);
 
-  useEffect(() => {
-    let isActive = true;
-    const loadHome = async () => {
-      try { await checkAttendance(); } catch {}
-      const results = await Promise.allSettled([
-        getAttendantDays(today.getFullYear(), today.getMonth() + 1),
-        getMyPage(),
-      ]);
-      if (!isActive) return;
-      if (results[0].status === "fulfilled") {
-        const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
-        setAttendedDates(dates);
-      }
-      if (results[1].status === "fulfilled") setUsername(results[1].value.data.username);
-    };
-    loadHome();
-    return () => { isActive = false; };
-  }, [today]);
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const loadHome = async () => {
+        const results = await Promise.allSettled([
+          getAttendantDays(today.getFullYear(), today.getMonth() + 1),
+          getMyPage(),
+        ]);
+        if (!isActive) return;
+        if (results[0].status === "fulfilled") {
+          const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
+          setAttendedDates(dates);
+        }
+        if (results[1].status === "fulfilled") setName(results[1].value.data.name ?? "");
+      };
+      loadHome();
+      return () => { isActive = false; };
+    }, [today]),
+  );
 
   const streak = useMemo(() => {
     const attended = new Set(attendedDates);
@@ -117,19 +127,22 @@ export default function Home() {
         <View className="pt-[13px]">
         <View className="relative h-[38px] items-end">
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
+          <View className="absolute rounded-full right-1 top-px size-2 bg-status-error" />
         </View>
         <View className="flex-row items-center gap-0.5">
-          <Text className="text-body font-medium text-label-normal">다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
+          <Text className="font-medium text-body text-label-normal">다시 만나서 반가워요{name ? `, ${name}님!` : "!"}</Text>
           <SmileIllustration width={26} height={26} />
         </View>
         <Text className="mt-0.5 text-headline1 font-bold text-label-normal">오늘은 어떤 시나리오로 연습할까요?</Text>
         </View>
 
-        <View className="mt-4 gap-4 rounded-component bg-white px-3 py-4 shadow-md">
+        <Animated.View
+          layout={calendarLayoutTransition}
+          className="gap-4 px-3 py-4 mt-4 bg-white shadow-md rounded-component"
+        >
         <View className="flex-row items-center justify-between">
-          <Text className="text-body font-bold text-label-normal">이번 주 훈련</Text>
-          <Text className="text-caption font-medium text-label-alternative">{streak}일 연속 훈련</Text>
+          <Text className="font-bold text-body text-label-normal">이번 주 훈련</Text>
+          <Text className="font-medium text-caption text-label-alternative">{streak}일 연속 훈련</Text>
         </View>
         <View className="flex-row justify-between">
           {week.map((date, index) => {
@@ -153,7 +166,11 @@ export default function Home() {
         </View>
 
         {isCalendarOpen && (
-          <View className="gap-1 border-t border-line-normal pt-5">
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(120)}
+            className="gap-1 pt-5 border-t border-line-normal"
+          >
               <Text className="mb-2.5 text-center text-label font-bold text-label-normal">{today.getFullYear()}년 {today.getMonth() + 1}월</Text>
               <View className="flex-row">
                 {DAY_LABELS.map((label) => <Text key={label} className="mb-0.5 flex-1 text-center text-caption font-medium text-label-alternative">{label}</Text>)}
@@ -161,12 +178,12 @@ export default function Home() {
               {calendarWeeks.map((weekDates, weekIndex) => (
                 <View key={weekIndex} className="flex-row">
                   {weekDates.map((date, dayIndex) => {
-                    if (!date) return <View key={`empty-${dayIndex}`} className="h-8 flex-1" />;
+                    if (!date) return <View key={`empty-${dayIndex}`} className="flex-1 h-8" />;
                     const dateString = formatDate(date);
                     const isAttended = attendedDates.includes(dateString);
                     const isToday = dateString === formatDate(today);
                     return (
-                      <View key={dateString} className="h-8 flex-1 items-center justify-center">
+                      <View key={dateString} className="items-center justify-center flex-1 h-8">
                         <View className={`size-7 items-center justify-center rounded-full ${isAttended ? "bg-primary-normal" : isToday ? "border border-primary-normal" : ""}`}>
                           <Text className={`text-caption ${isAttended ? "font-bold text-white" : "font-medium text-label-normal"}`}>{date.getDate()}</Text>
                         </View>
@@ -175,31 +192,36 @@ export default function Home() {
                   })}
                 </View>
               ))}
-          </View>
+          </Animated.View>
         )}
 
-        <Pressable
-          accessibilityLabel={isCalendarOpen ? "월간 출석 내역 접기" : "월간 출석 내역 펼치기"}
-          hitSlop={10}
-          onPress={() => setIsCalendarOpen((previous) => !previous)}
-          className="-my-2 h-7 items-center justify-center"
-        >
-          <Ionicons name={isCalendarOpen ? "chevron-up" : "chevron-down"} size={22} color={SEMANTIC_COLORS.label.alternative} />
-        </Pressable>
-        </View>
+        <Animated.View layout={calendarLayoutTransition}>
+          <Pressable
+            accessibilityLabel={isCalendarOpen ? "월간 출석 내역 접기" : "월간 출석 내역 펼치기"}
+            hitSlop={10}
+            onPress={() => setIsCalendarOpen((previous) => !previous)}
+            className="items-center justify-center -my-2 h-7"
+          >
+            <Ionicons name={isCalendarOpen ? "chevron-up" : "chevron-down"} size={22} color={SEMANTIC_COLORS.label.alternative} />
+          </Pressable>
+        </Animated.View>
+        </Animated.View>
 
-        <View className="mt-3 flex-row gap-3">
+        <Animated.View
+          layout={calendarLayoutTransition}
+          className="flex-row gap-3 mt-3"
+        >
         <Pressable
           onPress={() => router.push("/(tabs)/(train)/list")}
           className="h-[148px] w-[59%] rounded-component shadow-md"
         >
             <View className="flex-1 overflow-hidden rounded-component bg-[#FFB184] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
-              <Text className="text-caption font-medium text-white/80">추천 시나리오</Text>
-              <Text className="mt-1 text-headline1 font-bold text-white">배준하피자{"\n"}배달 주문하기</Text>
+              <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
+              <Text className="mt-1 font-bold text-white text-headline1">배준하피자{"\n"}배달 주문하기</Text>
               <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
                 <Ionicons name="call" size={14} color={PALETTE.common[0]} />
-                <Text className="text-label font-medium text-white">훈련 하러가기</Text>
+                <Text className="font-medium text-white text-label">훈련 하러가기</Text>
               </View>
               <View className="absolute -bottom-1.5 -right-6">
                 <PizzaIllustration width={105} height={105} />
@@ -213,12 +235,12 @@ export default function Home() {
             <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#9CBBFA] px-3 py-3.5">
               <CardGradient id="warmupGradient" colors={["#6D9FF5", "#9CBBFA"]} />
               <FireIllustration width={52} height={52} />
-              <Text numberOfLines={2} adjustsFontSizeToFit className="mt-2 text-body font-bold text-white">
+              <Text numberOfLines={2} adjustsFontSizeToFit className="mt-2 font-bold text-white text-body">
                 통화 전 워밍업{"\n"}시작하기
               </Text>
             </View>
         </Pressable>
-        </View>
+        </Animated.View>
         </View>
       </ScrollView>
     </SafeAreaView>
