@@ -143,6 +143,11 @@ export interface ScenarioListResponse {
   scenarios: ScenarioInfo[];
 }
 
+export interface ScenarioRecommendationResponse {
+  scenario: ScenarioInfo;
+  reason: string;
+}
+
 export interface ExampleTurn {
   speaker: string;
   text: string;
