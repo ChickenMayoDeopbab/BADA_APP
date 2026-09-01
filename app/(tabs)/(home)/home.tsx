@@ -6,6 +6,7 @@ import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import { useRecommendedScenario } from "@/hooks/useScenarios";
+import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -213,7 +214,7 @@ export default function Home() {
           layout={calendarLayoutTransition}
           className="flex-row gap-3 mt-3"
         >
-        <Pressable onPress={() => router.push("/(tabs)/(train)/list")} className="h-[148px] w-[59%] rounded-component shadow-md">
+        <Pressable disabled={!recommendedScenario} onPress={() => recommendedScenario && openScenarioDetail(recommendedScenario)} className="h-[148px] w-[59%] rounded-component shadow-md">
             <View className="flex-1 overflow-hidden rounded-component bg-[#FFB184] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
               <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
