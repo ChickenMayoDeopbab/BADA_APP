@@ -62,6 +62,7 @@ export default function TabLayout() {
     currentRoute === "(community)" || currentRoute === "community";
   const hideTabBar =
     FULL_SCREEN_PATHS.includes(pathname) ||
+    pathname.endsWith("/notifications") ||
     pathname.endsWith("/search") ||
     (isCommunityStack && !isCommunityRoot);
 
@@ -104,6 +105,7 @@ export default function TabLayout() {
           name="(community)"
           options={{
             title: "커뮤니티",
+            popToTopOnBlur: true,
           }}
         />
         <Tabs.Screen

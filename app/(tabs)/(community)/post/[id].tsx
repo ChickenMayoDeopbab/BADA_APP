@@ -28,6 +28,7 @@ import {
   useCommunityPost,
 } from "@/hooks/useCommunityPosts";
 import { useCurrentUserId } from "@/hooks/useCurrentUserId";
+import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import {
   formatCommunityTimestamp,
   getCommunityAuthorName,
@@ -250,9 +251,27 @@ function InlineEditButtons({
 
 export default function CommunityPostDetailScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    id?: string | string[];
+    source?: string | string[];
+  }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const postId = Number(rawId);
+  const source = Array.isArray(params.source) ? params.source[0] : params.source;
+  const handleBack = () => {
+    if (source === "notifications") {
+      router.navigate("/(tabs)/(home)/notifications");
+      return;
+    }
+
+    router.back();
+  };
+  useAndroidBackHandler(() => {
+    if (source !== "notifications") return false;
+
+    router.navigate("/(tabs)/(home)/notifications");
+    return true;
+  });
   const queryClient = useQueryClient();
   const postQuery = useCommunityPost(postId);
   const commentsQuery = useCommunityComments(postId);
@@ -676,7 +695,7 @@ export default function CommunityPostDetailScreen() {
   if (!Number.isSafeInteger(postId) || postId <= 0) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-        <CommunityHeader title="게시물" />
+        <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-body text-label-alternative">
             올바르지 않은 게시물 주소예요.
@@ -689,7 +708,7 @@ export default function CommunityPostDetailScreen() {
   if (postQuery.isPending) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-        <CommunityHeader title="게시물" />
+        <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
           <Text className="mt-3 text-body text-label-alternative">
@@ -704,7 +723,7 @@ export default function CommunityPostDetailScreen() {
     const notFound = getApiErrorStatus(postQuery.error) === 404;
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-        <CommunityHeader title="게시물" />
+        <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-center text-body text-label-alternative">
             {notFound
@@ -808,6 +827,7 @@ export default function CommunityPostDetailScreen() {
         <View className="relative z-30">
           <CommunityHeader
             title="게시물"
+            onBack={handleBack}
             right={
               isPostAuthor && !editingPost ? (
                 <Pressable

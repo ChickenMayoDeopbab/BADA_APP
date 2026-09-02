@@ -5,9 +5,14 @@ import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
+import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { Href, router, useFocusEffect } from "expo-router";
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   Pressable,
   ScrollView,
@@ -65,6 +70,7 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 
 export default function Home() {
   useDoubleBackExit();
+  const notificationsQuery = useNotifications("ALL");
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -119,16 +125,25 @@ export default function Home() {
     }
     return count;
   }, [attendedDates, today]);
+  const unreadNotificationCount =
+    notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
 
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-[33px] pb-6">
         <View className="pt-[13px]">
-        <View className="relative h-[38px] items-end">
+        <Pressable
+          accessibilityLabel="알림 보기"
+          hitSlop={8}
+          onPress={() => router.push("/(tabs)/(home)/notifications" as Href)}
+          className="relative h-[38px] items-end"
+        >
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          <View className="absolute rounded-full right-1 top-px size-2 bg-status-error" />
-        </View>
+          {unreadNotificationCount > 0 && (
+            <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
+          )}
+        </Pressable>
         <View className="flex-row items-center gap-0.5">
           <Text className="font-medium text-body text-label-normal">다시 만나서 반가워요{name ? `, ${name}님!` : "!"}</Text>
           <SmileIllustration width={26} height={26} />
