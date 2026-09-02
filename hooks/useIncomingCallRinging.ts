@@ -1,8 +1,8 @@
+import { getRingtoneSource } from "@/constants/ringtones";
+import { loadRingtoneSettings } from "@/utils/ringtoneSettings";
 import { useAudioPlayer } from "expo-audio";
 import { useEffect, useRef } from "react";
 import { AppState, Platform, Vibration } from "react-native";
-
-const RINGTONE = require("@/assets/bells/bell-default.mp3");
 
 /**
  * 전화 수신 중 반복할 진동 패턴(ms).
@@ -17,7 +17,7 @@ const RINGING_PATTERN =
  * 전화를 받거나 화면을 벗어나거나 앱이 백그라운드로 가면 즉시 멈춘다.
  */
 export function useIncomingCallRinging(isRinging: boolean) {
-  const player = useAudioPlayer(RINGTONE);
+  const player = useAudioPlayer(null);
   // 플레이어를 의존성에 넣으면 리렌더마다 effect가 다시 돌아
   // 재생과 정지가 번갈아 튀고 loop 설정도 날아간다. 참조로만 들고 있는다.
   const playerRef = useRef(player);
@@ -25,6 +25,7 @@ export function useIncomingCallRinging(isRinging: boolean) {
 
   useEffect(() => {
     if (!isRinging) return;
+    let active = true;
 
     /**
      * 화면이 사라질 때 expo-audio가 플레이어를 먼저 해제한다.
@@ -54,7 +55,14 @@ export function useIncomingCallRinging(isRinging: boolean) {
       Vibration.cancel();
     };
 
-    startRinging();
+    void loadRingtoneSettings().then((settings) => {
+      if (!active) return;
+
+      safely(() => {
+        playerRef.current.replace(getRingtoneSource(settings));
+      });
+      if (AppState.currentState === "active") startRinging();
+    });
 
     // 앱이 내려가면 벨소리와 진동만 남아 계속 울리는 것을 막는다
     const subscription = AppState.addEventListener("change", (state) => {
@@ -63,6 +71,7 @@ export function useIncomingCallRinging(isRinging: boolean) {
     });
 
     return () => {
+      active = false;
       subscription.remove();
       stopRinging();
     };
