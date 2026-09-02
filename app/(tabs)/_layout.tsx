@@ -1,9 +1,6 @@
 import { createSession } from "@/api/trainApi";
 import BottomNav from "@/components/navigation/BottomNav";
-import {
-  PendingCallProvider,
-  usePendingCall,
-} from "@/context/PendingCallContext";
+import { usePendingCall } from "@/context/PendingCallContext";
 import { Tabs, router, usePathname, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
@@ -22,8 +19,14 @@ function CallWatcher() {
       cancel();
       try {
         const session = await createSession(config);
+        /*
+          예약 발신은 사용자가 어디에 있든 걸려온다. 시나리오 상세처럼 모달로 열린
+          화면이 남아 있으면 통화 화면 위를 덮으므로, 세션을 얻은 뒤 현재 스택을 비운다.
+          훈련이 끝나면 리포트를 거쳐 훈련 목록으로 가므로 스택을 되돌릴 일도 없다.
+        */
+        if (router.canDismiss()) router.dismissAll();
         router.push({
-          pathname: "/(tabs)/(train)/train",
+          pathname: "/train",
           params: {
             sessionId: session.sessionId,
             wsUrl: session.wsUrl,
@@ -48,9 +51,6 @@ function CallWatcher() {
   return null;
 }
 
-/** 하단 탭 바를 감추고 화면 전체를 쓰는 경로 (통화·불안 점수 입력) */
-const FULL_SCREEN_PATHS = ["/train", "/anxiety"];
-
 export default function TabLayout() {
   const pathname = usePathname();
   const segments = useSegments();
@@ -61,13 +61,12 @@ export default function TabLayout() {
   const isCommunityRoot =
     currentRoute === "(community)" || currentRoute === "community";
   const hideTabBar =
-    FULL_SCREEN_PATHS.includes(pathname) ||
     pathname.endsWith("/notifications") ||
     pathname.endsWith("/search") ||
     (isCommunityStack && !isCommunityRoot);
 
   return (
-    <PendingCallProvider>
+    <>
       <CallWatcher />
       <Tabs
         tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
@@ -116,6 +115,6 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </PendingCallProvider>
+    </>
   );
 }

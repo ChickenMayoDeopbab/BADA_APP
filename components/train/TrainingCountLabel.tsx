@@ -22,7 +22,7 @@ export default function TrainingCountLabel({
   const { icon, text } = SIZE_STYLE[size];
 
   return (
-    <View className="flex-row items-center gap-x-[2px]">
+    <View className="flex-row items-center gap-x-[6px]">
       <Octicons name="history" size={icon} color={color} />
       <Text className={`${text} font-medium`} style={{ color }}>
         {count}회
