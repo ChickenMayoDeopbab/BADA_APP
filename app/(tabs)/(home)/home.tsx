@@ -5,6 +5,7 @@ import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
+import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Href, router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -56,6 +57,7 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 
 export default function Home() {
   useDoubleBackExit();
+  const notificationsQuery = useNotifications("ALL");
   const [username, setUsername] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -109,6 +111,8 @@ export default function Home() {
     }
     return count;
   }, [attendedDates, today]);
+  const unreadNotificationCount =
+    notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
 
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
@@ -122,7 +126,9 @@ export default function Home() {
           className="relative h-[38px] items-end"
         >
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
+          {unreadNotificationCount > 0 && (
+            <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
+          )}
         </Pressable>
         <View className="flex-row items-center gap-0.5">
           <Text className="text-body font-medium text-label-normal">다시 만나서 반가워요{username ? `, ${username}님!` : "!"}</Text>
