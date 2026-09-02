@@ -1,12 +1,27 @@
-import { getNotifications, markNotificationRead } from "@/api/notificationApi";
-import { NotificationFilter } from "@/api/types";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getNotifications,
+  getNotificationSettings,
+  markNotificationRead,
+  updateNotificationSettings,
+} from "@/api/notificationApi";
+import {
+  NotificationFilter,
+  UpdateNotificationSettingRequest,
+} from "@/api/types";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 const NOTIFICATION_PAGE_SIZE = 20;
 
 export const notificationQueryKeys = {
   all: ["notifications"] as const,
-  list: (filter: NotificationFilter) => ["notifications", "list", filter] as const,
+  list: (filter: NotificationFilter) =>
+    ["notifications", "list", filter] as const,
+  settings: ["notifications", "settings"] as const,
 };
 
 export const useNotifications = (filter: NotificationFilter) =>
@@ -29,6 +44,25 @@ export const useMarkNotificationRead = () => {
     mutationFn: markNotificationRead,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.all });
+    },
+  });
+};
+
+export const useNotificationSettings = () =>
+  useQuery({
+    queryKey: notificationQueryKeys.settings,
+    queryFn: ({ signal }) =>
+      getNotificationSettings(signal).then(({ data }) => data),
+  });
+
+export const useUpdateNotificationSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: UpdateNotificationSettingRequest) =>
+      updateNotificationSettings(request),
+    onSuccess: ({ data }) => {
+      queryClient.setQueryData(notificationQueryKeys.settings, data);
     },
   });
 };
