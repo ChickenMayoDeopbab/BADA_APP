@@ -1,9 +1,6 @@
 import { createSession } from "@/api/trainApi";
 import BottomNav from "@/components/navigation/BottomNav";
-import {
-  PendingCallProvider,
-  usePendingCall,
-} from "@/context/PendingCallContext";
+import { usePendingCall } from "@/context/PendingCallContext";
 import { Tabs, router, usePathname, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
@@ -23,7 +20,7 @@ function CallWatcher() {
       try {
         const session = await createSession(config);
         router.push({
-          pathname: "/(tabs)/(train)/train",
+          pathname: "/train",
           params: {
             sessionId: session.sessionId,
             wsUrl: session.wsUrl,
@@ -48,9 +45,6 @@ function CallWatcher() {
   return null;
 }
 
-/** 하단 탭 바를 감추고 화면 전체를 쓰는 경로 (통화·불안 점수 입력) */
-const FULL_SCREEN_PATHS = ["/train", "/anxiety"];
-
 export default function TabLayout() {
   const pathname = usePathname();
   const segments = useSegments();
@@ -61,12 +55,10 @@ export default function TabLayout() {
   const isCommunityRoot =
     currentRoute === "(community)" || currentRoute === "community";
   const hideTabBar =
-    FULL_SCREEN_PATHS.includes(pathname) ||
-    pathname.endsWith("/search") ||
-    (isCommunityStack && !isCommunityRoot);
+    pathname.endsWith("/search") || (isCommunityStack && !isCommunityRoot);
 
   return (
-    <PendingCallProvider>
+    <>
       <CallWatcher />
       <Tabs
         tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
@@ -114,6 +106,6 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </PendingCallProvider>
+    </>
   );
 }

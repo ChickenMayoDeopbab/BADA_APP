@@ -22,13 +22,6 @@ export default function TrainLayout() {
           contentStyle: { backgroundColor: "transparent" },
         }}
       />
-      {/*
-        상세(transparentModal) 위에서 push되면 iOS가 뒤따르는 화면도 모달 컨텍스트로 보고
-        pageSheet(둥근 모서리 + 뒤 화면 노출)로 그린다.
-        통화 흐름은 화면을 온전히 점유해야 하므로 전체 화면 모달로 못박는다.
-      */}
-      <Stack.Screen name="train" options={{ presentation: "fullScreenModal" }} />
-      <Stack.Screen name="anxiety" options={{ presentation: "fullScreenModal" }} />
     </Stack>
   );
 }
