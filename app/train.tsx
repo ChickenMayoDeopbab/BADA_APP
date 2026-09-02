@@ -239,7 +239,7 @@ export default function Train() {
         router.replace({
           pathname: isWarmupSession
             ? "/(tabs)/(train)/report"
-            : "/(tabs)/(train)/anxiety",
+            : "/anxiety",
           params: nextParams,
         }),
       isWarmupSession ? WARMUP_REPORT_DELAY_MS : END_STEP_DURATION_MS,

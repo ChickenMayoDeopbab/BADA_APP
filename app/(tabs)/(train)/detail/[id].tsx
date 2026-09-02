@@ -233,7 +233,7 @@ export default function Detail() {
     if (!scenario) return;
 
     router.push({
-      pathname: "/(tabs)/(train)/start",
+      pathname: "/start",
       params: {
         id: String(scenario.scenario_id),
         title: scenario.title,
