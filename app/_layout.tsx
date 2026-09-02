@@ -16,6 +16,7 @@ import {
   clearAuthTokens,
   getAccessToken,
 } from "@/utils/authTokenStorage";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +26,11 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function PushNotificationManager() {
+  usePushNotifications();
+  return null;
+}
 
 export default function RootLayout() {
   const navigationState = useRootNavigationState();
@@ -63,6 +69,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
+        <PushNotificationManager />
         <Stack
           screenOptions={{
             headerShown: false,
