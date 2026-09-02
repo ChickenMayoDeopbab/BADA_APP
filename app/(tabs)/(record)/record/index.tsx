@@ -376,7 +376,7 @@ export default function RecordScreen() {
           </View>
         ) : (
           <View className="flex-1">
-            <View className="px-[11px] pt-[18px]">
+            <View className="px-8 pt-[18px]">
               <PeriodTabs selected={period} onSelect={setPeriod} />
               <View className="mt-2">
                 <SummaryCard
@@ -424,7 +424,7 @@ export default function RecordScreen() {
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
               >
                 {sections.length > 0 && (
-                  <View className="px-[11px]">
+                  <View className="px-8">
                     {sections.map((section) => (
                       <View key={section.dateKey} className="mb-5">
                         <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">

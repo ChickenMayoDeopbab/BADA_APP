@@ -131,7 +131,7 @@ export default function Home() {
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="px-[33px] pb-6">
+        <View className="px-8 pb-6">
         <View className="pt-[13px]">
         <Pressable
           accessibilityLabel="알림 보기"
