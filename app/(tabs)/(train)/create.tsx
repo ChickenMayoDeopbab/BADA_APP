@@ -174,7 +174,7 @@ export default function Create() {
             tone="primary"
             onPress={() =>
               router.push({
-                pathname: "/(tabs)/(train)/start",
+                pathname: "/start",
                 params: {
                   id: String(createdScenarioIdRef.current),
                   isCustom: "true",

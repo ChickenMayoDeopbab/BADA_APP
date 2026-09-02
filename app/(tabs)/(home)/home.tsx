@@ -18,6 +18,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import Animated, {
@@ -75,14 +76,17 @@ export default function Home() {
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const today = useMemo(() => new Date(), []);
+  const [displayedMonth, setDisplayedMonth] = useState(
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
+  );
   const week = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = new Date(today);
     date.setDate(today.getDate() - 6 + index);
     return date;
   }), [today]);
   const calendarWeeks = useMemo(() => {
-    const year = today.getFullYear();
-    const month = today.getMonth();
+    const year = displayedMonth.getFullYear();
+    const month = displayedMonth.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
     const lastDate = new Date(year, month + 1, 0).getDate();
     const cells: (Date | null)[] = [
@@ -93,7 +97,7 @@ export default function Home() {
     while (cells.length % 7 !== 0) cells.push(null);
 
     return Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
-  }, [today]);
+  }, [displayedMonth]);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,6 +111,14 @@ export default function Home() {
           if (!isIncluded) months.push({ year, month });
           return months;
         }, []);
+        const displayedYear = displayedMonth.getFullYear();
+        const displayedMonthNumber = displayedMonth.getMonth() + 1;
+        const includesDisplayedMonth = attendanceMonths.some(
+          (item) => item.year === displayedYear && item.month === displayedMonthNumber,
+        );
+        if (!includesDisplayedMonth) {
+          attendanceMonths.push({ year: displayedYear, month: displayedMonthNumber });
+        }
         const [attendanceResults, myPageResult] = await Promise.all([
           Promise.allSettled(attendanceMonths.map(({ year, month }) => getAttendantDays(year, month))),
           getMyPage().then(
@@ -126,7 +138,7 @@ export default function Home() {
       };
       loadHome();
       return () => { isActive = false; };
-    }, [week]),
+    }, [displayedMonth, week]),
   );
 
   const streak = useMemo(() => {
@@ -141,6 +153,15 @@ export default function Home() {
   }, [attendedDates, today]);
   const unreadNotificationCount =
     notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
+  const isCurrentMonth =
+    displayedMonth.getFullYear() === today.getFullYear() &&
+    displayedMonth.getMonth() === today.getMonth();
+
+  const moveMonth = (offset: number) => {
+    setDisplayedMonth((current) => (
+      new Date(current.getFullYear(), current.getMonth() + offset, 1)
+    ));
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
@@ -200,22 +221,66 @@ export default function Home() {
             exiting={FadeOut.duration(120)}
             className="gap-1 pt-5 border-t border-line-normal"
           >
-              <Text className="mb-2.5 text-center text-label font-bold text-label-normal">{today.getFullYear()}년 {today.getMonth() + 1}월</Text>
+              <View className="flex-row items-center justify-between px-7 mb-3">
+                <Pressable accessibilityLabel="이전 달 보기" hitSlop={10} onPress={() => moveMonth(-1)}>
+                  <Ionicons name="caret-back" size={18} color={PALETTE.blue[40]} />
+                </Pressable>
+                <Text className="font-bold text-headline2 text-label-normal">
+                  {displayedMonth.getFullYear() === today.getFullYear()
+                    ? `${displayedMonth.getMonth() + 1}월`
+                    : `${displayedMonth.getFullYear()}년 ${displayedMonth.getMonth() + 1}월`}
+                </Text>
+                <Pressable
+                  accessibilityLabel="다음 달 보기"
+                  disabled={isCurrentMonth}
+                  hitSlop={10}
+                  onPress={() => moveMonth(1)}
+                  style={{ opacity: isCurrentMonth ? 0 : 1 }}
+                >
+                  <Ionicons name="caret-forward" size={18} color={PALETTE.blue[40]} />
+                </Pressable>
+              </View>
               <View className="flex-row">
-                {DAY_LABELS.map((label) => <Text key={label} className="mb-0.5 flex-1 text-center text-caption font-medium text-label-alternative">{label}</Text>)}
+                {DAY_LABELS.map((label) => (
+                  <Text key={label} className="flex-1 text-center text-[13px] font-semibold text-label-alternative">
+                    {label}
+                  </Text>
+                ))}
               </View>
               {calendarWeeks.map((weekDates, weekIndex) => (
                 <View key={weekIndex} className="flex-row">
                   {weekDates.map((date, dayIndex) => {
-                    if (!date) return <View key={`empty-${dayIndex}`} className="flex-1 h-8" />;
+                    if (!date) return <View key={`empty-${dayIndex}`} className="flex-1 h-12" />;
                     const dateString = formatDate(date);
                     const isAttended = attendedDates.includes(dateString);
-                    const isToday = dateString === formatDate(today);
                     return (
-                      <View key={dateString} className="items-center justify-center flex-1 h-8">
-                        <View className={`size-7 items-center justify-center rounded-full ${isAttended ? "bg-primary-normal" : isToday ? "border border-primary-normal" : ""}`}>
-                          <Text className={`text-caption ${isAttended ? "font-bold text-white" : "font-medium text-label-normal"}`}>{date.getDate()}</Text>
-                        </View>
+                      <View key={dateString} className="items-center justify-center flex-1 h-12">
+                        <TouchableOpacity
+                          disabled
+                          activeOpacity={1}
+                          className="items-center justify-center"
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            overflow: "hidden",
+                            backgroundColor: isAttended
+                              ? SEMANTIC_COLORS.primary.normal
+                              : "transparent",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              fontWeight: "600",
+                              color: isAttended
+                                ? PALETTE.common[0]
+                                : SEMANTIC_COLORS.label.neutral,
+                            }}
+                          >
+                            {date.getDate()}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     );
                   })}
