@@ -1,7 +1,7 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { DIAGNOSIS } from "@/constants/diagnosis";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Loading from "@/components/common/Loading";
@@ -74,6 +74,10 @@ interface Token {
 }
 
 export default function Question() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const isProfileRetake = Array.isArray(from)
+    ? from[0] === "profile"
+    : from === "profile";
   const [nowStep, setNowStep] = useState<number>(0);
   const [answers, setAnswers] = useState<number[]>(Array(10).fill(3));
   const [status, setStatus] = useState<Status>(null);
@@ -101,11 +105,16 @@ export default function Question() {
   useEffect(() => {
     if (status === 'done') {
       const timer = setTimeout(() => {
-        router.push('/diagnosis/result');
+        router.push(isProfileRetake
+          ? {
+              pathname: "/diagnosis/result",
+              params: { from: "profile" },
+            }
+          : "/diagnosis/result");
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [status]);
+  }, [isProfileRetake, status]);
 
   const submitAnswers = async (answers: number[]) => {
     const token = await getAccessToken();
