@@ -6,6 +6,7 @@ import MagnifyingGlass from "@/assets/magnifyingGlass.svg";
 import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
 import CustomButton from "@/components/common/CustomButton";
+import Top from "@/components/common/Top";
 import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { Ionicons } from "@expo/vector-icons";
@@ -338,11 +339,7 @@ export default function Report() {
           <ReportLoading />
         ) : (
           <>
-            <View className="items-center justify-center h-16">
-              <Text className="text-headline1 text-label-neutral" style={reportTextStyles.bold}>
-                훈련 리포트
-              </Text>
-            </View>
+            <Top title="훈련 리포트" safeArea={false} />
             {error || !feedback ? (
           <View className="items-center justify-center flex-1 px-10 gap-y-3">
             <Ionicons

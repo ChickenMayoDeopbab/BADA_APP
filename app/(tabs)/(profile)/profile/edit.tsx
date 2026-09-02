@@ -5,6 +5,7 @@ import { MyPageResponse } from "@/api/types";
 import { getMyPage, patchMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
 import StyledImage from "@/components/common/StyledImage";
+import Top from "@/components/common/Top";
 import PhotoLibrarySheet from "@/components/profile/PhotoLibrarySheet";
 import {
   PROFILE_NAME_MAX_LENGTH,
@@ -234,20 +235,7 @@ export default function ProfileEditScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
-      <View className="h-16 flex-row items-center justify-between bg-background-normal px-2">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="프로필로 돌아가기"
-          disabled={isSaving}
-          onPress={cancelChanges}
-          hitSlop={8}
-          className="size-16 items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="chevron-back" size={32} color={SEMANTIC_COLORS.label.alternative} />
-        </Pressable>
-        <Text className="text-headline1 font-bold text-label-neutral">프로필 수정</Text>
-        <View className="size-16" />
-      </View>
+      <Top title="프로필 수정" back onBack={cancelChanges} safeArea={false} />
 
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView

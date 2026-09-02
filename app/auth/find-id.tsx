@@ -4,9 +4,9 @@ import {
   postFindId,
 } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
-import AuthFlowHeader from "@/components/auth/AuthFlowHeader";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import Top from "@/components/common/Top";
 import { authCodeRules, emailRules } from "@/constants/authValidation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
@@ -158,7 +158,7 @@ export default function FindIdScreen() {
             alignSelf: "center",
           }}
         >
-          <AuthFlowHeader title="아이디 찾기" onBack={handleBack} />
+          <Top title="아이디 찾기" back onBack={handleBack} safeArea={false} />
 
           {view === "form" ? (
             <>

@@ -3,15 +3,25 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import BadaLogo from "@/assets/badaLogo2.svg";
+import { ReactNode } from "react";
 
 interface TopProps {
   title?: string;
   isMain?: boolean;
   back?: boolean;
   onBack?: () => void;
+  right?: ReactNode;
+  safeArea?: boolean;
 }
 
-export default function Top({ title, isMain = false, back = false, onBack }: TopProps) {
+export default function Top({
+  title,
+  isMain = false,
+  back = false,
+  onBack,
+  right,
+  safeArea = true,
+}: TopProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -26,20 +36,24 @@ export default function Top({ title, isMain = false, back = false, onBack }: Top
 
   return (
     <View
-      className="w-full flex justify-center items-center relative h-[105px]"
-      style={{ paddingTop: insets.top }}
+      className="relative w-full flex-row items-center justify-between px-2"
+      style={{ height: 64 + (safeArea ? insets.top : 0), paddingTop: safeArea ? insets.top : 0 }}
     >
-      {back ? (
-        <TouchableOpacity onPress={handleBack} className="absolute left-[30px] top-[50px]">
-          <Ionicons name="chevron-back-sharp" size={30} color="black" />
-        </TouchableOpacity>
-      ) : <></>}
+      <View className="items-center justify-center size-16">
+        {back && (
+          <TouchableOpacity onPress={handleBack} className="items-center justify-center size-16">
+            <Ionicons name="chevron-back" size={32} color="black" />
+          </TouchableOpacity>
+        )}
+      </View>
 
       {isMain ? (
-        <BadaLogo className="my-[10px]" style={{width: 80, aspectRatio: 126 / 58}}/>
+        <BadaLogo style={{ width: 80, aspectRatio: 126 / 58 }} />
       ) : (
-        <Text className="text-xl font-bold my-[10px]">{title}</Text>
+        <Text className="font-bold text-headline1 text-label-neutral">{title}</Text>
       )}
+
+      <View className="items-center justify-center size-16">{right}</View>
     </View>
   );
 }

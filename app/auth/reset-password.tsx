@@ -5,9 +5,9 @@ import {
 } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import PartyFace from "@/assets/partyFace.svg";
-import AuthFlowHeader from "@/components/auth/AuthFlowHeader";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
+import Top from "@/components/common/Top";
 import {
   authCodeRules,
   createConfirmPasswordRules,
@@ -214,7 +214,7 @@ export default function ResetPasswordScreen() {
             alignSelf: "center",
           }}
         >
-          <AuthFlowHeader title="비밀번호 재설정" onBack={handleBack} />
+          <Top title="비밀번호 재설정" back onBack={handleBack} safeArea={false} />
 
           {step === "identity" && (
             <>

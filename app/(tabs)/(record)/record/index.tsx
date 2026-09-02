@@ -1,4 +1,5 @@
 import { TrainingRecordItem } from "@/api/types";
+import Top from "@/components/common/Top";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
@@ -342,11 +343,7 @@ export default function RecordScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background-normal" edges={["top"]}>
-      <View className="items-center justify-center h-16 bg-background-normal">
-        <Text className="font-bold text-headline1 text-label-neutral">
-          훈련 기록
-        </Text>
-      </View>
+      <Top title="훈련 기록" safeArea={false} />
 
       <View className="flex-1 bg-background-alternative">
         {isLoading ? (
