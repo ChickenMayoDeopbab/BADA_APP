@@ -2,15 +2,25 @@ import Top from "@/components/common/Top";
 import { Pressable, Text, View, TouchableWithoutFeedback } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import CustomButton from "@/components/common/CustomButton";
 import { Level } from "@/api/types";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 
 export default function Result() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const isProfileRetake = Array.isArray(from)
+    ? from[0] === "profile"
+    : from === "profile";
+  const handleExit = () => {
+    router.replace(
+      isProfileRetake ? "/(tabs)/(profile)/profile" : "/home",
+    );
+  };
+
   useAndroidBackHandler(() => {
-    router.replace("/auth/login");
+    handleExit();
     return true;
   });
   const [isShowCard, setIsShowCard] = useState<boolean>(false);
@@ -28,7 +38,11 @@ export default function Result() {
   
   return (
     <View className="flex-1 bg-white">
-      <Top title="자가진단"/>
+      <Top
+        title="자가진단"
+        back={isProfileRetake}
+        onBack={handleExit}
+      />
       {isShowCard && (
         <TouchableWithoutFeedback onPress={() => setIsShowCard(false)}>
           <View className="absolute inset-0 z-10" />
@@ -60,7 +74,12 @@ export default function Result() {
             ))}
           </View>
         </View>
-        <CustomButton label="저장하고 홈으로 가기" onPress={() => router.push("/home")} backgroundColor="#0AE365" color="white"/>
+        <CustomButton
+          label={isProfileRetake ? "프로필에서 결과 확인하기" : "저장하고 홈으로 가기"}
+          onPress={handleExit}
+          backgroundColor="#0AE365"
+          color="white"
+        />
       </View>
     </View>
   )
