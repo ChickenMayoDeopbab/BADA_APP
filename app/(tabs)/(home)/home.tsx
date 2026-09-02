@@ -99,20 +99,34 @@ export default function Home() {
     useCallback(() => {
       let isActive = true;
       const loadHome = async () => {
-        const results = await Promise.allSettled([
-          getAttendantDays(today.getFullYear(), today.getMonth() + 1),
-          getMyPage(),
+        const attendanceMonths = week.reduce<{ year: number; month: number }[]>((months, date) => {
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const isIncluded = months.some((item) => item.year === year && item.month === month);
+
+          if (!isIncluded) months.push({ year, month });
+          return months;
+        }, []);
+        const [attendanceResults, myPageResult] = await Promise.all([
+          Promise.allSettled(attendanceMonths.map(({ year, month }) => getAttendantDays(year, month))),
+          getMyPage().then(
+            (value) => ({ status: "fulfilled" as const, value }),
+            () => ({ status: "rejected" as const }),
+          ),
         ]);
         if (!isActive) return;
-        if (results[0].status === "fulfilled") {
-          const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
-          setAttendedDates(dates);
+        const dates = attendanceResults.flatMap((result) => {
+          if (result.status === "rejected") return [];
+          return (result.value.data as unknown as { date: string }[]).map(({ date }) => date);
+        });
+        if (attendanceResults.some((result) => result.status === "fulfilled")) {
+          setAttendedDates([...new Set(dates)]);
         }
-        if (results[1].status === "fulfilled") setName(results[1].value.data.name ?? "");
+        if (myPageResult.status === "fulfilled") setName(myPageResult.value.data.name ?? "");
       };
       loadHome();
       return () => { isActive = false; };
-    }, [today]),
+    }, [week]),
   );
 
   const streak = useMemo(() => {
