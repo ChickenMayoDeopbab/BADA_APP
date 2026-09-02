@@ -58,18 +58,35 @@ export default function List() {
     [scenarios],
   );
   const customScenarios = useMemo(
-    () => scenarios?.filter((scenario) => scenario.is_custom) ?? [],
+    () =>
+      scenarios?.filter(
+        (scenario) => scenario.is_custom && !scenario.is_copied,
+      ) ?? [],
+    [scenarios],
+  );
+  const sharedScenarios = useMemo(
+    () =>
+      scenarios?.filter(
+        (scenario) => scenario.is_custom && scenario.is_copied,
+      ) ?? [],
     [scenarios],
   );
 
   const visibleScenarios = useMemo(() => {
     if (selectedTab === "custom") return customScenarios;
+    if (selectedTab === "shared") return sharedScenarios;
     if (!selectedCategory) return basicScenarios;
     // 서버 값의 대소문자·공백 차이로 카테고리가 통째로 비어 보이지 않도록 정규화해서 비교한다
     return basicScenarios.filter(
       (scenario) => scenario.category?.trim().toLowerCase() === selectedCategory,
     );
-  }, [basicScenarios, customScenarios, selectedCategory, selectedTab]);
+  }, [
+    basicScenarios,
+    customScenarios,
+    selectedCategory,
+    selectedTab,
+    sharedScenarios,
+  ]);
 
   const recommendedScenario = basicScenarios[0];
 
@@ -108,16 +125,19 @@ export default function List() {
       {isError && !isPending && (
         <View className="flex-1 items-center justify-center gap-y-4 px-8">
           <Text className="text-body text-label-alternative text-center">
-            시나리오 목록을 불러오지 못했습니다.
+            시나리오 목록을 불러오지 못했어요.
           </Text>
-          <CustomButton
-            label={isFetching ? "불러오는 중..." : "다시 시도"}
-            backgroundColor="#0AE365"
-            color="white"
-            variant="md"
-            disabled={isFetching}
-            onPress={() => refetch()}
-          />
+          {/* CustomButton은 w-full이라 폭을 줄이려면 감싸는 View로 제한한다 */}
+          <View className="w-[140px]">
+            <CustomButton
+              label={isFetching ? "불러오는 중..." : "다시 불러오기"}
+              backgroundColor="#0AE365"
+              color="white"
+              variant="md"
+              disabled={isFetching}
+              onPress={() => refetch()}
+            />
+          </View>
         </View>
       )}
 
@@ -143,7 +163,7 @@ export default function List() {
                   onPress={() => router.push("/(tabs)/(train)/create")}
                 />
               </View>
-            ) : (
+            ) : selectedTab === "basic" ? (
               recommendedScenario && (
                 <View className="px-8 pb-5">
                   <RecommendScenarioCard
@@ -152,7 +172,7 @@ export default function List() {
                   />
                 </View>
               )
-            )}
+            ) : null}
 
             {/* 아래로 끊기지 않고 이어지도록 남은 높이를 채우고 위쪽만 둥글린다 */}
             <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
@@ -172,7 +192,9 @@ export default function List() {
                 <Text className="py-10 text-center text-label text-label-alternative">
                   {selectedTab === "custom"
                     ? "아직 만든 커스텀 시나리오가 없습니다."
-                    : selectedCategory
+                    : selectedTab === "shared"
+                      ? "아직 공유받은 시나리오가 없습니다."
+                      : selectedCategory
                       ? "해당 카테고리의 시나리오가 없습니다."
                       : "표시할 시나리오가 없습니다."}
                 </Text>
