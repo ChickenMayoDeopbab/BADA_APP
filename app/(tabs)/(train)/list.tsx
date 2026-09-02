@@ -1,4 +1,5 @@
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
+import { HEADER_CONTENT_HEIGHT } from "@/components/common/Top";
 import CustomButton from "@/components/common/CustomButton";
 import CategoryChips from "@/components/train/CategoryChips";
 import GradientOverlay from "@/components/train/GradientOverlay";
@@ -94,12 +95,15 @@ export default function List() {
     <View className="flex-1 bg-background-alternative">
       {/*
         헤더 높이는 공용 Top 컴포넌트와 동일하게 맞춘다.
-        (총 105px에 상단 인셋을 padding으로 흡수 — 인셋만큼 헤더가 늘어나면
-        인셋이 작은 기기에서 다른 페이지보다 타이틀이 위로 붙는다.)
+        총 높이를 고정하면 상단 인셋만큼 콘텐츠 영역이 깎여, 인셋이 큰 iOS에서만
+        타이틀이 아래 카테고리 탭에 바짝 붙는다. 인셋에 콘텐츠 높이를 더한다.
       */}
       <View
-        className="h-[105px] flex-row items-center justify-between px-8"
-        style={{ paddingTop: insets.top }}
+        className="flex-row items-center justify-between px-8"
+        style={{
+          paddingTop: insets.top,
+          height: insets.top + HEADER_CONTENT_HEIGHT,
+        }}
       >
         <Text className="text-title2 font-bold text-label-normal">
           시나리오 훈련
