@@ -7,14 +7,23 @@ import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
 import ScenarioTabs from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
-import { ScenarioTabValue } from "@/constants/train";
+import { SCENARIO_TABS, ScenarioTabValue } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  ActivityIndicator,
+  Animated,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // 탭 아래에서 목록이 뚝 잘려 보이지 않도록 덮는 페이드 (배경색 → 투명).
 // 시작 구간을 불투명하게 붙잡아 두어야 경계가 선처럼 보이지 않는다.
@@ -37,7 +46,8 @@ const toGridRows = (scenarios: ScenarioInfo[]): ScenarioInfo[][] =>
   }, []);
 
 export default function List() {
-  const insets = useSafeAreaInsets();
+  const { width: pageWidth } = useWindowDimensions();
+  const pagerRef = useRef<FlatList<(typeof SCENARIO_TABS)[number]>>(null);
   // 스크롤을 내렸을 때만 상단 페이드를 보여준다
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeOpacity = scrollY.interpolate({
@@ -90,28 +100,45 @@ export default function List() {
 
   const recommendedScenario = basicScenarios[0];
 
+  const selectTab = (tab: ScenarioTabValue) => {
+    const tabIndex = SCENARIO_TABS.findIndex((item) => item.value === tab);
+    if (tabIndex < 0) return;
+
+    setSelectedTab(tab);
+    pagerRef.current?.scrollToOffset({
+      offset: tabIndex * pageWidth,
+      animated: true,
+    });
+  };
+
+  const handlePageSettled = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const tabIndex = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+    const nextTab = SCENARIO_TABS[tabIndex];
+    if (nextTab) setSelectedTab(nextTab.value);
+  };
+
+  const getVisibleScenarios = (tab: ScenarioTabValue) => {
+    if (tab === "custom") return customScenarios;
+    if (tab === "shared") return sharedScenarios;
+    return visibleScenarios;
+  };
+
   return (
-    <View className="flex-1 bg-background-alternative">
-      {/*
-        헤더 높이는 공용 Top 컴포넌트와 동일하게 맞춘다.
-        (총 105px에 상단 인셋을 padding으로 흡수 — 인셋만큼 헤더가 늘어나면
-        인셋이 작은 기기에서 다른 페이지보다 타이틀이 위로 붙는다.)
-      */}
-      <View
-        className="h-[105px] flex-row items-center justify-between px-8"
-        style={{ paddingTop: insets.top }}
-      >
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
+      <View className="h-[60px] flex-row items-center justify-between px-8">
         <Text className="text-title2 font-bold text-label-normal">
           시나리오 훈련
         </Text>
         <SearchIconButton
           onPress={() => router.push("/(tabs)/(train)/search")}
+          size={30}
         />
       </View>
 
-      {/* 탭과 아래 콘텐츠 사이 간격은 디자인 기준 20px */}
-      <View className="px-8 pb-5">
-        <ScenarioTabs value={selectedTab} onChange={setSelectedTab} />
+      <View className="h-[53px] px-8">
+        <ScenarioTabs value={selectedTab} onChange={selectTab} />
       </View>
 
       {/* 목록 로딩 중 */}
@@ -143,83 +170,104 @@ export default function List() {
 
       {!isPending && !isError && (
         <View className="flex-1">
-          {/* flexGrow로 내용이 짧아도 시나리오 패널이 화면 아래까지 이어지게 한다 */}
-          <Animated.ScrollView
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1 }}
-            scrollEventThrottle={16}
-            // 웹에서는 네이티브 드라이버가 스크롤 이벤트를 구동하지 못해 페이드가 죽는다.
-            // 값 하나(opacity)만 따라가므로 JS 드라이버로도 충분하다.
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false },
-            )}
-          >
-            {/* 배너와 추천 카드는 디자인상 좌우 여백이 다르다 (배너 16px, 추천 카드 32px) */}
-            {selectedTab === "custom" ? (
-              <View className="px-4 pb-5">
-                <CustomScenarioBanner
-                  onPress={() => router.push("/(tabs)/(train)/create")}
-                />
-              </View>
-            ) : selectedTab === "basic" ? (
-              recommendedScenario && (
-                <View className="px-8 pb-5">
-                  <RecommendScenarioCard
-                    scenario={recommendedScenario}
-                    onPress={openScenarioDetail}
-                  />
-                </View>
-              )
-            ) : null}
+          <FlatList
+            ref={pagerRef}
+            horizontal
+            pagingEnabled
+            nestedScrollEnabled
+            bounces={false}
+            overScrollMode="never"
+            directionalLockEnabled
+            disableIntervalMomentum
+            decelerationRate="fast"
+            snapToInterval={pageWidth}
+            snapToAlignment="start"
+            data={SCENARIO_TABS}
+            keyExtractor={(tab) => tab.value}
+            showsHorizontalScrollIndicator={false}
+            initialNumToRender={SCENARIO_TABS.length}
+            maxToRenderPerBatch={SCENARIO_TABS.length}
+            windowSize={SCENARIO_TABS.length}
+            getItemLayout={(_, index) => ({
+              length: pageWidth,
+              offset: pageWidth * index,
+              index,
+            })}
+            renderItem={({ item }) => {
+              const tabScenarios = getVisibleScenarios(item.value);
 
-            {/* 아래로 끊기지 않고 이어지도록 남은 높이를 채우고 위쪽만 둥글린다 */}
-            <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
-              <Text className="text-headline2 font-bold text-label-normal">
-                시나리오
-              </Text>
-
-              {/* 카테고리 필터는 기본 제공 탭에만 노출 */}
-              {selectedTab === "basic" && (
-                <CategoryChips
-                  value={selectedCategory}
-                  onChange={setSelectedCategory}
-                />
-              )}
-
-              {visibleScenarios.length === 0 ? (
-                <Text className="py-10 text-center text-label text-label-alternative">
-                  {selectedTab === "custom"
-                    ? "아직 만든 커스텀 시나리오가 없습니다."
-                    : selectedTab === "shared"
-                      ? "아직 공유받은 시나리오가 없습니다."
-                      : selectedCategory
-                      ? "해당 카테고리의 시나리오가 없습니다."
-                      : "표시할 시나리오가 없습니다."}
-                </Text>
-              ) : (
-                <View className="gap-y-3">
-                  {toGridRows(visibleScenarios).map((row) => (
-                    <View
-                      key={row[0].scenario_id}
-                      className="flex-row gap-x-3"
-                    >
-                      {row.map((scenario) => (
-                        <ScenarioGridCard
-                          key={scenario.scenario_id}
-                          scenario={scenario}
-                          onPress={openScenarioDetail}
-                        />
-                      ))}
-                      {/* 마지막 줄이 한 칸이면 자리 맞춤 */}
-                      {row.length === 1 && <View className="flex-1" />}
+              return (
+                <Animated.ScrollView
+                  style={{ width: pageWidth }}
+                  nestedScrollEnabled
+                  directionalLockEnabled
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  scrollEventThrottle={16}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                    { useNativeDriver: false },
+                  )}
+                >
+                  {item.value === "custom" ? (
+                    <View className="px-8 pb-5">
+                      <CustomScenarioBanner
+                        onPress={() => router.push("/(tabs)/(train)/create")}
+                      />
                     </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </Animated.ScrollView>
+                  ) : item.value === "basic" && recommendedScenario ? (
+                    <View className="px-8 pb-5">
+                      <RecommendScenarioCard
+                        scenario={recommendedScenario}
+                        onPress={openScenarioDetail}
+                      />
+                    </View>
+                  ) : null}
+
+                  <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
+                    <Text className="text-headline2 font-bold text-label-normal">
+                      시나리오
+                    </Text>
+
+                    {item.value === "basic" && (
+                      <CategoryChips
+                        value={selectedCategory}
+                        onChange={setSelectedCategory}
+                      />
+                    )}
+
+                    {tabScenarios.length === 0 ? (
+                      <Text className="py-10 text-center text-label text-label-alternative">
+                        {item.value === "custom"
+                          ? "아직 만든 커스텀 시나리오가 없습니다."
+                          : item.value === "shared"
+                            ? "아직 공유받은 시나리오가 없습니다."
+                            : selectedCategory
+                              ? "해당 카테고리의 시나리오가 없습니다."
+                              : "표시할 시나리오가 없습니다."}
+                      </Text>
+                    ) : (
+                      <View className="gap-y-3">
+                        {toGridRows(tabScenarios).map((row) => (
+                          <View key={row[0].scenario_id} className="flex-row gap-x-3">
+                            {row.map((scenario) => (
+                              <ScenarioGridCard
+                                key={scenario.scenario_id}
+                                scenario={scenario}
+                                onPress={openScenarioDetail}
+                              />
+                            ))}
+                            {row.length === 1 && <View className="flex-1" />}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </Animated.ScrollView>
+              );
+            }}
+            onMomentumScrollEnd={handlePageSettled}
+          />
 
           {/*
             스크롤된 내용이 탭 바로 아래에서 잘려 보이지 않도록 덮는 페이드.
@@ -240,6 +288,6 @@ export default function List() {
           </Animated.View>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }

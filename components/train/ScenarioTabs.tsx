@@ -9,7 +9,7 @@ interface ScenarioTabsProps {
 /** 시나리오 목록 상단 탭 (기본 제공 / 커스텀 / 공유받은) */
 export default function ScenarioTabs({ value, onChange }: ScenarioTabsProps) {
   return (
-    <View className="flex-row items-center gap-x-4">
+    <View className="flex-row items-center gap-x-[15px]">
       {SCENARIO_TABS.map((tab) => {
         const isSelected = tab.value === value;
         return (
@@ -19,8 +19,8 @@ export default function ScenarioTabs({ value, onChange }: ScenarioTabsProps) {
             className="items-center gap-y-[6px]"
           >
             <Text
-              className={`text-headline2 font-medium text-center ${
-                isSelected ? "text-green-40" : "text-neutral-70"
+              className={`text-center text-headline2 font-medium ${
+                isSelected ? "text-green-40" : "text-line-normal"
               }`}
             >
               {tab.label}
