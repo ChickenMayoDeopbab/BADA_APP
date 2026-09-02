@@ -90,7 +90,7 @@ function CommunityFeed({
         keyExtractor={(post) => String(post.post_id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          gap: 8,
+          gap: 12,
           paddingHorizontal: 32,
           paddingBottom: 120,
         }}

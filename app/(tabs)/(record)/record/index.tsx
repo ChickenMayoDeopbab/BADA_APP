@@ -430,7 +430,7 @@ export default function RecordScreen() {
                         <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
                           {section.title}
                         </Text>
-                        <View className="gap-y-[6px]">
+                        <View className="gap-y-3">
                           {section.records.map((record) => (
                             <RecordCard key={record.recordId} item={record} />
                           ))}
