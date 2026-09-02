@@ -97,6 +97,7 @@ export interface MyPageResponse {
   email: string;
   name: string;
   s3Key?: string | null;
+  levelName?: string | null;
 }
 
 export interface UpdateMyPageRequest {
