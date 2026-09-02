@@ -4,7 +4,7 @@ import {
   PendingCallProvider,
   usePendingCall,
 } from "@/context/PendingCallContext";
-import { Tabs, router, usePathname } from "expo-router";
+import { Tabs, router, usePathname, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 
@@ -48,14 +48,29 @@ function CallWatcher() {
   return null;
 }
 
+/** 하단 탭 바를 감추고 화면 전체를 쓰는 경로 (통화·불안 점수 입력) */
+const FULL_SCREEN_PATHS = ["/train", "/anxiety"];
+
 export default function TabLayout() {
   const pathname = usePathname();
+  const segments = useSegments();
+  const isCommunityStack = segments.some(
+    (segment) => segment === "(community)",
+  );
+  const currentRoute = segments[segments.length - 1];
+  const isCommunityRoot =
+    currentRoute === "(community)" || currentRoute === "community";
+  const hideTabBar =
+    FULL_SCREEN_PATHS.includes(pathname) ||
+    pathname.endsWith("/notifications") ||
+    pathname.endsWith("/search") ||
+    (isCommunityStack && !isCommunityRoot);
 
   return (
     <PendingCallProvider>
       <CallWatcher />
       <Tabs
-        tabBar={(props) => pathname === "/train" ? null : <BottomNav {...props} />}
+        tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
@@ -90,6 +105,7 @@ export default function TabLayout() {
           name="(community)"
           options={{
             title: "커뮤니티",
+            popToTopOnBlur: true,
           }}
         />
         <Tabs.Screen
