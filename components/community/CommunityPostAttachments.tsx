@@ -4,6 +4,7 @@ import type {
   CommunityPostAttachment,
   CommunityScenarioCopyResponse,
 } from "@/api/types";
+import CustomModal from "@/components/common/CustomModal";
 import StyledImage from "@/components/common/StyledImage";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import { CARD_TEXT_SHADOW } from "@/components/train/cardTextShadow";
@@ -15,7 +16,6 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Modal,
   Pressable,
@@ -241,26 +241,42 @@ interface ScenarioCardProps {
   attachment: CommunityPostAttachment;
 }
 
+interface ScenarioSaveNotice {
+  title: string;
+  description: string;
+  tone: "success" | "error";
+}
+
 function ScenarioCard({ postId, attachment }: ScenarioCardProps) {
   const queryClient = useQueryClient();
   const scenario = attachment.scenario;
   const [copyResult, setCopyResult] =
     useState<CommunityScenarioCopyResponse | null>(null);
+  const [saveNotice, setSaveNotice] = useState<ScenarioSaveNotice | null>(
+    null,
+  );
   const copyMutation = useMutation({
     mutationFn: () => postCopyCommunityScenario(postId),
     onSuccess: (result) => {
       setCopyResult(result);
       void queryClient.invalidateQueries({ queryKey: ["scenarios"] });
-      Alert.alert(
-        result.already_copied ? "이미 저장된 시나리오예요" : "시나리오를 저장했어요",
-        `시나리오 훈련의 공유받은 탭에서 ${result.title}을 확인할 수 있어요.`,
-      );
+      setSaveNotice({
+        title: result.already_copied
+          ? "이미 저장된 시나리오예요"
+          : "시나리오를 저장했어요",
+        description: `시나리오 훈련의 공유받은 탭에서 ${result.title}을 확인할 수 있어요.`,
+        tone: "success",
+      });
     },
     onError: (error) => {
-      Alert.alert(
-        "시나리오를 저장하지 못했어요",
-        getApiErrorMessage(error, "잠시 후 다시 시도해주세요."),
-      );
+      setSaveNotice({
+        title: "시나리오를 저장하지 못했어요",
+        description: getApiErrorMessage(
+          error,
+          "잠시 후 다시 시도해주세요.",
+        ),
+        tone: "error",
+      });
     },
   });
 
@@ -274,60 +290,103 @@ function ScenarioCard({ postId, attachment }: ScenarioCardProps) {
       ? "저장됨"
       : "저장하기";
 
+  const closeSaveNotice = () => setSaveNotice(null);
+
   return (
-    <View
-      className="h-[72px] overflow-hidden rounded-component bg-background-normal"
-      style={styles.cardShadow}
-    >
-      <StyledImage
-        source={getScenarioCover(undefined, scenario.category)}
-        contentFit="cover"
-        style={StyleSheet.absoluteFill}
-      />
-      <GradientOverlay
-        direction="right"
-        stops={SCENARIO_SCRIM}
-      />
+    <>
+      <View
+        className="h-[72px] overflow-hidden rounded-component bg-background-normal"
+        style={styles.cardShadow}
+      >
+        <StyledImage
+          source={getScenarioCover(undefined, scenario.category)}
+          contentFit="cover"
+          style={StyleSheet.absoluteFill}
+        />
+        <GradientOverlay
+          direction="right"
+          stops={SCENARIO_SCRIM}
+        />
 
-      <View className="flex-1 flex-row items-center justify-between px-3 py-2.5">
-        <View className="flex-1 pr-2">
-          <Text
-            numberOfLines={1}
-            className="text-headline1 font-bold text-white"
-            style={CARD_TEXT_SHADOW}
+        <View className="flex-1 flex-row items-center justify-between px-3 py-2.5">
+          <View className="flex-1 pr-2">
+            <Text
+              numberOfLines={1}
+              className="text-headline1 font-bold text-white"
+              style={CARD_TEXT_SHADOW}
+            >
+              {scenario.title}
+            </Text>
+            <Text
+              numberOfLines={1}
+              className="mt-1 text-caption text-white"
+              style={CARD_TEXT_SHADOW}
+            >
+              {scenario.content || "함께 연습해 볼 수 있는 시나리오예요."}
+            </Text>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${scenario.title} 저장하기`}
+            accessibilityState={{ disabled: isUnavailable || isSaved }}
+            disabled={isUnavailable || isSaved || copyMutation.isPending}
+            onPress={() => copyMutation.mutate()}
+            className="h-9 min-w-[92px] flex-row items-center justify-center gap-x-0.5 rounded-[8px] border border-white/30 bg-black/20 px-2.5 active:opacity-80"
           >
-            {scenario.title}
-          </Text>
-          <Text
-            numberOfLines={1}
-            className="mt-1 text-caption text-white"
-            style={CARD_TEXT_SHADOW}
-          >
-            {scenario.content || "함께 연습해 볼 수 있는 시나리오예요."}
-          </Text>
+            {copyMutation.isPending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Text className="text-body font-medium text-white">
+                  {buttonLabel}
+                </Text>
+                {!isSaved && (
+                  <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                )}
+              </>
+            )}
+          </Pressable>
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${scenario.title} 저장하기`}
-          accessibilityState={{ disabled: isUnavailable || isSaved }}
-          disabled={isUnavailable || isSaved || copyMutation.isPending}
-          onPress={() => copyMutation.mutate()}
-          className="h-9 min-w-[92px] flex-row items-center justify-center gap-x-0.5 rounded-[8px] border border-white/30 bg-black/20 px-2.5 active:opacity-80"
-        >
-          {copyMutation.isPending ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Text className="text-body font-medium text-white">{buttonLabel}</Text>
-              {!isSaved && (
-                <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
-              )}
-            </>
-          )}
-        </Pressable>
       </View>
-    </View>
+
+      <CustomModal
+        visible={Boolean(saveNotice)}
+        title={saveNotice?.title ?? ""}
+        description={saveNotice?.description}
+        icon={
+          saveNotice ? (
+            <View
+              className={`h-12 w-12 items-center justify-center rounded-pill ${
+                saveNotice.tone === "success"
+                  ? "bg-green-90"
+                  : "bg-red-90"
+              }`}
+            >
+              <Ionicons
+                name={
+                  saveNotice.tone === "success"
+                    ? "checkmark"
+                    : "alert"
+                }
+                size={28}
+                color={
+                  saveNotice.tone === "success"
+                    ? SEMANTIC_COLORS.primary.normal
+                    : SEMANTIC_COLORS.status.error
+                }
+              />
+            </View>
+          ) : null
+        }
+        onClose={closeSaveNotice}
+        primaryAction={{
+          label: "확인",
+          tone: saveNotice?.tone === "error" ? "neutral" : "primary",
+          onPress: closeSaveNotice,
+        }}
+      />
+    </>
   );
 }
 
