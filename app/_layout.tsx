@@ -61,35 +61,21 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <PendingCallProvider>
+          {/*
+            훈련 흐름(설정·통화·불안 점수·리포트)은 탭 그룹 밖 루트 스택에 둔다.
+            탭 안에 두면 시나리오 상세 시트(transparentModal) 위에 쌓여, iOS가
+            뒤따르는 화면도 모달 컨텍스트로 보고 pageSheet(둥근 모서리 + 뒤 화면
+            노출)로 그린다. 상세 시트는 훈련 시작 시점에 닫으므로(detail/[id].tsx)
+            이 화면들은 모달이 아닌 일반 push로 열린다. 모달로 띄우면 화면끼리
+            replace할 때 앞 화면만 닫히고 다음 화면이 뜨지 않는다.
+            Screen을 선언하면 선언 순서가 초기 화면 결정에 끼어들므로 선언하지 않는다.
+          */}
           <Stack
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: "#FEFEFE" },
             }}
-          >
-            {/*
-              훈련 설정·통화·불안 점수 화면은 탭 그룹 밖 루트 스택에 둔다.
-              이들은 시나리오 상세 시트(transparentModal) 위에서 열리는데,
-              탭 안에 두면 iOS가 뒤따르는 화면도 모달 컨텍스트로 보고
-              pageSheet(둥근 모서리 + 뒤 화면 노출)로 그린다.
-              또 탭 안의 전체 화면 모달은 하단 탭 바가 먹은 높이만큼
-              콘텐츠가 짧게 잡혀 화면 아래에 빈 띠가 남는다.
-              루트 스택의 일반 push는 상세 시트보다 아래에 그려지므로
-              fullScreenModal로 띄워 최상단에 올린다.
-            */}
-            <Stack.Screen
-              name="start"
-              options={{ presentation: "fullScreenModal" }}
-            />
-            <Stack.Screen
-              name="train"
-              options={{ presentation: "fullScreenModal" }}
-            />
-            <Stack.Screen
-              name="anxiety"
-              options={{ presentation: "fullScreenModal" }}
-            />
-          </Stack>
+          />
         </PendingCallProvider>
       </SafeAreaProvider>
     </QueryClientProvider>

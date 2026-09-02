@@ -19,6 +19,12 @@ function CallWatcher() {
       cancel();
       try {
         const session = await createSession(config);
+        /*
+          예약 발신은 사용자가 어디에 있든 걸려온다. 시나리오 상세처럼 모달로 열린
+          화면이 남아 있으면 통화 화면 위를 덮으므로, 세션을 얻은 뒤 현재 스택을 비운다.
+          훈련이 끝나면 리포트를 거쳐 훈련 목록으로 가므로 스택을 되돌릴 일도 없다.
+        */
+        if (router.canDismiss()) router.dismissAll();
         router.push({
           pathname: "/train",
           params: {
