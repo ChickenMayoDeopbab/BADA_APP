@@ -3,6 +3,7 @@ import { MyPageResponse } from "@/api/types";
 import { getMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
 import StyledImage from "@/components/common/StyledImage";
+import Top from "@/components/common/Top";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useProfileImage } from "@/hooks/useProfileImage";
@@ -108,11 +109,7 @@ function ProfileScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
-      <View className="flex-row items-center justify-between h-16 px-2 bg-background-normal">
-        <View className="size-16" />
-        <Text className="font-bold text-headline1 text-label-neutral">프로필</Text>
-        <View className="size-16" />
-      </View>
+      <Top title="프로필" safeArea={false} />
 
       <ScrollView
         className="flex-1 bg-background-alternative"
