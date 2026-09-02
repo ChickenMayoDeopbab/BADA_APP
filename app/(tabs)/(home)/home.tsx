@@ -5,14 +5,20 @@ import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
+import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { Href, router, useFocusEffect } from "expo-router";
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import Animated, {
@@ -65,18 +71,22 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 
 export default function Home() {
   useDoubleBackExit();
+  const notificationsQuery = useNotifications("ALL");
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const today = useMemo(() => new Date(), []);
+  const [displayedMonth, setDisplayedMonth] = useState(
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
+  );
   const week = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = new Date(today);
     date.setDate(today.getDate() - 6 + index);
     return date;
   }), [today]);
   const calendarWeeks = useMemo(() => {
-    const year = today.getFullYear();
-    const month = today.getMonth();
+    const year = displayedMonth.getFullYear();
+    const month = displayedMonth.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
     const lastDate = new Date(year, month + 1, 0).getDate();
     const cells: (Date | null)[] = [
@@ -87,26 +97,48 @@ export default function Home() {
     while (cells.length % 7 !== 0) cells.push(null);
 
     return Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
-  }, [today]);
+  }, [displayedMonth]);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
       const loadHome = async () => {
-        const results = await Promise.allSettled([
-          getAttendantDays(today.getFullYear(), today.getMonth() + 1),
-          getMyPage(),
+        const attendanceMonths = week.reduce<{ year: number; month: number }[]>((months, date) => {
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const isIncluded = months.some((item) => item.year === year && item.month === month);
+
+          if (!isIncluded) months.push({ year, month });
+          return months;
+        }, []);
+        const displayedYear = displayedMonth.getFullYear();
+        const displayedMonthNumber = displayedMonth.getMonth() + 1;
+        const includesDisplayedMonth = attendanceMonths.some(
+          (item) => item.year === displayedYear && item.month === displayedMonthNumber,
+        );
+        if (!includesDisplayedMonth) {
+          attendanceMonths.push({ year: displayedYear, month: displayedMonthNumber });
+        }
+        const [attendanceResults, myPageResult] = await Promise.all([
+          Promise.allSettled(attendanceMonths.map(({ year, month }) => getAttendantDays(year, month))),
+          getMyPage().then(
+            (value) => ({ status: "fulfilled" as const, value }),
+            () => ({ status: "rejected" as const }),
+          ),
         ]);
         if (!isActive) return;
-        if (results[0].status === "fulfilled") {
-          const dates = (results[0].value.data as unknown as { date: string }[]).map(({ date }) => date);
-          setAttendedDates(dates);
+        const dates = attendanceResults.flatMap((result) => {
+          if (result.status === "rejected") return [];
+          return (result.value.data as unknown as { date: string }[]).map(({ date }) => date);
+        });
+        if (attendanceResults.some((result) => result.status === "fulfilled")) {
+          setAttendedDates([...new Set(dates)]);
         }
-        if (results[1].status === "fulfilled") setName(results[1].value.data.name ?? "");
+        if (myPageResult.status === "fulfilled") setName(myPageResult.value.data.name ?? "");
       };
       loadHome();
       return () => { isActive = false; };
-    }, [today]),
+    }, [displayedMonth, week]),
   );
 
   const streak = useMemo(() => {
@@ -119,16 +151,34 @@ export default function Home() {
     }
     return count;
   }, [attendedDates, today]);
+  const unreadNotificationCount =
+    notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
+  const isCurrentMonth =
+    displayedMonth.getFullYear() === today.getFullYear() &&
+    displayedMonth.getMonth() === today.getMonth();
+
+  const moveMonth = (offset: number) => {
+    setDisplayedMonth((current) => (
+      new Date(current.getFullYear(), current.getMonth() + offset, 1)
+    ));
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-[33px] pb-6">
         <View className="pt-[13px]">
-        <View className="relative h-[38px] items-end">
+        <Pressable
+          accessibilityLabel="알림 보기"
+          hitSlop={8}
+          onPress={() => router.push("/(tabs)/(home)/notifications" as Href)}
+          className="relative h-[38px] items-end"
+        >
           <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          <View className="absolute rounded-full right-1 top-px size-2 bg-status-error" />
-        </View>
+          {unreadNotificationCount > 0 && (
+            <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
+          )}
+        </Pressable>
         <View className="flex-row items-center gap-0.5">
           <Text className="font-medium text-body text-label-normal">다시 만나서 반가워요{name ? `, ${name}님!` : "!"}</Text>
           <SmileIllustration width={26} height={26} />
@@ -171,22 +221,66 @@ export default function Home() {
             exiting={FadeOut.duration(120)}
             className="gap-1 pt-5 border-t border-line-normal"
           >
-              <Text className="mb-2.5 text-center text-label font-bold text-label-normal">{today.getFullYear()}년 {today.getMonth() + 1}월</Text>
+              <View className="flex-row items-center justify-between px-7 mb-3">
+                <Pressable accessibilityLabel="이전 달 보기" hitSlop={10} onPress={() => moveMonth(-1)}>
+                  <Ionicons name="caret-back" size={18} color={PALETTE.blue[40]} />
+                </Pressable>
+                <Text className="font-bold text-headline2 text-label-normal">
+                  {displayedMonth.getFullYear() === today.getFullYear()
+                    ? `${displayedMonth.getMonth() + 1}월`
+                    : `${displayedMonth.getFullYear()}년 ${displayedMonth.getMonth() + 1}월`}
+                </Text>
+                <Pressable
+                  accessibilityLabel="다음 달 보기"
+                  disabled={isCurrentMonth}
+                  hitSlop={10}
+                  onPress={() => moveMonth(1)}
+                  style={{ opacity: isCurrentMonth ? 0 : 1 }}
+                >
+                  <Ionicons name="caret-forward" size={18} color={PALETTE.blue[40]} />
+                </Pressable>
+              </View>
               <View className="flex-row">
-                {DAY_LABELS.map((label) => <Text key={label} className="mb-0.5 flex-1 text-center text-caption font-medium text-label-alternative">{label}</Text>)}
+                {DAY_LABELS.map((label) => (
+                  <Text key={label} className="flex-1 text-center text-[13px] font-semibold text-label-alternative">
+                    {label}
+                  </Text>
+                ))}
               </View>
               {calendarWeeks.map((weekDates, weekIndex) => (
                 <View key={weekIndex} className="flex-row">
                   {weekDates.map((date, dayIndex) => {
-                    if (!date) return <View key={`empty-${dayIndex}`} className="flex-1 h-8" />;
+                    if (!date) return <View key={`empty-${dayIndex}`} className="flex-1 h-12" />;
                     const dateString = formatDate(date);
                     const isAttended = attendedDates.includes(dateString);
-                    const isToday = dateString === formatDate(today);
                     return (
-                      <View key={dateString} className="items-center justify-center flex-1 h-8">
-                        <View className={`size-7 items-center justify-center rounded-full ${isAttended ? "bg-primary-normal" : isToday ? "border border-primary-normal" : ""}`}>
-                          <Text className={`text-caption ${isAttended ? "font-bold text-white" : "font-medium text-label-normal"}`}>{date.getDate()}</Text>
-                        </View>
+                      <View key={dateString} className="items-center justify-center flex-1 h-12">
+                        <TouchableOpacity
+                          disabled
+                          activeOpacity={1}
+                          className="items-center justify-center"
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            overflow: "hidden",
+                            backgroundColor: isAttended
+                              ? SEMANTIC_COLORS.primary.normal
+                              : "transparent",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              fontWeight: "600",
+                              color: isAttended
+                                ? PALETTE.common[0]
+                                : SEMANTIC_COLORS.label.neutral,
+                            }}
+                          >
+                            {date.getDate()}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     );
                   })}
