@@ -1,18 +1,19 @@
 import { InAppNotificationResponse, NotificationFilter } from "@/api/types";
 import EmptyNotificationIcon from "@/assets/notifications/empty-notification.svg";
+import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/useNotifications";
+import { useProfileImage } from "@/hooks/useProfileImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ko } from "date-fns/locale";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   Text,
   View,
@@ -43,7 +44,7 @@ function FilterChip({
         {label}
       </Text>
       {count !== undefined && (
-        <View className="w-4 items-center">
+        <View className="items-center w-4">
           <Text className="text-center text-body font-bold text-[#09C357]">
             {count}
           </Text>
@@ -53,17 +54,16 @@ function FilterChip({
   );
 }
 
-function NotificationCard({
+const NotificationCard = memo(function NotificationCard({
   item,
   onPress,
 }: {
   item: InAppNotificationResponse;
-  onPress: () => void;
+  onPress: (item: InAppNotificationResponse) => void;
 }) {
   const fallbackImage = item.scheduleId ? TrainingProfileImage : DefaultProfileImage;
-  const profileImage = item.actorProfileImage
-    ? { uri: item.actorProfileImage }
-    : fallbackImage;
+  const profileImage = useProfileImage(item.actorProfileImage);
+  const imageSource = profileImage.uri ? { uri: profileImage.uri } : fallbackImage;
   const time = formatDistanceToNowStrict(new Date(item.createdAt), {
     addSuffix: true,
     locale: ko,
@@ -73,14 +73,24 @@ function NotificationCard({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${item.message}`}
-      onPress={onPress}
+      onPress={() => onPress(item)}
       className="h-[82px] w-full justify-center overflow-hidden rounded-[12px] bg-background-normal px-6 py-2.5 shadow-sm"
     >
       <View className="flex-row items-center gap-2.5">
-        <Image source={profileImage} className="size-10 rounded-full bg-[#E0E0E0]" />
+        <StyledImage
+          source={imageSource}
+          placeholder={fallbackImage}
+          placeholderContentFit="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={`${item.notificationId}:${profileImage.uri}`}
+          transition={100}
+          onError={profileImage.onError}
+          className="size-10 rounded-full bg-[#E0E0E0]"
+        />
         <View className="flex-1 gap-1">
-          <View className="w-full flex-row items-center justify-between">
-            <Text className="text-body font-bold text-label-normal">{item.title}</Text>
+          <View className="flex-row items-center justify-between w-full">
+            <Text className="font-bold text-body text-label-normal">{item.title}</Text>
             <Text className={`text-label font-medium ${item.read ? "text-line-normal" : "text-primary-normal"}`}>
               {time}
             </Text>
@@ -92,35 +102,49 @@ function NotificationCard({
       </View>
     </Pressable>
   );
-}
+});
 
 export default function NotificationsScreen() {
   const [filter, setFilter] = useState<NotificationFilter>("ALL");
   const notificationsQuery = useNotifications(filter);
-  const markReadMutation = useMarkNotificationRead();
-  const notifications = notificationsQuery.data?.pages.flatMap(
-    (page) => page.notifications.content,
-  ) ?? [];
+  const { mutate: markNotificationRead } = useMarkNotificationRead();
+  const notifications = useMemo(
+    () =>
+      notificationsQuery.data?.pages.flatMap(
+        (page) => page.notifications.content,
+      ) ?? [],
+    [notificationsQuery.data],
+  );
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
-  const openNotification = (item: InAppNotificationResponse) => {
-    const openPost = () => {
-      if (!item.postId) return;
+  const openNotification = useCallback(
+    (item: InAppNotificationResponse) => {
+      const openPost = () => {
+        if (!item.postId) return;
 
-      router.push({
-        pathname: "/(tabs)/(community)/post/[id]",
-        params: { id: String(item.postId), source: "notifications" },
+        router.push({
+          pathname: "/(tabs)/(community)/post/[id]",
+          params: { id: String(item.postId), source: "notifications" },
+        });
+      };
+
+      if (item.read) {
+        openPost();
+        return;
+      }
+
+      markNotificationRead(item.notificationId, {
+        onSuccess: openPost,
       });
-    };
+    },
+    [markNotificationRead],
+  );
 
-    if (item.read) {
-      openPost();
-      return;
-    }
-
-    markReadMutation.mutate(item.notificationId, {
-      onSuccess: openPost,
-    });
-  };
+  const renderNotification = useCallback(
+    ({ item }: { item: InAppNotificationResponse }) => (
+      <NotificationCard item={item} onPress={openNotification} />
+    ),
+    [openNotification],
+  );
 
   return (
     <View className="flex-1 bg-background-normal">
@@ -139,19 +163,19 @@ export default function NotificationsScreen() {
         </View>
 
       {notificationsQuery.isLoading ? (
-        <View className="flex-1 items-center justify-center pb-20">
+        <View className="items-center justify-center flex-1 pb-20">
           <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
         </View>
       ) : notificationsQuery.isError ? (
-        <View className="flex-1 items-center justify-center px-8 pb-20">
+        <View className="items-center justify-center flex-1 px-8 pb-20">
           <Ionicons name="alert-circle-outline" size={40} color={SEMANTIC_COLORS.status.error} />
-          <Text className="mt-3 text-body font-medium text-label-neutral">알림을 불러오지 못했어요.</Text>
+          <Text className="mt-3 font-medium text-body text-label-neutral">알림을 불러오지 못했어요.</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => void notificationsQuery.refetch()}
             className="mt-4 rounded-[8px] bg-primary-normal px-6 py-2"
           >
-            <Text className="text-label font-bold text-label-buttonText">재시도</Text>
+            <Text className="font-bold text-label text-label-buttonText">재시도</Text>
           </Pressable>
         </View>
       ) : (
@@ -168,16 +192,11 @@ export default function NotificationsScreen() {
               void notificationsQuery.fetchNextPage();
             }
           }}
-          renderItem={({ item }) => (
-            <NotificationCard
-              item={item}
-              onPress={() => openNotification(item)}
-            />
-          )}
+          renderItem={renderNotification}
           ListEmptyComponent={(
             <View className="items-center justify-center pb-20">
               <EmptyNotificationIcon width={36} height={40} />
-              <Text className="mt-2 text-body font-medium text-label-alternative opacity-50">
+              <Text className="mt-2 font-medium opacity-50 text-body text-label-alternative">
                 표시할 알림이 없어요.
               </Text>
             </View>
@@ -185,7 +204,7 @@ export default function NotificationsScreen() {
           ListFooterComponent={notificationsQuery.isFetchingNextPage ? (
             <ActivityIndicator className="py-5" color={SEMANTIC_COLORS.primary.normal} />
           ) : notifications.length > 0 ? (
-            <Text className="py-8 text-center text-caption font-medium text-label-alternative opacity-50">
+            <Text className="py-8 font-medium text-center opacity-50 text-caption text-label-alternative">
               받은 알림은 3일 동안 표시됩니다.
             </Text>
           ) : null}
