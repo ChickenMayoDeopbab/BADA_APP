@@ -37,7 +37,7 @@ export default function WarmupStart() {
         maxDurationSeconds: 0,
       });
       router.push({
-        pathname: "/(tabs)/(train)/train",
+        pathname: "/train",
         params: {
           sessionId: session.sessionId,
           wsUrl: session.wsUrl,

@@ -261,6 +261,7 @@ function BottomFade() {
 }
 
 export default function Report() {
+
   const { scenarioId, mode = "scenario" } = useLocalSearchParams<ReportParams>();
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
