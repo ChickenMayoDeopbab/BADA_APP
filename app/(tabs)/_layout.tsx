@@ -61,7 +61,9 @@ export default function TabLayout() {
   const isCommunityRoot =
     currentRoute === "(community)" || currentRoute === "community";
   const hideTabBar =
-    pathname.endsWith("/search") || (isCommunityStack && !isCommunityRoot);
+    pathname.endsWith("/notifications") ||
+    pathname.endsWith("/search") ||
+    (isCommunityStack && !isCommunityRoot);
 
   return (
     <>
@@ -102,6 +104,7 @@ export default function TabLayout() {
           name="(community)"
           options={{
             title: "커뮤니티",
+            popToTopOnBlur: true,
           }}
         />
         <Tabs.Screen
