@@ -91,7 +91,7 @@ function CommunityFeed({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           gap: 8,
-          paddingHorizontal: 11,
+          paddingHorizontal: 32,
           paddingBottom: 120,
         }}
         renderItem={({ item }) => (
