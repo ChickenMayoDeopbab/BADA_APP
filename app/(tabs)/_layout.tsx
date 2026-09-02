@@ -105,6 +105,7 @@ export default function TabLayout() {
           name="(community)"
           options={{
             title: "커뮤니티",
+            popToTopOnBlur: true,
           }}
         />
         <Tabs.Screen
