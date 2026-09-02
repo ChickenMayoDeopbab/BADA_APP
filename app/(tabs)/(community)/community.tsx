@@ -41,7 +41,7 @@ const TABS: CommunityTabItem[] = [
   { key: "mine", label: "내 글" },
 ];
 
-const TAB_WIDTH = 52;
+const TAB_WIDTH = 64;
 const TAB_GAP = 15;
 
 function CommunityFeed({
@@ -199,10 +199,14 @@ export default function Community() {
                 className="items-center"
                 style={{ width: TAB_WIDTH }}
               >
-                <Text className="text-headline2 font-medium text-line-normal">
+                <Text
+                  numberOfLines={1}
+                  className="text-headline2 font-medium text-line-normal"
+                >
                   {tab.label}
                 </Text>
                 <Animated.Text
+                  numberOfLines={1}
                   pointerEvents="none"
                   className="absolute text-headline2 font-medium text-green-40"
                   style={{ opacity: activeTextOpacity }}
