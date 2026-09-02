@@ -133,7 +133,7 @@ export default function Anxiety() {
       }
     }
 
-    router.replace({ pathname: "/(tabs)/(train)/report", params });
+    router.replace({ pathname: "/report", params });
   };
 
   return (

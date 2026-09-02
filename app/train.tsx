@@ -238,7 +238,7 @@ export default function Train() {
       () =>
         router.replace({
           pathname: isWarmupSession
-            ? "/(tabs)/(train)/report"
+            ? "/report"
             : "/anxiety",
           params: nextParams,
         }),
