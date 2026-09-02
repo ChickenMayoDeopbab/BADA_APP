@@ -60,6 +60,13 @@ const formatTimelineTime = (seconds: number) => {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 };
 
+const formatAnxietyScore = (score: unknown) => {
+  if (score === null || score === undefined || score === "") return "-";
+
+  const numericScore = Number(score);
+  return Number.isFinite(numericScore) ? String(numericScore) : "-";
+};
+
 function SummaryBackground() {
   return (
     <Svg
@@ -285,9 +292,7 @@ export default function RecordDetailScreen() {
                         includeFontPadding: false,
                       }}
                     >
-                      {Number.isFinite(data.anxietyScore)
-                        ? data.anxietyScore
-                        : "-"}
+                      {formatAnxietyScore(data.anxietyScore)}
                     </Text>
                   </View>
                 </View>
