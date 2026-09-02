@@ -8,12 +8,14 @@ interface CommunityHeaderProps {
   title: string;
   back?: boolean;
   right?: ReactNode;
+  onBack?: () => void;
 }
 
 export default function CommunityHeader({
   title,
   back = true,
   right,
+  onBack,
 }: CommunityHeaderProps) {
   return (
     <View className="h-16 flex-row items-center justify-between px-2">
@@ -23,7 +25,7 @@ export default function CommunityHeader({
             accessibilityRole="button"
             accessibilityLabel="뒤로 가기"
             hitSlop={8}
-            onPress={() => router.back()}
+            onPress={onBack ?? (() => router.back())}
             className="h-16 w-16 items-center justify-center active:opacity-60"
           >
             <Ionicons
