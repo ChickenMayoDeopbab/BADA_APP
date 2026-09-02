@@ -236,6 +236,40 @@ export interface PageData<T> {
   empty: boolean;
 }
 
+export type NotificationFilter = "ALL" | "UNREAD";
+
+export interface GetNotificationsParams {
+  filter?: NotificationFilter;
+  page?: number;
+  size?: number;
+}
+
+export interface InAppNotificationResponse {
+  notificationId: number;
+  type: string;
+  title: string;
+  message: string;
+  actorUserId: number | null;
+  actorName: string | null;
+  actorProfileImage: string | null;
+  postId: number | null;
+  commentId: number | null;
+  scheduleId: number | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface InAppNotificationListResponse {
+  notifications: PageData<InAppNotificationResponse>;
+  unreadCount: number;
+}
+
+export type ApiResponseInAppNotificationListResponse =
+  ApiResponse<InAppNotificationListResponse>;
+
+export type ApiResponseInAppNotificationResponse =
+  ApiResponse<InAppNotificationResponse>;
+
 export interface TrainingRecordResponse {
   recordId: number;
   sessionId: string;
