@@ -148,6 +148,18 @@ function ProfileScreen() {
               >
                 {displayName}
               </Text>
+              {myPage?.levelName ? (
+                <View className="mb-1 mt-0.5 flex-row items-center gap-1 rounded-pill bg-primary-normal px-2.5 py-1">
+                  <Ionicons
+                    name="sparkles"
+                    size={14}
+                    color={SEMANTIC_COLORS.label.buttonText}
+                  />
+                  <Text className="text-caption font-bold text-label-buttonText">
+                    자가진단 · {myPage.levelName}
+                  </Text>
+                </View>
+              ) : null}
               <View className="min-h-[18px] w-full flex-row items-center justify-center gap-[10px]">
                 <View className="min-w-0 flex-row items-center gap-0.5">
                   <Ionicons
@@ -180,13 +192,28 @@ function ProfileScreen() {
             </View>
           </View>
 
-          <CustomButton
-            label="프로필 수정하기"
-            variant="md"
-            backgroundColor={SEMANTIC_COLORS.background.alternative}
-            color={SEMANTIC_COLORS.label.neutral}
-            onPress={() => router.push("/(tabs)/(profile)/profile/edit")}
-          />
+          <View className="w-full gap-2">
+            <CustomButton
+              label="프로필 수정하기"
+              variant="md"
+              backgroundColor={SEMANTIC_COLORS.background.alternative}
+              color={SEMANTIC_COLORS.label.neutral}
+              onPress={() => router.push("/(tabs)/(profile)/profile/edit")}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={myPage?.levelName ? "자가진단 다시 하기" : "자가진단 시작하기"}
+              className="items-center justify-center py-1 active:opacity-60"
+              onPress={() => router.push({
+                pathname: "/diagnosis/question",
+                params: { from: "profile" },
+              })}
+            >
+              <Text className="text-caption font-medium text-label-alternative">
+                {myPage?.levelName ? "자가진단 다시 하기" : "자가진단 시작하기"}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View className="w-full gap-1.5">

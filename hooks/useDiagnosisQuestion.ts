@@ -4,7 +4,7 @@ import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { getAccessToken } from "@/utils/authTokenStorage";
 import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { jwtDecode } from "jwt-decode";
 import { useCallback, useEffect, useState } from "react";
 import "react-native-get-random-values";
@@ -19,6 +19,10 @@ interface Token {
 }
 
 export const useDiagnosisQuestion = () => {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const isProfileRetake = Array.isArray(from)
+    ? from[0] === "profile"
+    : from === "profile";
   const [nowStep, setNowStep] = useState(0);
   const [answers, setAnswers] = useState<number[]>(Array(QUESTION_COUNT).fill(3));
   const [status, setStatus] = useState<Status>(null);
@@ -40,11 +44,16 @@ export const useDiagnosisQuestion = () => {
   useEffect(() => {
     if (status === "done") {
       const timer = setTimeout(() => {
-        router.push("/diagnosis/result");
+        router.push(isProfileRetake
+          ? {
+              pathname: "/diagnosis/result",
+              params: { from: "profile" },
+            }
+          : "/diagnosis/result");
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [status]);
+  }, [isProfileRetake, status]);
 
   const submitAnswers = useCallback(async () => {
     setStatus("loading");
