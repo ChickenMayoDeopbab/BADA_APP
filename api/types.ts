@@ -138,6 +138,8 @@ export interface ScenarioInfo {
   is_custom: boolean;
   /** 커뮤니티에서 공유받아 복사한 커스텀 시나리오 */
   is_copied?: boolean;
+  /** 서버가 집계한 실제 훈련 횟수 */
+  practice_count?: number;
 }
 
 export interface ScenarioListResponse {
