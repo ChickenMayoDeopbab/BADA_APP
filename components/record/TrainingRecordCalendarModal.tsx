@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { format } from "date-fns";
 import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
 import { Calendar, DateData, LocaleConfig } from "react-native-calendars";
@@ -38,11 +37,7 @@ export default function TrainingRecordCalendarModal({
         ? `${date.getMonth() + 1}월`
         : `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
 
-    return (
-      <Text className="font-bold text-headline2 text-label-normal">
-        {label}
-      </Text>
-    );
+    return <Text className="text-lg font-bold text-[#1A1A1A]">{label}</Text>;
   };
 
   const renderDay = ({ date, state }: { date?: DateData; state?: string }) => {
@@ -54,11 +49,11 @@ export default function TrainingRecordCalendarModal({
     const dayOfWeek = new Date(`${date.dateString}T00:00:00`).getDay();
     const isDisabled = isLoading || !isAvailable || isOutsideMonth;
 
-    let color = SEMANTIC_COLORS.label.neutral;
-    if (dayOfWeek === 0) color = PALETTE.red[40];
-    if (dayOfWeek === 6) color = PALETTE.blue[40];
-    if (isDisabled) color = PALETTE.neutral[80];
-    if (isSelected) color = PALETTE.common[0];
+    let color = "#3B3D3E";
+    if (dayOfWeek === 0) color = "#E24B4A";
+    if (dayOfWeek === 6) color = "#378ADD";
+    if (isDisabled) color = "#CFCFCF";
+    if (isSelected) color = "#FFFFFF";
 
     return (
       <TouchableOpacity
@@ -70,9 +65,7 @@ export default function TrainingRecordCalendarModal({
           width: 36,
           height: 36,
           borderRadius: 18,
-          backgroundColor: isSelected
-            ? SEMANTIC_COLORS.primary.normal
-            : "transparent",
+          backgroundColor: isSelected ? "#0AE365" : "transparent",
         }}
       >
         <Text style={{ fontSize: 15, fontWeight: isAvailable ? "600" : "400", color }}>
@@ -85,33 +78,26 @@ export default function TrainingRecordCalendarModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
-        className="items-center justify-center flex-1 px-6"
-        style={{ backgroundColor: `${PALETTE.common[100]}66` }}
+        className="items-center justify-center flex-1 px-6 bg-black/40"
         onPress={onClose}
       >
         <Pressable
-          className="w-full max-w-[380px] overflow-hidden bg-background-normal rounded-dialog"
+          className="w-full max-w-[380px] overflow-hidden bg-white rounded-3xl"
           style={{ height: 470, padding: 18 }}
           onPress={(event) => event.stopPropagation()}
         >
           <View className="flex-row items-center justify-between px-2 mb-1">
             <View>
-              <Text className="font-bold text-headline1 text-label-neutral">
-                훈련 날짜 선택
-              </Text>
-              <Text className="mt-1 text-caption text-label-alternative">
+              <Text className="text-xl font-bold text-[#3B3D3E]">훈련 날짜 선택</Text>
+              <Text className="mt-1 text-xs text-[#8C8E8E]">
                 기록이 있는 날짜만 선택할 수 있어요
               </Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
-              className="items-center justify-center w-9 h-9 rounded-full bg-fill-neutral"
+              className="items-center justify-center w-9 h-9 rounded-full bg-[#F2F3F3]"
             >
-              <Ionicons
-                name="close"
-                size={20}
-                color={SEMANTIC_COLORS.label.alternative}
-              />
+              <Ionicons name="close" size={20} color="#5C5E5E" />
             </TouchableOpacity>
           </View>
 
@@ -124,12 +110,12 @@ export default function TrainingRecordCalendarModal({
             enableSwipeMonths
             style={{ height: 370 }}
             theme={{
-              calendarBackground: SEMANTIC_COLORS.background.normal,
-              arrowColor: PALETTE.blue[40],
+              calendarBackground: "#FFFFFF",
+              arrowColor: "#006FCC",
               textDayHeaderFontSize: 13,
               textDayHeaderFontWeight: "600",
-              textSectionTitleColor: SEMANTIC_COLORS.label.alternative,
-              monthTextColor: SEMANTIC_COLORS.label.normal,
+              textSectionTitleColor: "#8C8E8E",
+              monthTextColor: "#1A1A1A",
             }}
           />
         </Pressable>

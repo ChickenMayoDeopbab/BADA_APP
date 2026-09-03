@@ -1,461 +1,316 @@
 import { TrainingRecordItem } from "@/api/types";
-import Top from "@/components/common/Top";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
-import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SORT_OPTIONS, SORT_PARAM_MAP } from "@/constants/recordConsts";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
+import { useTrainingRecords } from "@/hooks/useTrainingRecords";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  endOfDay,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isToday,
-  isWithinInterval,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
-import { ko } from "date-fns/locale";
+import { format } from "date-fns";
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
-  RefreshControl,
-  ScrollView,
+  FlatList,
+  Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type Period = "daily" | "weekly" | "monthly";
+const SCROLL_TOP_VISIBLE_OFFSET = 200;
 
-type RecordSection = {
-  dateKey: string;
-  title: string;
-  records: TrainingRecordItem[];
-};
-
-const PERIOD_TABS: { key: Period; label: string }[] = [
-  { key: "daily", label: "일별" },
-  { key: "weekly", label: "주별" },
-  { key: "monthly", label: "월별" },
-];
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.04,
-  shadowRadius: 5.3,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 1,
-};
-
-const toValidDate = (value: string): Date | null => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const getPeriodRange = (period: Period, anchorDate: Date) => {
-  if (period === "weekly") {
-    return {
-      start: startOfWeek(anchorDate, { weekStartsOn: 0 }),
-      end: endOfWeek(anchorDate, { weekStartsOn: 0 }),
-    };
+const formatDate = (isoString: string): string => {
+  try {
+    return format(new Date(isoString), "yyyy.MM.dd");
+  } catch {
+    return isoString;
   }
-  if (period === "monthly") {
-    return { start: startOfMonth(anchorDate), end: endOfMonth(anchorDate) };
-  }
-  return { start: startOfDay(anchorDate), end: endOfDay(anchorDate) };
 };
 
-const formatPeriodLabel = (
-  period: Period,
-  anchorDate: Date,
-  start: Date,
-  end: Date,
-) => {
-  if (period === "weekly") {
-    return `${format(start, "M월 d일")}~${format(end, "M월 d일")}`;
-  }
-  if (period === "monthly") return format(anchorDate, "yyyy년 M월");
-  return format(anchorDate, "M월 d일");
+const formatDuration = (durationSeconds: number): string => {
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 };
-
-const formatDuration = (totalSeconds: number) => {
-  const safeSeconds = Math.max(0, Math.round(totalSeconds));
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-  const seconds = safeSeconds % 60;
-
-  if (hours > 0) return `${hours}시간 ${minutes}분 ${seconds}초`;
-  if (minutes > 0) return `${minutes}분 ${seconds}초`;
-  return `${seconds}초`;
-};
-
-const getSectionTitle = (date: Date) =>
-  isToday(date) ? "오늘" : format(date, "M월 d일");
-
-const getRecordIcon = (
-  sessionType: TrainingRecordItem["sessionType"],
-): keyof typeof Ionicons.glyphMap => {
-  if (sessionType === "WARMUP") return "flame";
-  if (sessionType === "CUSTOM") return "create";
-  return "chatbubbles";
-};
-
-function PeriodTabs({
-  selected,
-  onSelect,
-}: {
-  selected: Period;
-  onSelect: (period: Period) => void;
-}) {
-  const [containerWidth, setContainerWidth] = useState(0);
-  const indicatorX = useRef(new Animated.Value(0)).current;
-  const selectedIndex = PERIOD_TABS.findIndex((tab) => tab.key === selected);
-  const indicatorWidth = Math.max(0, (containerWidth - 8) / PERIOD_TABS.length);
-
-  useEffect(() => {
-    if (indicatorWidth === 0) return;
-
-    Animated.spring(indicatorX, {
-      toValue: selectedIndex * indicatorWidth,
-      damping: 20,
-      stiffness: 220,
-      mass: 0.7,
-      useNativeDriver: true,
-    }).start();
-  }, [indicatorWidth, indicatorX, selectedIndex]);
-
-  return (
-    <View
-      className="relative flex-row p-1 overflow-hidden h-11 bg-fill-alternative rounded-control"
-      onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
-    >
-      {indicatorWidth > 0 && (
-        <Animated.View
-          pointerEvents="none"
-          className="absolute top-1 bottom-1 left-1 bg-fill-normal rounded-[6px]"
-          style={{
-            width: indicatorWidth,
-            transform: [{ translateX: indicatorX }],
-            shadowColor: "#000000",
-            shadowOpacity: 0.04,
-            shadowRadius: 5.3,
-            shadowOffset: { width: 0, height: 2 },
-            elevation: 1,
-          }}
-        />
-      )}
-      {PERIOD_TABS.map((tab) => {
-        const isSelected = tab.key === selected;
-        return (
-          <TouchableOpacity
-            key={tab.key}
-            className="z-10 items-center justify-center flex-1"
-            activeOpacity={0.8}
-            onPress={() => onSelect(tab.key)}
-          >
-            <Text
-              className={`text-body font-bold ${
-                isSelected ? "text-label-normal" : "text-label-alternative"
-              }`}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-function SummaryCard({
-  periodLabel,
-  durationSeconds,
-  recordCount,
-  onPressDate,
-}: {
-  periodLabel: string;
-  durationSeconds: number;
-  recordCount: number;
-  onPressDate: () => void;
-}) {
-  return (
-    <View
-      className="h-[123px] px-[22px] py-[14px] bg-background-normal rounded-component"
-      style={cardShadow}
-    >
-      <TouchableOpacity
-        className="flex-row items-center self-start"
-        activeOpacity={0.7}
-        onPress={onPressDate}
-      >
-        <Ionicons
-          name="calendar"
-          size={16}
-          color={SEMANTIC_COLORS.line.normal}
-        />
-        <Text className="ml-1 text-label text-label-alternative">
-          {periodLabel}
-        </Text>
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={SEMANTIC_COLORS.label.alternative}
-        />
-      </TouchableOpacity>
-
-      <View className="mt-4">
-        <Text className="font-bold text-title1 text-green-40">
-          {formatDuration(durationSeconds)}
-        </Text>
-        <Text className="mt-1 font-medium text-body text-label-alternative">
-          훈련 {recordCount}회
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function RecordCard({ item }: { item: TrainingRecordItem }) {
-  const trainedAt = toValidDate(item.trainedAt);
-  return (
-    <TouchableOpacity
-      className="flex-row items-center h-[82px] px-[22px] bg-background-normal rounded-component"
-      style={cardShadow}
-      activeOpacity={0.75}
-      onPress={() =>
-        router.push({
-          pathname: "/record/[id]",
-          params: { id: String(item.recordId) },
-        })
-      }
-    >
-      <View
-        className="items-center justify-center w-[46px] h-[46px] rounded-component"
-        style={{ backgroundColor: SEMANTIC_COLORS.record.iconBackground }}
-      >
-        <Ionicons
-          name={getRecordIcon(item.sessionType)}
-          size={26}
-          color={SEMANTIC_COLORS.status.info}
-        />
-      </View>
-
-      <View className="flex-1 ml-[10px]">
-        <View className="flex-row items-center justify-between">
-          <Text
-            className="flex-1 font-bold text-headline2 text-label-normal"
-            numberOfLines={1}
-          >
-            {item.scenarioName}
-          </Text>
-          <Text className="ml-2 font-medium text-label text-line-normal">
-            {trainedAt
-              ? format(trainedAt, "a hh:mm", { locale: ko })
-              : item.trainedAt}
-          </Text>
-        </View>
-        <Text className="mt-1 text-label text-label-alternative">
-          {formatDuration(item.durationSeconds)}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
 
 export default function RecordScreen() {
-  const [period, setPeriod] = useState<Period>("daily");
-  const [anchorDate, setAnchorDate] = useState(() => new Date());
-  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
-  const initializedAnchorRef = useRef(false);
-  const { data, isLoading, isRefetching, isError, error, refetch } =
-    useTrainingRecordDates();
+  const flatListRef = useRef<FlatList<TrainingRecordItem>>(null);
+  const [isVisible, setIsVisible] = useState<boolean>(false);
+  const [selectedSort, setSelectedSort] = useState<string>("최신 순");
+  const [isScrollTopVisible, setIsScrollTopVisible] = useState<boolean>(false);
 
-  const allRecords = useMemo(() => {
-    return [...(data?.records ?? [])].sort((a, b) => {
-      const aTime = toValidDate(a.trainedAt)?.getTime() ?? 0;
-      const bTime = toValidDate(b.trainedAt)?.getTime() ?? 0;
-      return bTime - aTime;
-    });
-  }, [data?.records]);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isDatePickerVisible, setIsDatePickerVisible] =
+    useState<boolean>(false);
 
-  useEffect(() => {
-    if (initializedAnchorRef.current || isLoading) return;
-    const latestDate = allRecords[0]
-      ? toValidDate(allRecords[0].trainedAt)
-      : null;
-    if (latestDate) setAnchorDate(latestDate);
-    initializedAnchorRef.current = true;
-  }, [allRecords, isLoading]);
+  const dateParam = selectedDate
+    ? format(selectedDate, "yyyy-MM-dd")
+    : undefined;
 
+  const {
+    data: recordIndex,
+    isLoading: isLoadingRecordDates,
+    refetch: refetchRecordIndex,
+  } = useTrainingRecordDates();
   const availableDates = useMemo(
-    () => new Set(data?.dates ?? []),
-    [data?.dates],
-  );
-  const periodRange = useMemo(
-    () => getPeriodRange(period, anchorDate),
-    [anchorDate, period],
-  );
-  const periodRecords = useMemo(
-    () =>
-      allRecords.filter((record) => {
-        const trainedAt = toValidDate(record.trainedAt);
-        return (
-          trainedAt !== null &&
-          isWithinInterval(trainedAt, {
-            start: periodRange.start,
-            end: periodRange.end,
-          })
-        );
-      }),
-    [allRecords, periodRange.end, periodRange.start],
+    () => new Set(recordIndex?.dates ?? []),
+    [recordIndex?.dates],
   );
 
-  const sections = useMemo<RecordSection[]>(() => {
-    const grouped = new Map<string, TrainingRecordItem[]>();
-    periodRecords.forEach((record) => {
-      const trainedAt = toValidDate(record.trainedAt);
-      if (!trainedAt) return;
-      const dateKey = format(trainedAt, "yyyy-MM-dd");
-      grouped.set(dateKey, [...(grouped.get(dateKey) ?? []), record]);
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    isError,
+    error,
+    refetch,
+  } = useTrainingRecords({
+    sort: SORT_PARAM_MAP[selectedSort],
+    date: dateParam,
+  });
+
+  const records: TrainingRecordItem[] = useMemo(() => {
+    const loadedRecords = data?.pages.flatMap((page) => page.content) ?? [];
+    const flat = selectedDate
+      ? (recordIndex?.records ?? []).filter(
+          (record) => format(new Date(record.trainedAt), "yyyy-MM-dd") === dateParam,
+        )
+      : loadedRecords;
+
+    const sorted = [...flat].sort((a, b) =>
+      selectedSort === "최신 순"
+        ? b.recordId - a.recordId
+        : a.recordId - b.recordId,
+    );
+    return sorted;
+  }, [data, dateParam, recordIndex?.records, selectedDate, selectedSort]);
+
+  const handleEndReached = () => {
+    if (!selectedDate && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  const handleRefresh = async () => {
+    await Promise.all([refetch(), refetchRecordIndex()]);
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const shouldShow =
+      event.nativeEvent.contentOffset.y >= SCROLL_TOP_VISIBLE_OFFSET;
+
+    setIsScrollTopVisible((prev) => (prev === shouldShow ? prev : shouldShow));
+  };
+
+  const handleScrollTopPress = () => {
+    flatListRef.current?.scrollToOffset({
+      offset: 0,
+      animated: true,
     });
-
-    return [...grouped.entries()]
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([dateKey, records]) => ({
-        dateKey,
-        title: getSectionTitle(new Date(`${dateKey}T00:00:00`)),
-        records,
-      }));
-  }, [periodRecords]);
-
-  const totalDurationSeconds = useMemo(
-    () =>
-      periodRecords.reduce(
-        (sum, record) => sum + Math.max(0, record.durationSeconds),
-        0,
-      ),
-    [periodRecords],
-  );
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-background-normal" edges={["top"]}>
-      <Top title="훈련 기록" safeArea={false} />
+    <SafeAreaView className="items-center flex-1 px-8 bg-[#FEFEFE]">
+      <Text className="text-xl font-bold text-[#3B3D3E] mt-10 mb-7">
+        훈련 기록
+      </Text>
 
-      <View className="flex-1 bg-background-alternative">
-        {isLoading ? (
-          <View className="items-center justify-center flex-1">
-            <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
-          </View>
-        ) : isError ? (
-          <View className="items-center justify-center flex-1 px-8">
-            <Ionicons
-              name="alert-circle-outline"
-              size={48}
-              color={SEMANTIC_COLORS.status.error}
-            />
-            <Text className="mt-3 font-medium text-body text-label-neutral">
-              불러오기 실패
-            </Text>
-            <Text className="mt-1 text-center text-label text-label-alternative">
-              {error instanceof Error
-                ? error.message
-                : "잠시 후 다시 시도해 주세요."}
-            </Text>
+      <View className="flex-row w-full mb-5 gap-x-3">
+        <View>
+          <TouchableOpacity
+            onPress={() => setIsVisible(true)}
+            className="flex-row items-center justify-between bg-[#EBEBEC] rounded-lg px-4"
+            style={{ width: 116, height: 32 }}
+          >
+            <Text className="text-[#5C5E5E] text-sm">{selectedSort}</Text>
+            <Ionicons name="chevron-down" size={14} color="#BDBEBE" />
+          </TouchableOpacity>
+
+          <Modal visible={isVisible} transparent animationType="fade">
             <TouchableOpacity
-              className="px-6 py-2 mt-4 bg-primary-normal rounded-control"
-              onPress={() => refetch()}
+              className="flex-1"
+              onPress={() => setIsVisible(false)}
             >
-              <Text className="font-bold text-label text-label-buttonText">
-                재시도
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View className="flex-1">
-            <View className="px-8 pt-[18px]">
-              <PeriodTabs selected={period} onSelect={setPeriod} />
-              <View className="mt-2">
-                <SummaryCard
-                  periodLabel={formatPeriodLabel(
-                    period,
-                    anchorDate,
-                    periodRange.start,
-                    periodRange.end,
-                  )}
-                  durationSeconds={totalDurationSeconds}
-                  recordCount={periodRecords.length}
-                  onPressDate={() => setIsDatePickerVisible(true)}
-                />
-              </View>
-            </View>
-
-            <View className="relative flex-1 mt-5">
-              {sections.length === 0 && (
-                <View
-                  pointerEvents="none"
-                  className="absolute inset-0 z-0 items-center justify-center"
-                >
-                  <Ionicons
-                    name="document-text-outline"
-                    size={48}
-                    color={SEMANTIC_COLORS.line.normal}
-                  />
-                  <Text className="mt-3 text-body text-label-alternative">
-                    선택한 기간에 훈련 기록이 없습니다
-                  </Text>
-                </View>
-              )}
-
-              <ScrollView
-                className="z-10 flex-1"
-                alwaysBounceVertical
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                  <RefreshControl
-                    refreshing={isRefetching}
-                    tintColor={SEMANTIC_COLORS.primary.normal}
-                    onRefresh={refetch}
-                  />
-                }
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
+              <View
+                className="absolute w-[116px] overflow-hidden shadow-lg bg-[#EBEBEC] rounded-2xl"
+                style={{ top: 116, left: 28 }}
               >
-                {sections.length > 0 && (
-                  <View className="px-8">
-                    {sections.map((section) => (
-                      <View key={section.dateKey} className="mb-5">
-                        <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
-                          {section.title}
-                        </Text>
-                        <View className="gap-y-3">
-                          {section.records.map((record) => (
-                            <RecordCard key={record.recordId} item={record} />
-                          ))}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </ScrollView>
-            </View>
-          </View>
+                {SORT_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    className="px-4 py-4"
+                    onPress={() => {
+                      setSelectedSort(option);
+                      setIsVisible(false);
+                    }}
+                  >
+                    <Text
+                      className={`text-sm ${
+                        selectedSort === option
+                          ? "text-[#0AE365] font-semibold"
+                          : "text-[#5C5E5E]"
+                      }`}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        </View>
+
+        <TouchableOpacity
+          className="flex-1 flex-row items-center justify-between h-[32px] bg-[#EBEBEC] rounded-lg px-4"
+          onPress={() => setIsDatePickerVisible(true)}
+        >
+          <Text className={selectedDate ? "text-[#3B3D3E]" : "text-[#BDBEBE]"}>
+            {selectedDate ? format(selectedDate, "yyyy-MM-dd") : "YYYY-MM-DD"}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color="#BDBEBE" />
+        </TouchableOpacity>
+
+        {selectedDate && (
+          <TouchableOpacity
+            className="items-center justify-center w-8 h-8 bg-[#EBEBEC] rounded-lg"
+            onPress={() => setSelectedDate(null)}
+          >
+            <Ionicons name="close" size={16} color="#5C5E5E" />
+          </TouchableOpacity>
         )}
       </View>
 
       <TrainingRecordCalendarModal
         visible={isDatePickerVisible}
-        selectedDate={format(anchorDate, "yyyy-MM-dd")}
+        selectedDate={dateParam ?? null}
         availableDates={availableDates}
-        isLoading={isLoading}
+        isLoading={isLoadingRecordDates}
         onClose={() => setIsDatePickerVisible(false)}
         onSelect={(date) => {
-          setAnchorDate(new Date(`${date}T00:00:00`));
+          setSelectedDate(new Date(`${date}T00:00:00`));
           setIsDatePickerVisible(false);
         }}
       />
+
+      <View className="flex-row justify-between w-full pb-2 border-b border-[#BDBEBE]">
+        <Text className="text-[#5C5E5E] font-bold text-sm">일시</Text>
+        <Text className="text-[#5C5E5E] font-bold text-sm">시나리오명</Text>
+      </View>
+
+      {isLoading || Boolean(selectedDate && isLoadingRecordDates) ? (
+        <View className="items-center justify-center flex-1">
+          <ActivityIndicator color="#0AE365" />
+        </View>
+      ) : isError ? (
+        <View className="items-center justify-center flex-1 gap-y-3">
+          <Ionicons name="alert-circle-outline" size={48} color="#F65C5C" />
+          <Text className="text-base text-[#3B3D3E] font-medium">
+            불러오기 실패
+          </Text>
+          <Text className="text-sm text-[#8C8E8E] text-center px-6">
+            {error instanceof Error
+              ? error.message
+              : "잠시 후 다시 시도해 주세요."}
+          </Text>
+          <TouchableOpacity
+            className="px-6 py-2 rounded-lg bg-[#0AE365] mt-2"
+            onPress={() => refetch()}
+          >
+            <Text className="font-semibold text-white">재시도</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View className="relative flex-1 w-full">
+          <FlatList
+            ref={flatListRef}
+            data={records}
+            keyExtractor={(item) => String(item.recordId)}
+            showsVerticalScrollIndicator={false}
+            className="w-full"
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            refreshing={isRefetching}
+            onRefresh={handleRefresh}
+            contentContainerStyle={
+              records.length === 0 ? { flexGrow: 1 } : undefined
+            }
+            ListEmptyComponent={
+              <View className="items-center justify-center flex-1 py-20">
+                <Ionicons
+                  name="document-text-outline"
+                  size={48}
+                  color="#BDBEBE"
+                />
+                <Text className="mt-3 text-base text-[#8C8E8E]">
+                  {selectedDate
+                    ? "해당 날짜에 기록된 훈련이 없습니다"
+                    : "아직 기록된 훈련이 없습니다"}
+                </Text>
+              </View>
+            }
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <ActivityIndicator className="my-4" color="#0AE365" />
+              ) : null
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                className="flex-row items-center justify-between py-4"
+                onPress={() =>
+                  router.push({
+                    pathname: "/record/[id]",
+                    params: {
+                      id: String(item.recordId),
+                    },
+                  })
+                }
+              >
+                <Text className="text-lg font-medium text-black">
+                  {formatDate(item.trainedAt)}
+                </Text>
+
+                <View className="items-end">
+                  <Text className="text-lg font-medium text-black">
+                    {item.scenarioName}
+                  </Text>
+                  <Text className="text-xs text-[#8C8E8E] mt-0.5">
+                    {formatDuration(item.durationSeconds)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+
+          {isScrollTopVisible && (
+            <TouchableOpacity
+              className="absolute items-center justify-center bg-[#0AE365]"
+              style={{
+                bottom: 24,
+                alignSelf: "center",
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                shadowColor: "#000",
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 4,
+              }}
+              activeOpacity={0.8}
+              onPress={handleScrollTopPress}
+            >
+              <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }

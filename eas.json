@@ -6,10 +6,7 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED": "true"
-      }
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "store",
@@ -18,8 +15,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
-        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr",
-        "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED": "true"
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
       }
     },
     "production": {
@@ -29,8 +25,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
-        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr",
-        "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED": "true"
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
       }
     },
     "onestore": {
@@ -41,8 +36,7 @@
       "env": {
         "APP_VARIANT": "onestore",
         "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
-        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr",
-        "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED": "true"
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
       }
     },
     "playstore": {
@@ -53,8 +47,7 @@
       "env": {
         "APP_VARIANT": "playstore",
         "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
-        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr",
-        "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED": "false"
+        "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr"
       }
     }
   },
