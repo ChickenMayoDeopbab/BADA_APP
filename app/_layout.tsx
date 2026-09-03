@@ -2,7 +2,6 @@ import "@/global.css";
 import "@/design-system/setupDefaultFont";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PendingCallProvider } from "@/context/PendingCallContext";
 import { setAudioModeAsync } from "expo-audio";
 import {
   router,
@@ -17,8 +16,6 @@ import {
   clearAuthTokens,
   getAccessToken,
 } from "@/utils/authTokenStorage";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { unregisterForPushNotifications } from "@/services/pushNotifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,11 +25,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function PushNotificationManager() {
-  usePushNotifications();
-  return null;
-}
 
 export default function RootLayout() {
   const navigationState = useRootNavigationState();
@@ -56,13 +48,13 @@ export default function RootLayout() {
       const token = await getAccessToken();
       const autoLogin = await AsyncStorage.getItem("autoLogin");
       if (!token || autoLogin !== "true") {
-        await unregisterForPushNotifications();
         await clearAuthTokens();
         router.replace("/auth");
         return;
       }
 
-      const needsDiagnosis = await isDiagnosisRequiredForAuthenticatedUser();
+      const needsDiagnosis =
+        await isDiagnosisRequiredForAuthenticatedUser();
       router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
     };
     checkToken();
@@ -71,15 +63,12 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <PendingCallProvider>
-          <PushNotificationManager />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: "#FEFEFE" },
-            }}
-          />
-        </PendingCallProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "#FEFEFE" },
+          }}
+        />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

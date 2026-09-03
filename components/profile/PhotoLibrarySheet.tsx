@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 interface PhotoLibrarySheetProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (uri: string, fileName?: string) => void;
+  onSelect: (uri: string) => void;
 }
 
 type LibraryState = "loading" | "ready" | "denied" | "unavailable" | "error";
@@ -38,9 +38,6 @@ export default function PhotoLibrarySheet({
     null,
   );
   const [libraryState, setLibraryState] = useState<LibraryState>("loading");
-  const [isApplying, setIsApplying] = useState(false);
-  const [selectionError, setSelectionError] = useState("");
-  const selectionRequest = useRef(0);
 
   const tileSize = (width - 4) / 3;
 
@@ -82,8 +79,6 @@ export default function PhotoLibrarySheet({
 
     translateY.setValue(height);
     setSelectedAsset(null);
-    setIsApplying(false);
-    setSelectionError("");
     void loadPhotos();
 
     const animationFrame = requestAnimationFrame(() => {
@@ -96,14 +91,10 @@ export default function PhotoLibrarySheet({
       }).start();
     });
 
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      selectionRequest.current += 1;
-    };
+    return () => cancelAnimationFrame(animationFrame);
   }, [height, loadPhotos, translateY, visible]);
 
   const dismiss = () => {
-    selectionRequest.current += 1;
     Animated.timing(translateY, {
       toValue: height,
       duration: 220,
@@ -113,31 +104,10 @@ export default function PhotoLibrarySheet({
     });
   };
 
-  const confirmSelection = async () => {
-    if (!selectedAsset || isApplying) return;
-
-    setIsApplying(true);
-    setSelectionError("");
-    const request = ++selectionRequest.current;
-    try {
-      const assetInfo = await MediaLibrary.getAssetInfoAsync(selectedAsset, {
-        shouldDownloadFromNetwork: true,
-      });
-      if (request !== selectionRequest.current) return;
-      const uri = assetInfo.localUri ?? assetInfo.uri ?? selectedAsset.uri;
-      // ph://는 갤러리 미리보기용 식별자이며 multipart 업로드할 수 없습니다.
-      if (!/^(file|content):\/\//i.test(uri)) {
-        throw new Error("사진의 로컬 파일을 읽지 못했습니다.");
-      }
-      onSelect(uri, assetInfo.filename ?? selectedAsset.filename);
-      dismiss();
-    } catch {
-      if (request === selectionRequest.current) {
-        setSelectionError("사진을 준비하지 못했어요. 다시 선택하거나 다운로드 후 시도해주세요.");
-      }
-    } finally {
-      if (request === selectionRequest.current) setIsApplying(false);
-    }
+  const confirmSelection = () => {
+    if (!selectedAsset) return;
+    onSelect(selectedAsset.uri);
+    dismiss();
   };
 
   const renderAsset = ({ item }: { item: MediaLibrary.Asset }) => {
@@ -148,11 +118,7 @@ export default function PhotoLibrarySheet({
         accessibilityRole="button"
         accessibilityLabel={`${item.filename} 사진 선택`}
         accessibilityState={{ selected }}
-        disabled={isApplying}
-        onPress={() => {
-          setSelectedAsset(item);
-          setSelectionError("");
-        }}
+        onPress={() => setSelectedAsset(item)}
         className="relative"
         style={{ width: tileSize, height: tileSize }}
       >
@@ -267,32 +233,24 @@ export default function PhotoLibrarySheet({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="선택한 사진 적용"
-                accessibilityState={{ disabled: !selectedAsset || isApplying }}
-                disabled={!selectedAsset || isApplying}
-                onPress={() => void confirmSelection()}
+                accessibilityState={{ disabled: !selectedAsset }}
+                disabled={!selectedAsset}
+                onPress={confirmSelection}
                 hitSlop={10}
                 className="min-h-[42px] min-w-[42px] items-center justify-center"
               >
                 <Text
                   className={
-                    selectedAsset && !isApplying
+                    selectedAsset
                       ? "text-body font-bold text-primary-normal"
                       : "text-body font-bold text-line-normal"
                   }
                 >
-                  {isApplying ? "적용 중" : "완료"}
+                  완료
                 </Text>
               </Pressable>
             </View>
 
-            {selectionError ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                className="px-4 pb-3 text-caption text-status-error"
-              >
-                {selectionError}
-              </Text>
-            ) : null}
             {libraryState === "ready" && assets.length > 0 ? (
               <FlatList
                 className="flex-1"
