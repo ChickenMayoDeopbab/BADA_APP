@@ -1,17 +1,26 @@
 import { Audio } from "expo-av";
-import {
-  cacheDirectory,
-  deleteAsync,
-  EncodingType,
-  writeAsStringAsync,
-} from "expo-file-system/legacy";
 import { useCallback, useEffect, useRef } from "react";
 import { NativeModules, Platform } from "react-native";
+import type {
+  AudioBuffer as NativeAudioBuffer,
+  AudioBufferQueueSourceNode,
+  AudioContext as NativeAudioContext,
+} from "react-native-audio-api";
 
 const SAMPLE_RATE = 16000;
-const WAV_HEADER_SIZE = 44;
 const CHANNELS = 1;
 const BIT_DEPTH = 16;
+
+/**
+ * AI 턴마다 재생을 시작하기 전에 모아둘 오디오 길이.
+ * 짧을수록 첫 소리가 빨리 나지만 청크 도착이 잠깐만 늦어도 큐가 비어 끊긴다.
+ * 턴 시작 직후가 가장 트이기 쉬운 구간이라 첫 턴만이 아니라 매 턴 적용한다.
+ */
+const PREBUFFER_MS = 250;
+/** 프리버퍼 문턱을 샘플 수로 환산한 값 */
+const PREBUFFER_FRAMES = (SAMPLE_RATE * PREBUFFER_MS) / 1000;
+/** 재생이 끝난 뒤 스피커 잔향이 마이크로 새어 들어가는 것을 막으려고 음소거를 더 유지하는 시간 */
+const PLAYBACK_TAIL_GUARD_MS = 400;
 
 const AUDIO_RECORD_OPTIONS = {
   sampleRate: SAMPLE_RATE,
@@ -23,28 +32,20 @@ const AUDIO_RECORD_OPTIONS = {
 
 const { RNAudioRecord } = NativeModules;
 
-/** PCM 데이터에 붙일 44바이트 WAV 헤더 생성 */
-function buildWavHeader(pcmByteLength: number): Uint8Array {
-  const header = new Uint8Array(WAV_HEADER_SIZE);
-  const v = new DataView(header.buffer);
-  const byteRate = SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8);
-  const blockAlign = CHANNELS * (BIT_DEPTH / 8);
+/** 네이티브 오디오 그래프 모듈 (웹 번들에 섞이지 않도록 쓰는 시점에 불러온다) */
+function loadAudioApi(): typeof import("react-native-audio-api") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("react-native-audio-api");
+}
 
-  v.setUint32(0, 0x52494646, false);
-  v.setUint32(4, 36 + pcmByteLength, true);
-  v.setUint32(8, 0x57415645, false);
-  v.setUint32(12, 0x666d7420, false);
-  v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true);
-  v.setUint16(22, CHANNELS, true);
-  v.setUint32(24, SAMPLE_RATE, true);
-  v.setUint32(28, byteRate, true);
-  v.setUint16(32, blockAlign, true);
-  v.setUint16(34, BIT_DEPTH, true);
-  v.setUint32(36, 0x64617461, false);
-  v.setUint32(40, pcmByteLength, true);
-
-  return header;
+/** 재생 직후 녹음 세션의 에코 캔슬러를 다시 걸어 하울링을 막는다 */
+function reassertAec() {
+  if (!RNAudioRecord) return;
+  if (Platform.OS === "ios" && RNAudioRecord.reassertAecMode) {
+    RNAudioRecord.reassertAecMode();
+  } else if (Platform.OS === "android" && RNAudioRecord.reassertAec) {
+    RNAudioRecord.reassertAec();
+  }
 }
 
 function base64ToBytes(b64: string): Uint8Array {
@@ -56,12 +57,47 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) {
-    bin += String.fromCharCode(bytes[i]);
+/**
+ * 수신한 raw PCM(16bit LE)을 재생용 AudioBuffer로 만든다.
+ * 2바이트가 한 샘플이므로 홀수 길이로 끊긴 청크의 마지막 1바이트는
+ * leftoverByteRef에 남겨 다음 청크 앞에 이어 붙인다.
+ */
+function createPcmBuffer(
+  ctx: NativeAudioContext,
+  data: ArrayBuffer,
+  leftoverByteRef: { current: number | null },
+): NativeAudioBuffer | null {
+  const incoming = new Uint8Array(data);
+  const leftoverByte = leftoverByteRef.current;
+
+  let bytes: Uint8Array;
+  if (leftoverByte === null) {
+    bytes = incoming;
+  } else {
+    bytes = new Uint8Array(incoming.length + 1);
+    bytes[0] = leftoverByte;
+    bytes.set(incoming, 1);
   }
-  return btoa(bin);
+
+  if (bytes.length % 2 === 1) {
+    leftoverByteRef.current = bytes[bytes.length - 1];
+    bytes = bytes.subarray(0, bytes.length - 1);
+  } else {
+    leftoverByteRef.current = null;
+  }
+
+  const frameCount = bytes.length / 2;
+  if (frameCount === 0) return null;
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const samples = new Float32Array(frameCount);
+  for (let i = 0; i < frameCount; i++) {
+    samples[i] = view.getInt16(i * 2, true) / 32768;
+  }
+
+  const buffer = ctx.createBuffer(CHANNELS, frameCount, SAMPLE_RATE);
+  buffer.copyToChannel(samples, 0);
+  return buffer;
 }
 
 export interface UseAudioReturn {
@@ -70,7 +106,9 @@ export interface UseAudioReturn {
   stopSendingAudio: () => Promise<void>;
   /** AI 음성 PCM chunk를 수신 즉시 스트리밍 재생 */
   streamPcmChunk: (data: ArrayBuffer) => void;
-  /** 현재 재생 중인 오디오와 버퍼를 모두 지움 (emotion/interrupt 수신 시 호출) */
+  /** 서버 송출 종료(speaking_end) 알림. 프리버퍼에 남은 소리를 마저 재생한다 */
+  flushPlayback: () => void;
+  /** 현재 재생 중인 오디오와 버퍼를 모두 지움 (interrupt 수신·통화 종료 시 호출) */
   resetStream: () => void;
 }
 
@@ -89,12 +127,16 @@ export function useAudio(): UseAudioReturn {
   const playbackCtxRef = useRef<any>(null);
   const nextPlayTimeRef = useRef(0);
 
-  // Native: 순차 재생 큐
-  const currentSoundRef = useRef<Audio.Sound | null>(null);
-  const chunkQueueRef = useRef<Uint8Array[]>([]);
-  const isNativePlayingRef = useRef(false);
-  const chunkCounterRef = useRef(0);
-  const playNextChunkRef = useRef<() => void>(() => {});
+  // Native: 통화 한 통 동안 하나만 두고 계속 이어 붙이는 재생 그래프
+  const nativeCtxRef = useRef<NativeAudioContext | null>(null);
+  const queueSourceRef = useRef<AudioBufferQueueSourceNode | null>(null);
+  const pendingBuffersRef = useRef<NativeAudioBuffer[]>([]); // 아직 재생을 시작하지 않은 프리버퍼
+  const pendingFrameCountRef = useRef(0);
+  const isQueueStartedRef = useRef(false); // 큐 소스 노드를 start()했는지 (통화당 한 번)
+  const isTurnPrebufferedRef = useRef(false); // 이번 턴이 프리버퍼 문턱을 넘겼는지
+  const isQueueDrainedRef = useRef(true);
+  const isTurnSendingDoneRef = useRef(false); // speaking_end 수신 여부
+  const leftoverByteRef = useRef<number | null>(null);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") {
@@ -134,6 +176,12 @@ export function useAudio(): UseAudioReturn {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
+      /**
+       * 오디오 세션의 주인을 expo-av 하나로 못박는다.
+       * audio-api가 세션 카테고리를 따로 건드리면
+       * react-native-audio-record 쪽 에코 캔슬러 설정과 충돌한다.
+       */
+      loadAudioApi().AudioManager.disableSessionManagement();
     }
     return granted;
   }, []);
@@ -202,11 +250,7 @@ export function useAudio(): UseAudioReturn {
 
       AudioRecord.init(AUDIO_RECORD_OPTIONS);
 
-      let dataEventCount = 0;
-
       AudioRecord.on("data", (b64: string) => {
-        dataEventCount++;
-
         if (!isSendingRef.current) return;
 
         // muted(AI 응답 재생 중)일 때만 차단. 평상시(false)에는 전송되어야 함.
@@ -259,143 +303,200 @@ export function useAudio(): UseAudioReturn {
     await AudioRecord.stop();
   }, []);
 
+  const clearMuteReleaseTimer = useCallback(() => {
+    if (!muteReleaseTimerRef.current) return;
+    clearTimeout(muteReleaseTimerRef.current);
+    muteReleaseTimerRef.current = null;
+  }, []);
+
+  /**
+   * 서버 송출이 끝났고(speaking_end) 재생 큐도 비었을 때만 마이크를 다시 연다.
+   * 두 조건을 함께 걸어야 청크가 잠깐 늦게 도착해 큐가 비는 순간에 마이크가 열리지 않는다.
+   */
+  const releaseMicWhenTurnFinished = useCallback(() => {
+    if (!isTurnSendingDoneRef.current || !isQueueDrainedRef.current) return;
+    isTurnPrebufferedRef.current = false; // 다음 턴도 처음부터 다시 모아서 시작한다
+    clearMuteReleaseTimer();
+    muteReleaseTimerRef.current = setTimeout(() => {
+      muteReleaseTimerRef.current = null;
+      isMutedRef.current = false;
+      if (isSendingRef.current) reassertAec();
+    }, PLAYBACK_TAIL_GUARD_MS);
+  }, [clearMuteReleaseTimer]);
+
+  /** 네이티브 재생 그래프를 준비한다. 컨텍스트와 큐 소스는 통화 한 통에 하나만 쓴다 */
+  const ensureNativePlayback = useCallback(() => {
+    const { AudioContext } = loadAudioApi();
+
+    let ctx = nativeCtxRef.current;
+    if (!ctx || ctx.state === "closed") {
+      ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+      nativeCtxRef.current = ctx;
+      queueSourceRef.current = null;
+      isQueueStartedRef.current = false;
+    }
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+
+    let source = queueSourceRef.current;
+    if (!source) {
+      source = ctx.createBufferQueueSource();
+      source.connect(ctx.destination);
+      source.onBufferEnded = (event) => {
+        if (!event.isLastBufferInQueue) return;
+        isQueueDrainedRef.current = true;
+        releaseMicWhenTurnFinished();
+      };
+      queueSourceRef.current = source;
+    }
+
+    return { ctx, source };
+  }, [releaseMicWhenTurnFinished]);
+
+  /**
+   * 모아둔 프리버퍼를 큐에 넣는다.
+   * 큐 소스 노드는 통화당 한 번만 start()하고, 턴 사이에는 빈 채로 살려둔다.
+   */
+  const flushPrebuffer = useCallback((source: AudioBufferQueueSourceNode) => {
+    pendingBuffersRef.current.forEach((buffer) => source.enqueueBuffer(buffer));
+    pendingBuffersRef.current = [];
+    pendingFrameCountRef.current = 0;
+    isTurnPrebufferedRef.current = true;
+    if (isQueueStartedRef.current) return;
+    source.start();
+    isQueueStartedRef.current = true;
+  }, []);
+
   /**
    * Web: AudioContext BufferSource 스케줄링으로 끊김 없이 즉시 재생
-   * Native: WAV 파일 큐에 추가 후 순차 재생
+   * Native: 하나의 큐 소스에 버퍼를 계속 이어 붙여 연속 재생
    */
-  const streamPcmChunk = useCallback((data: ArrayBuffer) => {
-    if (Platform.OS === "web") {
-      let ctx = playbackCtxRef.current;
-      if (!ctx || ctx.state === "closed") {
-        const AudioContextClass =
-          (window as any).AudioContext || (window as any).webkitAudioContext;
-        ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
-        playbackCtxRef.current = ctx;
-        nextPlayTimeRef.current = 0;
-      }
-      if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-      }
-
-      const int16 = new Int16Array(data);
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) {
-        float32[i] = int16[i] / 32768;
-      }
-
-      const audioBuffer = ctx.createBuffer(1, float32.length, SAMPLE_RATE);
-      audioBuffer.getChannelData(0).set(float32);
-
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-
-      const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
-      source.start(startAt);
-      nextPlayTimeRef.current = startAt + audioBuffer.duration;
-
-      isMutedRef.current = true;
-      if (muteReleaseTimerRef.current) {
-        clearTimeout(muteReleaseTimerRef.current);
-      }
-      const remainMs = Math.max(
-        0,
-        (nextPlayTimeRef.current - ctx.currentTime) * 1000,
-      );
-      muteReleaseTimerRef.current = setTimeout(() => {
-        isMutedRef.current = false;
-        muteReleaseTimerRef.current = null;
-      }, remainMs + 50);
-    } else {
-      chunkQueueRef.current.push(new Uint8Array(data));
-      playNextChunkRef.current();
-    }
-  }, []);
-
-  const playNextChunk = useCallback(async () => {
-    if (isNativePlayingRef.current || chunkQueueRef.current.length === 0)
-      return;
-    isNativePlayingRef.current = true;
-
-    const pcm = chunkQueueRef.current.shift()!;
-    const header = buildWavHeader(pcm.length);
-    const wav = new Uint8Array(header.length + pcm.length);
-    wav.set(header, 0);
-    wav.set(pcm, header.length);
-
-    const uri = `${cacheDirectory ?? ""}ai_chunk_${chunkCounterRef.current++}.wav`;
-    await writeAsStringAsync(uri, bytesToBase64(wav), {
-      encoding: EncodingType.Base64,
-    });
-
-    const { sound } = await Audio.Sound.createAsync({ uri });
-    currentSoundRef.current = sound;
-
-    sound.setOnPlaybackStatusUpdate(async (status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        isMutedRef.current = false;
-        if (isSendingRef.current && RNAudioRecord) {
-          if (Platform.OS === "ios" && RNAudioRecord.reassertAecMode) {
-            RNAudioRecord.reassertAecMode();
-          } else if (Platform.OS === "android" && RNAudioRecord.reassertAec) {
-            RNAudioRecord.reassertAec();
-          }
+  const streamPcmChunk = useCallback(
+    (data: ArrayBuffer) => {
+      if (Platform.OS === "web") {
+        let ctx = playbackCtxRef.current;
+        if (!ctx || ctx.state === "closed") {
+          const AudioContextClass =
+            (window as any).AudioContext || (window as any).webkitAudioContext;
+          ctx = new AudioContextClass({ sampleRate: SAMPLE_RATE });
+          playbackCtxRef.current = ctx;
+          nextPlayTimeRef.current = 0;
+        }
+        if (ctx.state === "suspended") {
+          ctx.resume().catch(() => {});
         }
 
-        isNativePlayingRef.current = false;
-        try {
-          await sound.unloadAsync();
-        } catch {}
-        await deleteAsync(uri, { idempotent: true });
-        if (currentSoundRef.current === sound) currentSoundRef.current = null;
-        // 큐에 남은 chunk가 있으면 바로 다음 재생
-        playNextChunkRef.current();
-      }
-    });
+        const int16 = new Int16Array(data);
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) {
+          float32[i] = int16[i] / 32768;
+        }
 
-    isMutedRef.current = true;
-    await sound.playAsync();
+        const audioBuffer = ctx.createBuffer(1, float32.length, SAMPLE_RATE);
+        audioBuffer.getChannelData(0).set(float32);
 
-    // 재생 직후 AEC 세션 강제 복구 (하울링 방어)
-    if (isSendingRef.current && RNAudioRecord) {
-      if (Platform.OS === "ios" && RNAudioRecord.reassertAecMode) {
-        RNAudioRecord.reassertAecMode();
-      } else if (Platform.OS === "android" && RNAudioRecord.reassertAec) {
-        RNAudioRecord.reassertAec();
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+
+        const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+        source.start(startAt);
+        nextPlayTimeRef.current = startAt + audioBuffer.duration;
+
+        isMutedRef.current = true;
+        if (muteReleaseTimerRef.current) {
+          clearTimeout(muteReleaseTimerRef.current);
+        }
+        const remainMs = Math.max(
+          0,
+          (nextPlayTimeRef.current - ctx.currentTime) * 1000,
+        );
+        muteReleaseTimerRef.current = setTimeout(() => {
+          isMutedRef.current = false;
+          muteReleaseTimerRef.current = null;
+        }, remainMs + 50);
+        return;
       }
+
+      const { ctx, source } = ensureNativePlayback();
+
+      // 청크가 들어오는 동안은 아직 이번 턴이 끝나지 않았다
+      isMutedRef.current = true;
+      isTurnSendingDoneRef.current = false;
+      isQueueDrainedRef.current = false;
+      clearMuteReleaseTimer();
+
+      const buffer = createPcmBuffer(ctx, data, leftoverByteRef);
+      if (!buffer) return;
+
+      if (isTurnPrebufferedRef.current) {
+        source.enqueueBuffer(buffer);
+        return;
+      }
+
+      pendingBuffersRef.current.push(buffer);
+      pendingFrameCountRef.current += buffer.length;
+      if (pendingFrameCountRef.current >= PREBUFFER_FRAMES) {
+        flushPrebuffer(source);
+      }
+    },
+    [clearMuteReleaseTimer, ensureNativePlayback, flushPrebuffer],
+  );
+
+  /**
+   * speaking_end는 서버가 마지막 PCM을 보낸 시점이지 재생이 끝난 시점이 아니다.
+   * 더 들어올 청크가 없다는 뜻이므로, 프리버퍼가 문턱을 못 넘었어도 남은 소리를 마저 재생한다.
+   */
+  const flushPlayback = useCallback(() => {
+    if (Platform.OS === "web") return;
+
+    isTurnSendingDoneRef.current = true;
+    const source = queueSourceRef.current;
+    if (source && pendingBuffersRef.current.length > 0) {
+      flushPrebuffer(source);
     }
-  }, []);
-
-  playNextChunkRef.current = playNextChunk;
+    releaseMicWhenTurnFinished();
+  }, [flushPrebuffer, releaseMicWhenTurnFinished]);
 
   const resetStream = useCallback(() => {
     if (Platform.OS === "web") {
       nextPlayTimeRef.current = 0;
-      if (muteReleaseTimerRef.current) {
-        clearTimeout(muteReleaseTimerRef.current);
-        muteReleaseTimerRef.current = null;
-      }
+      clearMuteReleaseTimer();
       isMutedRef.current = false;
-    } else {
-      chunkQueueRef.current = [];
-      isNativePlayingRef.current = false;
-      const s = currentSoundRef.current;
-      currentSoundRef.current = null;
-      if (s) {
-        s.stopAsync()
-          .catch(() => {})
-          .finally(() => s.unloadAsync().catch(() => {}));
-      }
+      return;
     }
-  }, []);
+
+    pendingBuffersRef.current = [];
+    pendingFrameCountRef.current = 0;
+    leftoverByteRef.current = null;
+    isTurnPrebufferedRef.current = false;
+    isTurnSendingDoneRef.current = false;
+    isQueueDrainedRef.current = true;
+    clearMuteReleaseTimer();
+    isMutedRef.current = false;
+    // 큐 소스는 살려둔다. 비운 채로 두면 다음 턴 버퍼를 그대로 이어 받는다
+    queueSourceRef.current?.clearBuffers();
+  }, [clearMuteReleaseTimer]);
 
   useEffect(() => {
     return () => {
-      if (Platform.OS !== "web") return;
       if (muteReleaseTimerRef.current) {
         clearTimeout(muteReleaseTimerRef.current);
         muteReleaseTimerRef.current = null;
       }
+
+      if (Platform.OS !== "web") {
+        queueSourceRef.current = null;
+        pendingBuffersRef.current = [];
+        const nativeCtx = nativeCtxRef.current;
+        nativeCtxRef.current = null;
+        if (nativeCtx && nativeCtx.state !== "closed") {
+          nativeCtx.close().catch(() => {});
+        }
+        return;
+      }
+
       const rec = audioContextRef.current;
       audioContextRef.current = null;
       if (rec && rec.state !== "closed") {
@@ -414,6 +515,7 @@ export function useAudio(): UseAudioReturn {
     startSendingAudio,
     stopSendingAudio,
     streamPcmChunk,
+    flushPlayback,
     resetStream,
   };
 }
