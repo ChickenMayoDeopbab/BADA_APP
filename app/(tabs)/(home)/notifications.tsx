@@ -152,7 +152,7 @@ export default function NotificationsScreen() {
       <Top title="알림" back />
 
       <View className="flex-1 bg-background-alternative">
-        <View className="flex-row gap-2 px-[34px] pt-[15px]">
+        <View className="flex-row gap-2 px-8 pt-[15px]">
           <FilterChip label="전체" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
           <FilterChip
             label="안읽음"
@@ -182,7 +182,7 @@ export default function NotificationsScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item) => String(item.notificationId)}
-          contentContainerClassName={`gap-1.5 px-[11px] pb-8 pt-4 ${notifications.length === 0 ? "flex-grow justify-center" : ""}`}
+          contentContainerClassName={`gap-3 px-8 pb-8 pt-4 ${notifications.length === 0 ? "flex-grow justify-center" : ""}`}
           showsVerticalScrollIndicator={false}
           refreshing={notificationsQuery.isRefetching && !notificationsQuery.isFetchingNextPage}
           onRefresh={() => void notificationsQuery.refetch()}
