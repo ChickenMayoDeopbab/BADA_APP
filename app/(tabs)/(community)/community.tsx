@@ -41,7 +41,7 @@ const TABS: CommunityTabItem[] = [
   { key: "mine", label: "내 글" },
 ];
 
-const TAB_WIDTH = 52;
+const TAB_WIDTH = 64;
 const TAB_GAP = 15;
 
 function CommunityFeed({
@@ -90,9 +90,10 @@ function CommunityFeed({
         keyExtractor={(post) => String(post.post_id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          gap: 8,
-          paddingHorizontal: 11,
-          paddingBottom: 120,
+          flexGrow: 1,
+          gap: 12,
+          paddingHorizontal: 32,
+          paddingBottom: 12,
         }}
         renderItem={({ item }) => (
           <CommunityPostCard
@@ -199,10 +200,14 @@ export default function Community() {
                 className="items-center"
                 style={{ width: TAB_WIDTH }}
               >
-                <Text className="text-headline2 font-medium text-line-normal">
+                <Text
+                  numberOfLines={1}
+                  className="text-headline2 font-medium text-line-normal"
+                >
                   {tab.label}
                 </Text>
                 <Animated.Text
+                  numberOfLines={1}
                   pointerEvents="none"
                   className="absolute text-headline2 font-medium text-green-40"
                   style={{ opacity: activeTextOpacity }}

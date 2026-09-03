@@ -1,12 +1,14 @@
 import { getAttendantDays } from "@/api/AttendanceApi";
+import { getScenarioRecommendation } from "@/api/trainApi";
 import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
-import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
+import StyledImage from "@/components/common/StyledImage";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "@tanstack/react-query";
 import { Href, router, useFocusEffect } from "expo-router";
 import {
   useCallback,
@@ -42,7 +44,7 @@ const formatDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-function CardGradient({ id, colors }: { id: string; colors: [string, string] }) {
+function CardGradient({ id, colors, descending = false }: { id: string; colors: [string, string]; descending?: boolean }) {
   return (
     <Svg
       width={400}
@@ -55,9 +57,9 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
         <LinearGradient
           id={id}
           x1={0}
-          y1={148}
+          y1={descending ? 0 : 148}
           x2={220}
-          y2={0}
+          y2={descending ? 148 : 0}
           gradientUnits="userSpaceOnUse"
         >
           <Stop offset="0" stopColor={colors[0]} />
@@ -72,6 +74,13 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
 export default function Home() {
   useDoubleBackExit();
   const notificationsQuery = useNotifications("ALL");
+  const recommendationQuery = useQuery({
+    queryKey: ["scenario-recommendation"],
+    queryFn: getScenarioRecommendation,
+  });
+  const recommendedScenario = recommendationQuery.data?.scenario;
+  const recommendationImageUrl =
+    recommendedScenario?.scenario_image ?? recommendationQuery.data?.category_icon_url;
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -166,7 +175,7 @@ export default function Home() {
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="px-[33px] pb-6">
+        <View className="px-8 pb-6">
         <View className="pt-[13px]">
         <Pressable
           accessibilityLabel="알림 보기"
@@ -188,7 +197,7 @@ export default function Home() {
 
         <Animated.View
           layout={calendarLayoutTransition}
-          className="gap-4 px-3 py-4 mt-4 bg-white shadow-md rounded-component"
+          className="gap-4 px-7 py-4 mt-4 bg-white shadow-md rounded-component"
         >
         <View className="flex-row items-center justify-between">
           <Text className="font-bold text-body text-label-normal">이번 주 훈련</Text>
@@ -309,25 +318,32 @@ export default function Home() {
           onPress={() => router.push("/(tabs)/(train)/list")}
           className="h-[148px] w-[59%] rounded-component shadow-md"
         >
-            <View className="flex-1 overflow-hidden rounded-component bg-[#FFB184] px-3 py-4">
-              <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
+            <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
+              <CardGradient id="scenarioGradient" colors={["#FF8645", "#FFD8BF"]} descending />
               <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
-              <Text className="mt-1 font-bold text-white text-headline1">배준하피자{"\n"}배달 주문하기</Text>
-              <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
+              <Text className="mt-1 font-bold text-white text-headline1" numberOfLines={2}>
+                {recommendedScenario?.title ?? "추천 시나리오를\n불러오는 중이에요"}
+              </Text>
+              <View className="absolute bottom-4 left-3 z-10 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
                 <Ionicons name="call" size={14} color={PALETTE.common[0]} />
                 <Text className="font-medium text-white text-label">훈련 하러가기</Text>
               </View>
-              <View className="absolute -bottom-1.5 -right-6">
-                <PizzaIllustration width={105} height={105} />
-              </View>
+              {recommendationImageUrl && (
+                <StyledImage
+                  source={recommendationImageUrl}
+                  className="absolute -bottom-1.5 -right-4 h-[90px] w-[90px]"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                />
+              )}
             </View>
         </Pressable>
         <Pressable
           onPress={() => router.push("/(tabs)/(train)/warmup")}
           className="h-[148px] flex-1 rounded-component shadow-md"
         >
-            <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#9CBBFA] px-3 py-3.5">
-              <CardGradient id="warmupGradient" colors={["#6D9FF5", "#9CBBFA"]} />
+            <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#DCE6FF] px-3 py-3.5">
+              <CardGradient id="warmupGradient" colors={["#4992FF", "#DCE6FF"]} />
               <FireIllustration width={52} height={52} />
               <Text numberOfLines={2} adjustsFontSizeToFit className="mt-2 font-bold text-white text-body">
                 통화 전 워밍업{"\n"}시작하기

@@ -43,11 +43,13 @@ import {
   Easing,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
+  TextInputProps,
   View,
 } from "react-native";
 import {
@@ -63,6 +65,8 @@ const REACTION_COUNT_KEYS: Record<
   RELATE: "relate",
   LIKE: "like",
 };
+
+const COMMENT_INPUT_HEIGHT = 51;
 
 const replaceCommunityComment = (
   currentComments: CommunityCommentListResponse,
@@ -103,14 +107,30 @@ function CommentActionMenu({
   onEdit,
   onDelete,
 }: CommentActionMenuProps) {
+  const triggerRef = useRef<View>(null);
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+
+  const toggleMenu = () => {
+    if (visible) {
+      onToggle();
+      return;
+    }
+
+    triggerRef.current?.measureInWindow((x, y, width, height) => {
+      setMenuPosition({ left: x + width - 135, top: y + height + 4 });
+      onToggle();
+    });
+  };
+
   return (
     <View className="relative ml-1">
       <Pressable
+        ref={triggerRef}
         accessibilityRole="button"
         accessibilityLabel={`${editLabel.replace("하기", "")} 및 삭제 메뉴`}
         accessibilityState={{ expanded: visible }}
         hitSlop={6}
-        onPress={onToggle}
+        onPress={toggleMenu}
         className="h-7 w-7 items-center justify-center rounded-full active:bg-fill-neutral"
       >
         <Ionicons
@@ -120,41 +140,62 @@ function CommentActionMenu({
         />
       </Pressable>
 
-      {visible && (
-        <View
-          className="absolute right-0 top-8 z-50 h-[104px] w-40 overflow-hidden rounded-component bg-background-normal"
-          style={{
-            shadowColor: "#000000",
-            shadowOpacity: 0.12,
-            shadowRadius: 4.3,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 5,
-          }}
-        >
+      <Modal
+        transparent
+        visible={visible}
+        statusBarTranslucent
+        onRequestClose={onToggle}
+      >
+        <View className="flex-1">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={editLabel}
-            disabled={editDisabled}
-            onPress={onEdit}
-            className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+            accessibilityLabel={`${editLabel.replace("하기", "")} 및 삭제 메뉴 닫기`}
+            onPress={onToggle}
+            className="absolute inset-0"
+          />
+          <View
+            className="absolute h-[104px] w-[135px] overflow-hidden rounded-component bg-background-normal"
+            style={{
+              left: menuPosition.left,
+              top: menuPosition.top,
+              shadowColor: "#000000",
+              shadowOpacity: 0.12,
+              shadowRadius: 4.3,
+              shadowOffset: { width: 0, height: 0 },
+              elevation: 5,
+            }}
           >
-            <Text className="text-headline2 font-medium text-label-normal">
-              {editLabel}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={deleteLabel}
-            disabled={deleteDisabled}
-            onPress={onDelete}
-            className="h-[52px] justify-center px-3 active:bg-fill-neutral"
-          >
-            <Text className="text-headline2 font-medium text-label-normal">
-              {deleteLabel}
-            </Text>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={editLabel}
+              disabled={editDisabled}
+              onPress={onEdit}
+              className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+            >
+              <Text
+                numberOfLines={1}
+                className="text-body font-medium text-label-normal"
+              >
+                {editLabel}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={deleteLabel}
+              disabled={deleteDisabled}
+              onPress={onDelete}
+              className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+            >
+              <Text
+                numberOfLines={1}
+                className="text-body font-medium text-label-normal"
+              >
+                {deleteLabel}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -164,6 +205,7 @@ interface CommentEditorProps {
   errorMessage: string | null;
   isSaving: boolean;
   onChangeText: (value: string) => void;
+  onFocus: NonNullable<TextInputProps["onFocus"]>;
 }
 
 function CommentEditor({
@@ -171,6 +213,7 @@ function CommentEditor({
   errorMessage,
   isSaving,
   onChangeText,
+  onFocus,
 }: CommentEditorProps) {
   return (
     <View className="mt-1 gap-y-1">
@@ -179,6 +222,7 @@ function CommentEditor({
           autoFocus
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           maxLength={1000}
           multiline
           submitBehavior="newline"
@@ -307,8 +351,13 @@ export default function CommunityPostDetailScreen() {
   } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [commentInputOffset, setCommentInputOffset] = useState(0);
   const commentInputRef = useRef<TextInput>(null);
   const postContentInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const currentScrollOffset = useRef(0);
+  const scrollOffsetBeforeCommentInput = useRef(0);
+  const shouldRestoreCommentInputScroll = useRef(false);
   const commentRefreshRotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -316,11 +365,29 @@ export default function CommunityPostDetailScreen() {
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSubscription = Keyboard.addListener(showEvent, () => {
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
       setIsKeyboardVisible(true);
+      if (Platform.OS === "android") {
+        setCommentInputOffset(event.endCoordinates.height);
+      }
+      setTimeout(() => {
+        if (commentInputRef.current?.isFocused()) {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }
+      }, 120);
     });
     const hideSubscription = Keyboard.addListener(hideEvent, () => {
       setIsKeyboardVisible(false);
+      setCommentInputOffset(0);
+      if (shouldRestoreCommentInputScroll.current) {
+        shouldRestoreCommentInputScroll.current = false;
+        requestAnimationFrame(() => {
+          scrollViewRef.current?.scrollTo({
+            y: scrollOffsetBeforeCommentInput.current,
+            animated: true,
+          });
+        });
+      }
     });
 
     return () => {
@@ -638,6 +705,7 @@ export default function CommunityPostDetailScreen() {
 
   const cancelEditingPost = () => {
     if (updatePostMutation.isPending) return;
+    Keyboard.dismiss();
     setEditingPost(false);
     setFocusedPostField(null);
     setInteractionError(null);
@@ -660,6 +728,7 @@ export default function CommunityPostDetailScreen() {
 
   const cancelEditingComment = () => {
     if (updateCommentMutation.isPending) return;
+    Keyboard.dismiss();
     setEditingCommentId(null);
     setEditCommentContent("");
     setEditCommentError(null);
@@ -677,6 +746,20 @@ export default function CommunityPostDetailScreen() {
   const selectReplyTarget = (commentId: number) => {
     setReplyTarget(commentId);
     requestAnimationFrame(() => commentInputRef.current?.focus());
+  };
+
+  const revealCommentEditor: NonNullable<TextInputProps["onFocus"]> = (
+    event,
+  ) => {
+    shouldRestoreCommentInputScroll.current = false;
+    const inputHandle = event.nativeEvent.target;
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollResponderScrollNativeHandleToKeyboard(
+        inputHandle,
+        120,
+        true,
+      );
+    });
   };
 
   const confirmDeleteComment = (commentId: number, removedCount: number) => {
@@ -746,8 +829,8 @@ export default function CommunityPostDetailScreen() {
         <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
-          <Text className="mt-3 text-body text-label-alternative">
-            게시물을 불러오는 중이에요.
+          <Text className="mt-3 self-stretch px-8 text-center text-body text-label-alternative">
+            게시글 로딩 중...
           </Text>
         </View>
       </SafeAreaView>
@@ -760,7 +843,7 @@ export default function CommunityPostDetailScreen() {
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
         <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-center text-body text-label-alternative">
+          <Text className="self-stretch text-center text-body text-label-alternative">
             {notFound
               ? "게시물을 찾을 수 없어요."
               : getApiErrorMessage(
@@ -787,36 +870,48 @@ export default function CommunityPostDetailScreen() {
   const currentUserId = currentUserIdQuery.data;
   const isPostAuthor = currentUserId === post.author.user_id;
   const postMetadata = (
-    <View className="mt-1.5 flex-row items-center justify-between">
+    <View className="mt-2.5 flex-row items-center justify-between">
       <View className="flex-row items-center gap-x-1.5">
-        <CommunityAvatar author={post.author} size={22} />
-        <Text className="text-body text-label-alternative">
+        <CommunityAvatar author={post.author} size={20} />
+        <Text
+          className="text-label text-label-alternative"
+          style={{ includeFontPadding: false, lineHeight: 18 }}
+        >
           {getCommunityAuthorName(post.author.name)}
         </Text>
       </View>
       {!editingPost ? (
-        <View className="flex-row items-center gap-x-2.5">
+        <View className="h-5 flex-row items-center gap-x-2.5">
           <View className="flex-row items-center gap-x-[3px]">
             <Ionicons
               name="eye"
-              size={20}
+              size={18}
               color={SEMANTIC_COLORS.label.alternative}
             />
-            <Text className="text-body text-label-alternative">
+            <Text
+              className="text-label text-label-alternative"
+              style={{ includeFontPadding: false, lineHeight: 18 }}
+            >
               {post.view_count}
             </Text>
           </View>
           <View className="flex-row items-center gap-x-[3px]">
             <Ionicons
               name="chatbubble"
-              size={20}
+              size={18}
               color={SEMANTIC_COLORS.label.alternative}
             />
-            <Text className="text-body text-label-alternative">
+            <Text
+              className="text-label text-label-alternative"
+              style={{ includeFontPadding: false, lineHeight: 18 }}
+            >
               {commentCount}
             </Text>
           </View>
-          <Text className="text-body text-label-alternative">
+          <Text
+            className="text-label text-label-alternative"
+            style={{ includeFontPadding: false, lineHeight: 18 }}
+          >
             {formatCommunityTimestamp(post.created_at)}
           </Text>
         </View>
@@ -871,7 +966,7 @@ export default function CommunityPostDetailScreen() {
 
           {isPostAuthor && isPostMenuVisible && !editingPost && (
             <View
-              className="absolute right-4 top-[53px] z-30 h-[104px] w-40 overflow-hidden rounded-component bg-background-normal"
+              className="absolute right-4 top-[53px] z-30 h-[104px] max-w-48 overflow-hidden rounded-component bg-background-normal"
               style={{
                 shadowColor: "#000000",
                 shadowOpacity: 0.12,
@@ -885,9 +980,12 @@ export default function CommunityPostDetailScreen() {
                 accessibilityLabel="게시글 수정하기"
                 disabled={updatePostMutation.isPending}
                 onPress={startEditingPost}
-                className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
               >
-                <Text className="text-headline2 font-medium text-label-normal">
+                <Text
+                  numberOfLines={1}
+                  className="text-body font-medium text-label-normal"
+                >
                   게시글 수정하기
                 </Text>
               </Pressable>
@@ -900,9 +998,12 @@ export default function CommunityPostDetailScreen() {
                   setDeletePostError(null);
                   setDeletePostModalVisible(true);
                 }}
-                className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
               >
-                <Text className="text-headline2 font-medium text-label-normal">
+                <Text
+                  numberOfLines={1}
+                  className="text-body font-medium text-label-normal"
+                >
                   게시글 삭제하기
                 </Text>
               </Pressable>
@@ -911,10 +1012,15 @@ export default function CommunityPostDetailScreen() {
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => setCommentMenuTargetId(null)}
+          onScroll={(event) => {
+            currentScrollOffset.current = event.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
           contentContainerStyle={{
             paddingHorizontal: 33,
             paddingTop: 16,
@@ -1057,17 +1163,16 @@ export default function CommunityPostDetailScreen() {
                 {post.title}
               </Text>
               {postMetadata}
-              <Text className="mt-4 text-body text-label-normal">
-                {post.content}
-              </Text>
+              <View style={{ minHeight: 80 }}>
+                <Text className="mt-5 text-body text-label-normal">
+                  {post.content}
+                </Text>
+                <CommunityPostAttachments
+                  postId={postId}
+                  attachments={post.attachments}
+                />
+              </View>
             </View>
-          )}
-
-          {!editingPost && (
-            <CommunityPostAttachments
-              postId={postId}
-              attachments={post.attachments}
-            />
           )}
 
           <View className="mt-5 flex-row justify-end gap-x-1">
@@ -1094,7 +1199,9 @@ export default function CommunityPostDetailScreen() {
             </Text>
           )}
 
-          <View className="mt-9 flex-row items-center justify-between">
+          <View className="mt-4 h-px bg-line-alternative" />
+
+          <View className="mt-5 flex-row items-center justify-between">
             <View className="flex-row items-center gap-x-2">
               <Text className="text-headline2 font-bold text-label-neutral">
                 댓글
@@ -1133,7 +1240,7 @@ export default function CommunityPostDetailScreen() {
             <ActivityIndicator className="py-10" />
           ) : commentsQuery.isError ? (
             <View className="items-center py-10">
-              <Text className="text-center text-body text-label-alternative">
+              <Text className="self-stretch text-center text-body text-label-alternative">
                 {getApiErrorMessage(
                   commentsQuery.error,
                   "댓글을 불러오지 못했어요.",
@@ -1153,7 +1260,7 @@ export default function CommunityPostDetailScreen() {
               첫 댓글을 남겨보세요.
             </Text>
           ) : (
-            <View className="mt-3 gap-y-4">
+            <View className="mt-5 gap-y-4">
               {comments.map((comment) => {
                 const replies = comment.replies ?? [];
                 const repliesVisible = expandedReplies.has(comment.comment_id);
@@ -1234,6 +1341,7 @@ export default function CommunityPostDetailScreen() {
                             errorMessage={editCommentError}
                             isSaving={updateCommentMutation.isPending}
                             onChangeText={setEditCommentContent}
+                            onFocus={revealCommentEditor}
                           />
                         ) : (
                           <Pressable
@@ -1337,6 +1445,7 @@ export default function CommunityPostDetailScreen() {
                                   errorMessage={editCommentError}
                                   isSaving={updateCommentMutation.isPending}
                                   onChangeText={setEditCommentContent}
+                                  onFocus={revealCommentEditor}
                                 />
                               ) : (
                                 <Text className="mt-0.5 text-body text-label-normal">
@@ -1396,7 +1505,9 @@ export default function CommunityPostDetailScreen() {
         <View
           className="px-8 pt-2"
           style={{
-            paddingBottom: isKeyboardVisible ? 6 : Math.max(insets.bottom, 20),
+            paddingBottom: isKeyboardVisible
+              ? commentInputOffset + COMMENT_INPUT_HEIGHT + 6
+              : insets.bottom + 20,
           }}
         >
           <View
@@ -1413,6 +1524,11 @@ export default function CommunityPostDetailScreen() {
               ref={commentInputRef}
               value={message}
               onChangeText={setMessage}
+              onFocus={() => {
+                shouldRestoreCommentInputScroll.current = true;
+                scrollOffsetBeforeCommentInput.current =
+                  currentScrollOffset.current;
+              }}
               onSubmitEditing={submitMessage}
               maxLength={1000}
               editable={!commentMutation.isPending}

@@ -144,6 +144,12 @@ export interface ScenarioListResponse {
   scenarios: ScenarioInfo[];
 }
 
+export interface ScenarioRecommendationResponse {
+  scenario: ScenarioInfo;
+  reason: 'CUSTOM_NOT_PRACTICED' | 'NOT_PRACTICED' | 'LONGEST_ABSENT';
+  category_icon_url?: string | null;
+}
+
 export interface ExampleTurn {
   speaker: string;
   text: string;
