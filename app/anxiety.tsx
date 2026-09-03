@@ -61,7 +61,7 @@ export default function Anxiety() {
   const [messageIndex, setMessageIndex] = useState(0);
   const [typedLength, setTypedLength] = useState(0);
   const [isScoreVisible, setIsScoreVisible] = useState(false);
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 안드로이드 뒤로 가기로는 훈련 중간 상태로 되돌아갈 수 없게 막는다
