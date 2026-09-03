@@ -483,7 +483,7 @@ export default function CommunityPostAttachments({
 
   return (
     <>
-      <View className="mt-4 gap-y-2.5">
+      <View className="mt-5 gap-y-2.5">
         {trainingRecordAttachment && (
           <TrainingRecordCard attachment={trainingRecordAttachment} />
         )}
