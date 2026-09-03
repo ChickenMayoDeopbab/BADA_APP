@@ -19,7 +19,7 @@ const BIT_DEPTH = 16;
  * 그대로 재생하면 조각마다 파일 I/O와 디코더 준비가 끼어 빈틈이 생기고 버벅인다.
  * 이만큼 모아서 한 번에 재생해 왕복 횟수를 줄인다.
  */
-const SEGMENT_MS = 1000;
+const SEGMENT_MS = 2000;
 const SEGMENT_BYTES =
   (SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8) * SEGMENT_MS) / 1000;
 /**
