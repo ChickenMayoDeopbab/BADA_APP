@@ -1,4 +1,4 @@
-import { recordAnxietyScore } from "@/api/recordApi";
+import { postAnxietyScore } from "@/api/recordApi";
 import GrinningFace from "@/assets/grinningFace.svg";
 import ThinkingFace from "@/assets/thinkingFace.svg";
 import WinkingFace from "@/assets/winkingFace.svg";
@@ -127,10 +127,15 @@ export default function Anxiety() {
 
     if (sessionId) {
       try {
-        await recordAnxietyScore(sessionId, { score });
+        await postAnxietyScore(sessionId, { score });
       } catch {
         // 점수 기록 실패는 리포트 열람을 막을 이유가 아니라 조용히 넘어간다
       }
+    } else if (__DEV__) {
+      console.warn("[AnxietyScore][SaveSkipped]", {
+        reason: "missing-session-id",
+        score,
+      });
     }
 
     router.replace({ pathname: "/report", params });
