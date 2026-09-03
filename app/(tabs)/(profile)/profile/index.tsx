@@ -124,7 +124,7 @@ function ProfileScreen() {
           style={profileCardShadow}
         >
           <View className="items-center gap-4">
-            <View className="h-[107px] w-[100px] items-center justify-center overflow-hidden rounded-[36px] bg-fill-neutral">
+            <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
               {profileImage.uri ? (
                 <StyledImage
                   source={{ uri: profileImage.uri }}
