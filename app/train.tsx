@@ -183,6 +183,7 @@ export default function Train() {
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
   const [calleeName, setCalleeName] = useState<string | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -197,7 +198,6 @@ export default function Train() {
   const isCompactScreen = windowHeight < 700;
 
   const [isMuted, setIsMuted] = useState(false);
-  const permissionGrantedRef = useRef(false);
   const isWarmupSession = isWarmup === "true";
   const generatedPhoneNumber = useMemo(() => {
     const source = sessionId ?? "";
@@ -244,13 +244,16 @@ export default function Train() {
   }, [displayName]);
   const roleName = calleeName ?? "연결 중...";
 
-  // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
+  // WS 연결과 오디오 준비가 모두 끝난 뒤 마이크 스트리밍 시작.
+  // 둘 중 어느 쪽이 먼저 끝나도 state 변경으로 이 effect가 다시 실행된다.
   useEffect(() => {
-    if (isConnected && step === "training" && permissionGrantedRef.current) {
-      permissionGrantedRef.current = false;
-      startSendingAudio(sendBinary);
+    if (isConnected && step === "training" && isAudioReady) {
+      console.info("[Train] 웹소켓·오디오 준비 완료, 마이크 시작");
+      void startSendingAudio(sendBinary).catch((error) => {
+        console.warn("[Train] 마이크 시작 실패", error);
+      });
     }
-  }, [isConnected, step, startSendingAudio, sendBinary]);
+  }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
 
   useEffect(() => {
     if (step !== "training") return;
@@ -311,7 +314,7 @@ export default function Train() {
       setSeconds(0);
       setCalleeName(null);
       setIsMuted(false);
-      permissionGrantedRef.current = false;
+      setIsAudioReady(false);
       if (timerRef.current) clearInterval(timerRef.current);
       stopSendingAudio();
       resetStream();
@@ -331,18 +334,25 @@ export default function Train() {
     sendMute(next);
   }, [isMuted, sendMute]);
 
-  /** 훈련 시작: 마이크 권한 확인 후 WS 연결 대기, 연결 완료 시 오디오 스트리밍 시작 */
+  /**
+   * 훈련 시작: WS는 즉시 연결하고 오디오 권한/세션은 병렬로 준비한다.
+   * 오디오 초기화가 느리거나 실패해도 서버에 WS 연결 시도 자체가 누락되지 않는다.
+   */
   const startTraining = useCallback(async () => {
+    setIsAudioReady(false);
+    setStep("training");
+
     const granted = await requestPermission();
     if (!granted) {
       Alert.alert(
         "마이크를 사용할 수 없어요",
         "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
       );
+      setStep("receive");
       return;
     }
-    permissionGrantedRef.current = true;
-    setStep("training");
+    console.info("[Train] 오디오 준비 완료");
+    setIsAudioReady(true);
   }, [requestPermission]);
 
   /** 명상 건너뛰기: 다이얼로그 닫고 훈련 시작 */
