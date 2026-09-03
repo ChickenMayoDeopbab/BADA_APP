@@ -18,6 +18,7 @@ import {
   getAccessToken,
 } from "@/utils/authTokenStorage";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { unregisterForPushNotifications } from "@/services/pushNotifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ export default function RootLayout() {
       const token = await getAccessToken();
       const autoLogin = await AsyncStorage.getItem("autoLogin");
       if (!token || autoLogin !== "true") {
+        await unregisterForPushNotifications();
         await clearAuthTokens();
         router.replace("/auth");
         return;

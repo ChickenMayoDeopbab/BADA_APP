@@ -6,6 +6,7 @@ import StyledImage from "@/components/common/StyledImage";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useProfileImage } from "@/hooks/useProfileImage";
+import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -87,6 +88,8 @@ function ProfileScreen() {
   );
 
   const handleSignOut = async () => {
+    await unregisterForPushNotifications();
+
     try {
       await deleteSignout();
     } catch {
