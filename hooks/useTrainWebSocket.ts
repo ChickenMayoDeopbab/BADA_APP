@@ -143,6 +143,7 @@ export function useTrainWebSocket({
               onSpeakingEndRef.current?.();
               break;
             case "interrupt":
+              aiSpeakingRef.current = false;
               setIsAiSpeaking(false);
               onInterruptRef.current?.();
               break;
@@ -169,6 +170,8 @@ export function useTrainWebSocket({
       } else {
         // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
         if (event.data instanceof ArrayBuffer) {
+          aiSpeakingRef.current = true;
+          setIsAiSpeaking(true);
           onBinaryMessageRef.current?.(event.data);
         }
       }
@@ -199,7 +202,9 @@ export function useTrainWebSocket({
     };
 
     ws.onerror = () => {
+      aiSpeakingRef.current = false;
       setIsConnected(false);
+      setIsAiSpeaking(false);
     };
   }, [sessionId]);
 
@@ -228,18 +233,15 @@ export function useTrainWebSocket({
     }
   }, []);
 
-  const sendBinary = useCallback(
-    (data: ArrayBuffer) => {
-      if (isAiSpeaking) {
-        return;
-      }
+  const sendBinary = useCallback((data: ArrayBuffer) => {
+    // 녹음 시작 시 등록된 콜백도 최신 AI 발화 상태를 읽어야 한다.
+    // React state를 캡처하면 AI가 말하기 시작한 뒤에도 마이크 데이터가 계속 전송된다.
+    if (aiSpeakingRef.current) return;
 
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(data);
-      }
-    },
-    [isAiSpeaking],
-  );
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(data);
+    }
+  }, []);
 
   return {
     isConnected,

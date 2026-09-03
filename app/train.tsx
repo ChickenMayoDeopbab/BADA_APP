@@ -3,14 +3,13 @@ import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
-import { useAiAudioChunkLogger } from "@/hooks/useAiAudioChunkLogger";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ResizeMode, Video } from "expo-av";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   BackHandler,
   Modal,
   ScrollView,
@@ -74,6 +73,47 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
             <Text className="text-label font-bold text-label-buttonText">명상하기</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    </View>
+  );
+}
+
+/** 명상을 선택했을 때만 기존 영상 모듈을 불러와 일반 통화에서는 오디오 세션에 관여하지 않게 한다. */
+function MeditationVideoContent({
+  bottomInset,
+  onEnd,
+}: {
+  bottomInset: number;
+  onEnd: () => void;
+}) {
+  // expo-video를 추가하지 않는 동안 명상 영상 기능만 기존 모듈을 지연 로드한다.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ResizeMode, Video } = require("expo-av") as typeof import("expo-av");
+
+  return (
+    <View style={styles.meditationVideoContainer}>
+      <Video
+        source={require("@/assets/meditate.mp4")}
+        style={styles.meditationVideo}
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay
+        onPlaybackStatusUpdate={(status) => {
+          if (status.isLoaded && status.didJustFinish) onEnd();
+        }}
+      />
+      <View
+        style={[
+          styles.meditationSkipWrapper,
+          { paddingBottom: bottomInset + 24 },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={onEnd}
+          activeOpacity={0.8}
+          style={styles.meditationSkipButton}
+        >
+          <Text className="text-base font-bold text-white">건너뛰기</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -177,22 +217,15 @@ export default function Train() {
     resetStream,
   } = useAudio();
 
-  /** A1 착수 전 실측용 임시 진단 훅 — 개편 완료 후 제거 */
-  const { handleTurnStart, handleAudioChunk, handleTurnEnd } =
-    useAiAudioChunkLogger();
-
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training",
     onBinaryMessage: (data) => {
-      handleAudioChunk(data);
       streamPcmChunk(data);
     },
-    onSpeakingEnd: handleTurnEnd,
     onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
     onEmotion: () => {
-      handleTurnStart();
       resetStream();
     },
     onInterrupt: resetStream,
@@ -301,7 +334,14 @@ export default function Train() {
   /** 훈련 시작: 마이크 권한 확인 후 WS 연결 대기, 연결 완료 시 오디오 스트리밍 시작 */
   const startTraining = useCallback(async () => {
     const granted = await requestPermission();
-    if (granted) permissionGrantedRef.current = true;
+    if (!granted) {
+      Alert.alert(
+        "마이크를 사용할 수 없어요",
+        "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
+      );
+      return;
+    }
+    permissionGrantedRef.current = true;
     setStep("training");
   }, [requestPermission]);
 
@@ -374,28 +414,14 @@ export default function Train() {
         <Modal visible={isMeditationVisible} transparent animationType="fade">
           <MeditationDialog onSkip={handleMeditationSkip} onMeditate={handleMeditationStart} />
         </Modal>
-        <Modal visible={isMeditationVideoVisible} animationType="fade">
-          <View style={styles.meditationVideoContainer}>
-            <Video
-              source={require("@/assets/meditate.mp4")}
-              style={styles.meditationVideo}
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-              onPlaybackStatusUpdate={(status) => {
-                if (status.isLoaded && status.didJustFinish) handleMeditationVideoEnd();
-              }}
+        {isMeditationVideoVisible && (
+          <Modal visible animationType="fade">
+            <MeditationVideoContent
+              bottomInset={insets.bottom}
+              onEnd={handleMeditationVideoEnd}
             />
-            <View style={[styles.meditationSkipWrapper, { paddingBottom: insets.bottom + 24 }]}>
-              <TouchableOpacity
-                onPress={handleMeditationVideoEnd}
-                activeOpacity={0.8}
-                style={styles.meditationSkipButton}
-              >
-                <Text className="text-base font-bold text-white">건너뛰기</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
       </>
     );
   }
