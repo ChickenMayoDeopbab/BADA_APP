@@ -71,13 +71,15 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <PushNotificationManager />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: "#FEFEFE" },
-          }}
-        />
+        <PendingCallProvider>
+          <PushNotificationManager />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: "#FEFEFE" },
+            }}
+          />
+        </PendingCallProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
   );
