@@ -1,5 +1,4 @@
 import { ScenarioInfo } from "@/api/types";
-import { getDummyTrainingCount } from "@/constants/dummyTrainingCounts";
 import { getScenarioThumbnail } from "@/utils/scenarioImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -59,7 +58,7 @@ export default function ScenarioRowCard({
             {scenario.title}
           </Text>
           <TrainingCountLabel
-            count={getDummyTrainingCount(scenario.scenario_id)}
+            count={scenario.practice_count ?? 0}
           />
         </View>
         <GlassChip>
