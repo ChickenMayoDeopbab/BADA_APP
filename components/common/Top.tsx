@@ -19,7 +19,7 @@ interface TopProps {
  * 바 전체 높이를 고정하면 상단 인셋만큼 콘텐츠 영역이 깎여, 인셋이 큰 iOS에서만
  * 제목이 아래 내용에 바짝 붙는다. 인셋에 이 값을 더해 두 플랫폼을 같게 맞춘다.
  */
-export const HEADER_CONTENT_HEIGHT = 81;
+export const HEADER_CONTENT_HEIGHT = 64;
 /** 뒤로 가기 아이콘 한 변 */
 const BACK_ICON_SIZE = 30;
 
