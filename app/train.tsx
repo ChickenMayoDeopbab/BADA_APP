@@ -174,6 +174,7 @@ export default function Train() {
     startSendingAudio,
     stopSendingAudio,
     streamPcmChunk,
+    flushPlayback,
     resetStream,
   } = useAudio();
 
@@ -189,12 +190,16 @@ export default function Train() {
       handleAudioChunk(data);
       streamPcmChunk(data);
     },
-    onSpeakingEnd: handleTurnEnd,
-    onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
-    onEmotion: () => {
-      handleTurnStart();
-      resetStream();
+    onSpeakingEnd: () => {
+      flushPlayback();
+      handleTurnEnd();
     },
+    onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
+    /**
+     * emotion은 "AI 발화 시작" 신호일 뿐 재생 버퍼를 비우라는 뜻이 아니다.
+     * 여기서 resetStream을 부르면 아직 재생 중인 직전 턴의 꼬리가 잘린다.
+     */
+    onEmotion: () => handleTurnStart(),
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
     onError: (code) => {
