@@ -100,6 +100,20 @@ module.exports = {
             "대화 훈련 중 음성을 녹음하여 발화 내용을 분석하고 피드백을 제공하기 위해 마이크를 사용합니다.",
         },
       ],
+      [
+        // 실시간 AI 음성을 끊김 없이 재생하기 위한 오디오 그래프.
+        // 기본값이 백그라운드 재생·포그라운드 서비스를 켜는데, 훈련 통화는 화면이 떠 있는
+        // 동안만 소리를 내므로 모두 끈다. 특히 FOREGROUND_SERVICE_MEDIA_PLAYBACK 권한은
+        // 플레이스토어에서 별도 선언이 필요해 켜두면 심사 부담만 생긴다.
+        // FFmpeg은 인코딩된 오디오 디코딩용이라 raw PCM만 다루는 지금은 필요 없다.
+        "react-native-audio-api",
+        {
+          iosBackgroundMode: false,
+          androidForegroundService: false,
+          androidPermissions: [],
+          disableFFmpeg: true,
+        },
+      ],
       "expo-asset",
     ],
     experiments: {
