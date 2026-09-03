@@ -2,11 +2,20 @@
 // APP_VARIANT 는 eas.json 의 빌드 프로필 env 에서 주입되며,
 // 값이 없으면 기존 원스토어 패키지를 그대로 사용한다.
 const IS_PLAYSTORE = process.env.APP_VARIANT === "playstore";
+const FIREBASE_PUSH_ENABLED =
+  process.env.EXPO_PUBLIC_FIREBASE_PUSH_ENABLED === "true";
 
 /** 안드로이드 applicationId (스토어별로 다른 상품이 된다) */
 const ANDROID_PACKAGE = IS_PLAYSTORE
   ? "com.chickenmayodeopbab.bada.play"
   : "com.bada.app";
+const ANDROID_GOOGLE_SERVICES_FILE =
+  process.env.GOOGLE_SERVICES_JSON ??
+  (IS_PLAYSTORE
+    ? "./google-services-playstore.json"
+    : "./google-services.json");
+const IOS_GOOGLE_SERVICES_FILE =
+  process.env.GOOGLE_SERVICES_PLIST ?? "./GoogleService-Info.plist";
 
 module.exports = {
   expo: {
@@ -15,22 +24,64 @@ module.exports = {
     version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/badaLogo.png",
+    notification: {
+      icon: "./assets/notification-icon.png",
+      color: "#0AE365",
+    },
     scheme: "bada",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
       bundleIdentifier: "com.bada.app",
       icon: "./assets/badaAppIcon.png",
+      ...(FIREBASE_PUSH_ENABLED
+        ? {
+            googleServicesFile: IOS_GOOGLE_SERVICES_FILE,
+            entitlements: {
+              "aps-environment": "production",
+            },
+            infoPlist: {
+              UIBackgroundModes: ["remote-notification"],
+            },
+          }
+        : {}),
     },
     android: {
       predictiveBackGestureEnabled: false,
       package: ANDROID_PACKAGE,
+      ...(FIREBASE_PUSH_ENABLED
+        ? {
+            googleServicesFile: ANDROID_GOOGLE_SERVICES_FILE,
+            permissions: ["android.permission.POST_NOTIFICATIONS"],
+          }
+        : {}),
     },
     web: {
       output: "static",
     },
     plugins: [
       "expo-router",
+      ...(FIREBASE_PUSH_ENABLED
+        ? [
+            [
+              "@react-native-firebase/app",
+              {
+                ios: {
+                  disableSPM: true,
+                },
+              },
+            ],
+            "@react-native-firebase/messaging",
+          ]
+        : []),
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            useFrameworks: "static",
+          },
+        },
+      ],
       [
         "expo-splash-screen",
         {
