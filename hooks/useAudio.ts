@@ -13,6 +13,21 @@ const WAV_HEADER_SIZE = 44;
 const CHANNELS = 1;
 const BIT_DEPTH = 16;
 
+/**
+ * 네이티브 재생은 청크 하나마다 WAV 파일을 쓰고 Audio.Sound를 새로 만든 뒤
+ * 재생이 끝나야 다음으로 넘어간다. 서버는 32ms짜리 조각을 초당 30개씩 보내는데
+ * 그대로 재생하면 조각마다 파일 I/O와 디코더 준비가 끼어 빈틈이 생기고 버벅인다.
+ * 이만큼 모아서 한 번에 재생해 왕복 횟수를 줄인다.
+ */
+const SEGMENT_MS = 2000;
+const SEGMENT_BYTES =
+  (SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8) * SEGMENT_MS) / 1000;
+/**
+ * 이 시간 동안 새 청크가 없으면 턴이 끝난 것으로 보고 모아둔 분량을 마저 재생한다.
+ * 관측된 청크 간격 최댓값이 약 114ms라 그보다 넉넉히 잡는다.
+ */
+const SEGMENT_IDLE_FLUSH_MS = 200;
+
 const AUDIO_RECORD_OPTIONS = {
   sampleRate: SAMPLE_RATE,
   channels: CHANNELS,
@@ -95,6 +110,11 @@ export function useAudio(): UseAudioReturn {
   const isNativePlayingRef = useRef(false);
   const chunkCounterRef = useRef(0);
   const playNextChunkRef = useRef<() => void>(() => {});
+  // Native: 재생 단위(SEGMENT_MS)를 채울 때까지 모아두는 조각들
+  const pendingPcmRef = useRef<Uint8Array[]>([]);
+  const pendingBytesRef = useRef(0);
+  const idleFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushSegmentRef = useRef<() => void>(() => {});
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") {
@@ -306,11 +326,44 @@ export function useAudio(): UseAudioReturn {
         isMutedRef.current = false;
         muteReleaseTimerRef.current = null;
       }, remainMs + 50);
-    } else {
-      chunkQueueRef.current.push(new Uint8Array(data));
-      playNextChunkRef.current();
+      return;
+    }
+
+    pendingPcmRef.current.push(new Uint8Array(data));
+    pendingBytesRef.current += data.byteLength;
+
+    if (idleFlushTimerRef.current) clearTimeout(idleFlushTimerRef.current);
+    idleFlushTimerRef.current = setTimeout(() => {
+      idleFlushTimerRef.current = null;
+      flushSegmentRef.current();
+    }, SEGMENT_IDLE_FLUSH_MS);
+
+    if (pendingBytesRef.current >= SEGMENT_BYTES) {
+      flushSegmentRef.current();
     }
   }, []);
+
+  /** 모아둔 조각들을 하나로 이어 붙여 재생 큐에 넣는다 */
+  const flushSegment = useCallback(() => {
+    const parts = pendingPcmRef.current;
+    const totalBytes = pendingBytesRef.current;
+    if (totalBytes === 0) return;
+
+    pendingPcmRef.current = [];
+    pendingBytesRef.current = 0;
+
+    const merged = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const part of parts) {
+      merged.set(part, offset);
+      offset += part.length;
+    }
+
+    chunkQueueRef.current.push(merged);
+    playNextChunkRef.current();
+  }, []);
+
+  flushSegmentRef.current = flushSegment;
 
   const playNextChunk = useCallback(async () => {
     if (isNativePlayingRef.current || chunkQueueRef.current.length === 0)
@@ -377,6 +430,12 @@ export function useAudio(): UseAudioReturn {
       }
       isMutedRef.current = false;
     } else {
+      if (idleFlushTimerRef.current) {
+        clearTimeout(idleFlushTimerRef.current);
+        idleFlushTimerRef.current = null;
+      }
+      pendingPcmRef.current = [];
+      pendingBytesRef.current = 0;
       chunkQueueRef.current = [];
       isNativePlayingRef.current = false;
       const s = currentSoundRef.current;

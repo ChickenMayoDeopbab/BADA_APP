@@ -3,6 +3,7 @@ import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
+import { useAiAudioChunkLogger } from "@/hooks/useAiAudioChunkLogger";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -176,14 +177,24 @@ export default function Train() {
     resetStream,
   } = useAudio();
 
+  /** A1 착수 전 실측용 임시 진단 훅 — 개편 완료 후 제거 */
+  const { handleTurnStart, handleAudioChunk, handleTurnEnd } =
+    useAiAudioChunkLogger();
+
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training",
-    onBinaryMessage: streamPcmChunk,
-    onSpeakingEnd: () => {},
+    onBinaryMessage: (data) => {
+      handleAudioChunk(data);
+      streamPcmChunk(data);
+    },
+    onSpeakingEnd: handleTurnEnd,
     onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
-    onEmotion: () => resetStream(),
+    onEmotion: () => {
+      handleTurnStart();
+      resetStream();
+    },
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
     onError: (code) => {
