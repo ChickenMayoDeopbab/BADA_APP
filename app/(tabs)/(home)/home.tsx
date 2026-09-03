@@ -188,7 +188,7 @@ export default function Home() {
 
         <Animated.View
           layout={calendarLayoutTransition}
-          className="gap-4 px-3 py-4 mt-4 bg-white shadow-md rounded-component"
+          className="gap-4 px-7 py-4 mt-4 bg-white shadow-md rounded-component"
         >
         <View className="flex-row items-center justify-between">
           <Text className="font-bold text-body text-label-normal">이번 주 훈련</Text>
