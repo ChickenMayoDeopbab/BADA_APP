@@ -120,10 +120,10 @@ function ProfileScreen() {
         contentContainerClassName="gap-4 px-[33px] pb-6 pt-[22px]"
       >
         <View
-          className="w-full items-center gap-4 rounded-component bg-background-normal px-[22px] py-[14px]"
+          className="w-full items-center gap-6 rounded-component bg-background-normal px-[22px] py-[14px]"
           style={profileCardShadow}
         >
-          <View className="items-center gap-3">
+          <View className="items-center gap-4">
             <View className="h-[107px] w-[100px] items-center justify-center overflow-hidden rounded-[36px] bg-fill-neutral">
               {profileImage.uri ? (
                 <StyledImage
@@ -144,7 +144,7 @@ function ProfileScreen() {
               </Pressable>
             ) : null}
 
-            <View className="w-full items-center gap-0.5">
+            <View className="w-full items-center gap-2">
               <Text
                 numberOfLines={1}
                 className="max-w-[282px] text-title2 font-bold text-label-normal"
@@ -152,7 +152,7 @@ function ProfileScreen() {
                 {displayName}
               </Text>
               {myPage?.levelName ? (
-                <View className="mb-1 mt-0.5 flex-row items-center gap-1 rounded-pill bg-primary-normal px-2.5 py-1">
+                <View className="flex-row items-center gap-1 rounded-pill bg-primary-normal px-2.5 py-1">
                   <Ionicons
                     name="sparkles"
                     size={14}
