@@ -92,7 +92,7 @@ function CommunityFeed({
         contentContainerStyle={{
           gap: 12,
           paddingHorizontal: 32,
-          paddingBottom: 120,
+          paddingBottom: 12,
         }}
         renderItem={({ item }) => (
           <CommunityPostCard

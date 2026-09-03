@@ -787,36 +787,48 @@ export default function CommunityPostDetailScreen() {
   const currentUserId = currentUserIdQuery.data;
   const isPostAuthor = currentUserId === post.author.user_id;
   const postMetadata = (
-    <View className="mt-1.5 flex-row items-center justify-between">
+    <View className="mt-2.5 flex-row items-center justify-between">
       <View className="flex-row items-center gap-x-1.5">
-        <CommunityAvatar author={post.author} size={22} />
-        <Text className="text-body text-label-alternative">
+        <CommunityAvatar author={post.author} size={20} />
+        <Text
+          className="text-label text-label-alternative"
+          style={{ includeFontPadding: false, lineHeight: 18 }}
+        >
           {getCommunityAuthorName(post.author.name)}
         </Text>
       </View>
       {!editingPost ? (
-        <View className="flex-row items-center gap-x-2.5">
+        <View className="h-5 flex-row items-center gap-x-2.5">
           <View className="flex-row items-center gap-x-[3px]">
             <Ionicons
               name="eye"
-              size={20}
+              size={18}
               color={SEMANTIC_COLORS.label.alternative}
             />
-            <Text className="text-body text-label-alternative">
+            <Text
+              className="text-label text-label-alternative"
+              style={{ includeFontPadding: false, lineHeight: 18 }}
+            >
               {post.view_count}
             </Text>
           </View>
           <View className="flex-row items-center gap-x-[3px]">
             <Ionicons
               name="chatbubble"
-              size={20}
+              size={18}
               color={SEMANTIC_COLORS.label.alternative}
             />
-            <Text className="text-body text-label-alternative">
+            <Text
+              className="text-label text-label-alternative"
+              style={{ includeFontPadding: false, lineHeight: 18 }}
+            >
               {commentCount}
             </Text>
           </View>
-          <Text className="text-body text-label-alternative">
+          <Text
+            className="text-label text-label-alternative"
+            style={{ includeFontPadding: false, lineHeight: 18 }}
+          >
             {formatCommunityTimestamp(post.created_at)}
           </Text>
         </View>
@@ -1057,17 +1069,16 @@ export default function CommunityPostDetailScreen() {
                 {post.title}
               </Text>
               {postMetadata}
-              <Text className="mt-4 text-body text-label-normal">
-                {post.content}
-              </Text>
+              <View style={{ minHeight: 80 }}>
+                <Text className="mt-5 text-body text-label-normal">
+                  {post.content}
+                </Text>
+                <CommunityPostAttachments
+                  postId={postId}
+                  attachments={post.attachments}
+                />
+              </View>
             </View>
-          )}
-
-          {!editingPost && (
-            <CommunityPostAttachments
-              postId={postId}
-              attachments={post.attachments}
-            />
           )}
 
           <View className="mt-5 flex-row justify-end gap-x-1">
@@ -1094,8 +1105,10 @@ export default function CommunityPostDetailScreen() {
             </Text>
           )}
 
-          <View className="mt-9 flex-row items-center justify-between">
-            <View className="flex-row items-center gap-x-2">
+          <View className="mt-4 h-px bg-line-alternative" />
+
+          <View className="mt-5 flex-row items-center justify-between">
+            <View className="ml-[26px] flex-row items-center gap-x-2">
               <Text className="text-headline2 font-bold text-label-neutral">
                 댓글
               </Text>
