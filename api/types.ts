@@ -271,6 +271,24 @@ export type ApiResponseInAppNotificationListResponse =
 export type ApiResponseInAppNotificationResponse =
   ApiResponse<InAppNotificationResponse>;
 
+export type PushDevicePlatform = "ANDROID" | "IOS";
+
+export interface RegisterPushDeviceRequest {
+  installationId: string;
+  token: string;
+  platform: PushDevicePlatform;
+}
+
+export interface NotificationSettingResponse {
+  allEnabled: boolean;
+  communityEnabled: boolean;
+  trainingEnabled: boolean;
+}
+
+export type UpdateNotificationSettingRequest = NotificationSettingResponse;
+export type ApiResponseNotificationSettingResponse =
+  ApiResponse<NotificationSettingResponse>;
+
 export interface TrainingRecordResponse {
   recordId: number;
   sessionId: string;

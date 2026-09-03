@@ -6,6 +6,7 @@ import StyledImage from "@/components/common/StyledImage";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useProfileImage } from "@/hooks/useProfileImage";
+import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -87,6 +88,8 @@ function ProfileScreen() {
   );
 
   const handleSignOut = async () => {
+    await unregisterForPushNotifications();
+
     try {
       await deleteSignout();
     } catch {
@@ -158,7 +161,7 @@ function ProfileScreen() {
                     size={14}
                     color={SEMANTIC_COLORS.label.buttonText}
                   />
-                  <Text className="text-caption font-bold text-label-buttonText">
+                  <Text className="font-bold text-caption text-label-buttonText">
                     자가진단 · {myPage.levelName}
                   </Text>
                 </View>
@@ -205,15 +208,23 @@ function ProfileScreen() {
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={myPage?.levelName ? "자가진단 다시 하기" : "자가진단 시작하기"}
+              accessibilityLabel={
+                myPage?.levelName
+                  ? "자가진단 다시 하기"
+                  : "자가진단 시작하기"
+              }
               className="items-center justify-center py-1 active:opacity-60"
-              onPress={() => router.push({
-                pathname: "/diagnosis/question",
-                params: { from: "profile" },
-              })}
+              onPress={() =>
+                router.push({
+                  pathname: "/diagnosis/question",
+                  params: { from: "profile" },
+                })
+              }
             >
-              <Text className="text-caption font-medium text-label-alternative">
-                {myPage?.levelName ? "자가진단 다시 하기" : "자가진단 시작하기"}
+              <Text className="font-medium text-caption text-label-alternative">
+                {myPage?.levelName
+                  ? "자가진단 다시 하기"
+                  : "자가진단 시작하기"}
               </Text>
             </Pressable>
           </View>
@@ -240,12 +251,14 @@ function ProfileScreen() {
                   router.push("/(tabs)/(profile)/profile/settings/notification")
                 }
               />
-              <MenuRow
+              {/* <MenuRow
                 label="언어"
                 onPress={() =>
                   router.push("/(tabs)/(profile)/profile/settings/language")
                 }
               />
+              외국어 구현이 아직 안되어 있어 언어 설정은 숨김 처리합니다. 
+              */}
             </View>
           </View>
         </View>

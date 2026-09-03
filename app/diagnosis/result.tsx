@@ -13,10 +13,14 @@ export default function Result() {
   const isProfileRetake = Array.isArray(from)
     ? from[0] === "profile"
     : from === "profile";
+
   const handleExit = () => {
-    router.replace(
-      isProfileRetake ? "/(tabs)/(profile)/profile" : "/home",
-    );
+    if (isProfileRetake) {
+      router.dismissTo("/(tabs)/(profile)/profile");
+      return;
+    }
+
+    router.replace("/home");
   };
 
   useAndroidBackHandler(() => {
@@ -75,7 +79,11 @@ export default function Result() {
           </View>
         </View>
         <CustomButton
-          label={isProfileRetake ? "프로필에서 결과 확인하기" : "저장하고 홈으로 가기"}
+          label={
+            isProfileRetake
+              ? "프로필에서 결과 확인하기"
+              : "저장하고 홈으로 가기"
+          }
           onPress={handleExit}
           backgroundColor="#0AE365"
           color="white"
