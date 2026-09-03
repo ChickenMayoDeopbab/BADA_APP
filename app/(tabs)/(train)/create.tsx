@@ -55,6 +55,8 @@ export default function Create() {
   const [isExitDialogVisible, setIsExitDialogVisible] = useState(false);
   const isKeyboardVisible = useKeyboardVisible();
   const createdScenarioIdRef = useRef<number | null>(null);
+  const calleeInputRef = useRef<TextInput>(null);
+  const purposeInputRef = useRef<TextInput>(null);
   const queryClient = useQueryClient();
 
   useFocusEffect(
@@ -88,7 +90,17 @@ export default function Create() {
   const isInfoSubmittable =
     form.title.trim().length > 0 && form.category !== null;
   const isDetailSubmittable =
-    form.callee.trim().length > 0 && form.purpose.trim().length > 0;
+    form.callee.trim().length >= 2 && form.purpose.trim().length >= 5;
+
+  const goToDetail = useCallback(() => {
+    if (!isInfoSubmittable) {
+      setIsCategoryOpen(true);
+      return;
+    }
+    setIsCategoryOpen(false);
+    setStep("detail");
+    requestAnimationFrame(() => calleeInputRef.current?.focus());
+  }, [isInfoSubmittable]);
 
   useEffect(() => {
     if (step !== "loading") return;
@@ -98,9 +110,9 @@ export default function Create() {
     const run = async () => {
       try {
         const result = await createCustomScenario({
-          title: form.title,
-          call_target: form.callee,
-          call_purpose: form.purpose,
+          title: form.title.trim(),
+          call_target: form.callee.trim(),
+          call_purpose: form.purpose.trim(),
           // 화면에서 카테고리를 고르지 않고는 넘어올 수 없다(다음 버튼이 막힘)
           ...(form.category ? { category: form.category } : {}),
         });
@@ -216,10 +228,14 @@ export default function Create() {
                 placeholder="시나리오를 나타낼 제목을 입력해주세요."
                 placeholderTextColor="#BDBEBE"
                 value={form.title}
+                maxLength={50}
+                returnKeyType="next"
+                submitBehavior="submit"
                 onChangeText={(value) =>
                   setForm((prev) => ({ ...prev, title: value }))
                 }
                 onFocus={() => setIsCategoryOpen(false)}
+                onSubmitEditing={goToDetail}
               />
             </FieldBox>
             <FieldBox label="카테고리">
@@ -238,24 +254,36 @@ export default function Create() {
           <View className="gap-y-6 mt-8">
             <FieldBox label="전화 상대">
               <TextInput
+                ref={calleeInputRef}
                 className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="전화 상대에 대해 설명해주세요."
                 placeholderTextColor="#BDBEBE"
                 value={form.callee}
+                maxLength={100}
+                returnKeyType="next"
+                submitBehavior="submit"
                 onChangeText={(value) =>
                   setForm((prev) => ({ ...prev, callee: value }))
                 }
+                onSubmitEditing={() => purposeInputRef.current?.focus()}
               />
             </FieldBox>
             <FieldBox label="전화 목적">
               <TextInput
+                ref={purposeInputRef}
                 className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="전화의 목적을 설명해주세요."
                 placeholderTextColor="#BDBEBE"
                 value={form.purpose}
+                maxLength={200}
+                returnKeyType="done"
+                submitBehavior="submit"
                 onChangeText={(value) =>
                   setForm((prev) => ({ ...prev, purpose: value }))
                 }
+                onSubmitEditing={() => {
+                  if (isDetailSubmittable) setStep("loading");
+                }}
                 multiline
                 style={{ minHeight: 168, textAlignVertical: "top" }}
               />
@@ -272,10 +300,7 @@ export default function Create() {
             label="다음으로"
             tone="primary"
             disabled={!isInfoSubmittable}
-            onPress={() => {
-              setIsCategoryOpen(false);
-              setStep("detail");
-            }}
+            onPress={goToDetail}
           />
         ) : (
           <CustomButton
