@@ -3,7 +3,6 @@ import CustomButton from "@/components/common/CustomButton";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
-import { getDummyTrainingCount } from "@/constants/dummyTrainingCounts";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { getAccessToken } from "@/utils/authTokenStorage";
@@ -367,7 +366,7 @@ export default function Detail() {
                     {scenario.title}
                   </Text>
                   <TrainingCountLabel
-                    count={getDummyTrainingCount(scenario.scenario_id)}
+                    count={scenario.practice_count ?? 0}
                     size="md"
                     color="#5C5E5E"
                   />
