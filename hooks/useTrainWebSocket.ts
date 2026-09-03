@@ -143,7 +143,6 @@ export function useTrainWebSocket({
               onSpeakingEndRef.current?.();
               break;
             case "interrupt":
-              aiSpeakingRef.current = false;
               setIsAiSpeaking(false);
               onInterruptRef.current?.();
               break;
@@ -229,18 +228,18 @@ export function useTrainWebSocket({
     }
   }, []);
 
-  /**
-   * AI 발화 중에는 서버가 사용자 음성을 버리므로(barge-in 비활성) 올려 보내지 않는다.
-   * startSendingAudio가 이 함수를 세션당 한 번만 붙들기 때문에 state를 읽으면
-   * 첫 클로저에 갇혀 항상 false가 된다. 매번 최신 값을 보려면 ref여야 한다.
-   */
-  const sendBinary = useCallback((data: ArrayBuffer) => {
-    if (aiSpeakingRef.current) return;
+  const sendBinary = useCallback(
+    (data: ArrayBuffer) => {
+      if (isAiSpeaking) {
+        return;
+      }
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(data);
-    }
-  }, []);
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(data);
+      }
+    },
+    [isAiSpeaking],
+  );
 
   return {
     isConnected,
