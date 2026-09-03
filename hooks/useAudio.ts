@@ -1,4 +1,9 @@
-import { Audio } from "expo-av";
+import {
+  createAudioPlayer,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  type AudioPlayer,
+} from "expo-audio";
 import {
   cacheDirectory,
   deleteAsync,
@@ -6,7 +11,7 @@ import {
   writeAsStringAsync,
 } from "expo-file-system/legacy";
 import { useCallback, useEffect, useRef } from "react";
-import { NativeModules, Platform } from "react-native";
+import { AppState, AppStateStatus, NativeModules, Platform } from "react-native";
 
 const SAMPLE_RATE = 16000;
 const WAV_HEADER_SIZE = 44;
@@ -14,19 +19,19 @@ const CHANNELS = 1;
 const BIT_DEPTH = 16;
 
 /**
- * 네이티브 재생은 청크 하나마다 WAV 파일을 쓰고 Audio.Sound를 새로 만든 뒤
+ * 네이티브 재생은 청크 하나마다 WAV 파일을 쓰고 플레이어를 새로 만든 뒤
  * 재생이 끝나야 다음으로 넘어간다. 서버는 32ms짜리 조각을 초당 30개씩 보내는데
  * 그대로 재생하면 조각마다 파일 I/O와 디코더 준비가 끼어 빈틈이 생기고 버벅인다.
  * 이만큼 모아서 한 번에 재생해 왕복 횟수를 줄인다.
  */
-const SEGMENT_MS = 2000;
+const SEGMENT_MS = 480;
 const SEGMENT_BYTES =
   (SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8) * SEGMENT_MS) / 1000;
 /**
  * 이 시간 동안 새 청크가 없으면 턴이 끝난 것으로 보고 모아둔 분량을 마저 재생한다.
  * 관측된 청크 간격 최댓값이 약 114ms라 그보다 넉넉히 잡는다.
  */
-const SEGMENT_IDLE_FLUSH_MS = 200;
+const SEGMENT_IDLE_FLUSH_MS = 120;
 
 const AUDIO_RECORD_OPTIONS = {
   sampleRate: SAMPLE_RATE,
@@ -105,7 +110,14 @@ export function useAudio(): UseAudioReturn {
   const nextPlayTimeRef = useRef(0);
 
   // Native: 순차 재생 큐
-  const currentSoundRef = useRef<Audio.Sound | null>(null);
+  const currentPlayerRef = useRef<AudioPlayer | null>(null);
+  const currentPlayerSubscriptionRef = useRef<{ remove: () => void } | null>(
+    null,
+  );
+  const currentPlaybackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const currentPlayerUriRef = useRef<string | null>(null);
   const chunkQueueRef = useRef<Uint8Array[]>([]);
   const isNativePlayingRef = useRef(false);
   const chunkCounterRef = useRef(0);
@@ -115,6 +127,7 @@ export function useAudio(): UseAudioReturn {
   const pendingBytesRef = useRef(0);
   const idleFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushSegmentRef = useRef<() => void>(() => {});
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") {
@@ -148,14 +161,23 @@ export function useAudio(): UseAudioReturn {
         return false;
       }
     }
-    const { granted } = await Audio.requestPermissionsAsync();
-    if (granted) {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+    const { granted } = await requestRecordingPermissionsAsync();
+    if (!granted || AppState.currentState !== "active") return false;
+
+    try {
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+        allowsBackgroundRecording: false,
+        interruptionMode: "duckOthers",
+        shouldRouteThroughEarpiece: false,
       });
+    } catch (error) {
+      console.warn("[Audio] 오디오 모드 설정 실패:", error);
+      return false;
     }
-    return granted;
+    return true;
   }, []);
 
   const startSendingAudio = useCallback(
@@ -329,6 +351,10 @@ export function useAudio(): UseAudioReturn {
       return;
     }
 
+    // 백그라운드에서는 Android가 오디오 포커스를 내주지 않는다.
+    // 수신 청크를 재생 큐에 넣지 않아 포커스 예외와 복귀 후 오래된 응답 재생을 함께 막는다.
+    if (appStateRef.current !== "active") return;
+
     pendingPcmRef.current.push(new Uint8Array(data));
     pendingBytesRef.current += data.byteLength;
 
@@ -368,6 +394,10 @@ export function useAudio(): UseAudioReturn {
   const playNextChunk = useCallback(async () => {
     if (isNativePlayingRef.current || chunkQueueRef.current.length === 0)
       return;
+    if (appStateRef.current !== "active") {
+      chunkQueueRef.current = [];
+      return;
+    }
     isNativePlayingRef.current = true;
 
     const pcm = chunkQueueRef.current.shift()!;
@@ -377,45 +407,90 @@ export function useAudio(): UseAudioReturn {
     wav.set(pcm, header.length);
 
     const uri = `${cacheDirectory ?? ""}ai_chunk_${chunkCounterRef.current++}.wav`;
-    await writeAsStringAsync(uri, bytesToBase64(wav), {
-      encoding: EncodingType.Base64,
-    });
+    let player: AudioPlayer | null = null;
+    let subscription: { remove: () => void } | null = null;
+    let playbackTimeout: ReturnType<typeof setTimeout> | null = null;
+    let cleanedUp = false;
 
-    const { sound } = await Audio.Sound.createAsync({ uri });
-    currentSoundRef.current = sound;
+    const cleanup = async () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      isMutedRef.current = false;
+      isNativePlayingRef.current = false;
 
-    sound.setOnPlaybackStatusUpdate(async (status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        isMutedRef.current = false;
-        if (isSendingRef.current && RNAudioRecord) {
-          if (Platform.OS === "ios" && RNAudioRecord.reassertAecMode) {
-            RNAudioRecord.reassertAecMode();
-          } else if (Platform.OS === "android" && RNAudioRecord.reassertAec) {
-            RNAudioRecord.reassertAec();
-          }
-        }
+      const finishedSubscription = subscription;
+      const finishedTimeout = playbackTimeout;
+      if (finishedTimeout) clearTimeout(finishedTimeout);
+      playbackTimeout = null;
+      finishedSubscription?.remove();
+      subscription = null;
 
-        isNativePlayingRef.current = false;
+      if (player) {
         try {
-          await sound.unloadAsync();
+          player.pause();
+          player.remove();
         } catch {}
-        await deleteAsync(uri, { idempotent: true });
-        if (currentSoundRef.current === sound) currentSoundRef.current = null;
-        // 큐에 남은 chunk가 있으면 바로 다음 재생
-        playNextChunkRef.current();
       }
-    });
-
-    isMutedRef.current = true;
-    await sound.playAsync();
-
-    // 재생 직후 AEC 세션 강제 복구 (하울링 방어)
-    if (isSendingRef.current && RNAudioRecord) {
-      if (Platform.OS === "ios" && RNAudioRecord.reassertAecMode) {
-        RNAudioRecord.reassertAecMode();
-      } else if (Platform.OS === "android" && RNAudioRecord.reassertAec) {
-        RNAudioRecord.reassertAec();
+      await deleteAsync(uri, { idempotent: true }).catch(() => {});
+      if (currentPlayerRef.current === player) currentPlayerRef.current = null;
+      if (currentPlayerSubscriptionRef.current === finishedSubscription) {
+        currentPlayerSubscriptionRef.current = null;
       }
+      if (currentPlaybackTimeoutRef.current === finishedTimeout) {
+        currentPlaybackTimeoutRef.current = null;
+      }
+      if (currentPlayerUriRef.current === uri) currentPlayerUriRef.current = null;
+
+      if (appStateRef.current === "active") playNextChunkRef.current();
+    };
+
+    try {
+      await writeAsStringAsync(uri, bytesToBase64(wav), {
+        encoding: EncodingType.Base64,
+      });
+      if (appStateRef.current !== "active") {
+        await cleanup();
+        return;
+      }
+
+      player = createAudioPlayer(
+        { uri },
+        { updateInterval: 50, keepAudioSessionActive: true },
+      );
+      currentPlayerRef.current = player;
+      currentPlayerUriRef.current = uri;
+
+      subscription = player.addListener("playbackStatusUpdate", (status) => {
+        if (status.isLoaded && status.didJustFinish) void cleanup();
+      });
+      currentPlayerSubscriptionRef.current = subscription;
+
+      if (appStateRef.current !== "active") {
+        await cleanup();
+        return;
+      }
+
+      isMutedRef.current = true;
+      player.volume = 1;
+      player.play();
+
+      // 네이티브 종료 이벤트가 유실돼도 다음 큐가 영구히 막히지 않도록 안전 타이머를 둔다.
+      const playbackMs = (pcm.length / (SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8))) * 1000;
+      playbackTimeout = setTimeout(() => void cleanup(), playbackMs + 5000);
+      currentPlaybackTimeoutRef.current = playbackTimeout;
+
+      // 재생 직후 AEC 세션 강제 복구 (하울링 방어)
+      if (isSendingRef.current && RNAudioRecord) {
+        if (Platform.OS === "ios" && RNAudioRecord.reassertAecMode) {
+          RNAudioRecord.reassertAecMode();
+        } else if (Platform.OS === "android" && RNAudioRecord.reassertAec) {
+          RNAudioRecord.reassertAec();
+        }
+      }
+    } catch (error) {
+      // 앱 상태가 바뀌는 순간 Android 오디오 포커스를 얻지 못해도 RedBox로 번지지 않는다.
+      console.warn("[Audio] AI 음성 재생 실패:", error);
+      await cleanup();
     }
   }, []);
 
@@ -438,15 +513,35 @@ export function useAudio(): UseAudioReturn {
       pendingBytesRef.current = 0;
       chunkQueueRef.current = [];
       isNativePlayingRef.current = false;
-      const s = currentSoundRef.current;
-      currentSoundRef.current = null;
-      if (s) {
-        s.stopAsync()
-          .catch(() => {})
-          .finally(() => s.unloadAsync().catch(() => {}));
+      isMutedRef.current = false;
+      const player = currentPlayerRef.current;
+      const subscription = currentPlayerSubscriptionRef.current;
+      const playbackTimeout = currentPlaybackTimeoutRef.current;
+      const uri = currentPlayerUriRef.current;
+      currentPlayerRef.current = null;
+      currentPlayerSubscriptionRef.current = null;
+      currentPlaybackTimeoutRef.current = null;
+      currentPlayerUriRef.current = null;
+      if (playbackTimeout) clearTimeout(playbackTimeout);
+      subscription?.remove();
+      if (player) {
+        try {
+          player.pause();
+          player.remove();
+        } catch {}
       }
+      if (uri) void deleteAsync(uri, { idempotent: true }).catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+      if (nextState !== "active") resetStream();
+    });
+
+    return () => subscription.remove();
+  }, [resetStream]);
 
   useEffect(() => {
     return () => {
