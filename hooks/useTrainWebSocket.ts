@@ -102,12 +102,14 @@ export function useTrainWebSocket({
 
     // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
     const url = `${getWsBaseUrl()}/ws/voice/${sessionId}?token=${token}`;
+    console.info("[TrainWS] 연결 시도", { sessionId });
     const ws = new WebSocket(url);
     // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
+      console.info("[TrainWS] 연결 완료", { sessionId });
       setIsConnected(true);
       // keep-alive ping 30초마다
       pingIntervalRef.current = setInterval(() => {
@@ -178,6 +180,11 @@ export function useTrainWebSocket({
     };
 
     ws.onclose = (event) => {
+      console.warn("[TrainWS] 연결 종료", {
+        sessionId,
+        code: event.code,
+        reason: event.reason,
+      });
       setIsConnected(false);
       setIsAiSpeaking(false);
       if (pingIntervalRef.current) {
@@ -198,10 +205,15 @@ export function useTrainWebSocket({
         } else {
           onErrorRef.current?.(`WS_CLOSE_${event.reason}`);
         }
+      } else if (event.code !== 1000) {
+        // onerror만으로 끝나면 통화 화면이 "연결 중..."에 머문다.
+        // 비정상 종료는 화면에도 전달해 녹음과 통화 상태를 함께 정리한다.
+        onErrorRef.current?.(`WS_CLOSE_${event.code}`);
       }
     };
 
     ws.onerror = () => {
+      console.warn("[TrainWS] 연결 오류", { sessionId });
       aiSpeakingRef.current = false;
       setIsConnected(false);
       setIsAiSpeaking(false);

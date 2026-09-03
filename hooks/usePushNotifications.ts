@@ -36,7 +36,7 @@ export function usePushNotifications() {
   const registeredAccessTokenRef = useRef<string | null>(null);
   const handledInitialNotificationRef = useRef(false);
 
-  const registerCurrentSession = useCallback(async (force = false) => {
+  const registerCurrentSession = useCallback(async () => {
     if (pathname === "/" || pathname.startsWith("/auth")) {
       registeredAccessTokenRef.current = null;
       return;
@@ -47,11 +47,15 @@ export function usePushNotifications() {
       registeredAccessTokenRef.current = null;
       return;
     }
-    if (!force && registeredAccessTokenRef.current === accessToken) return;
+    if (registeredAccessTokenRef.current === accessToken) return;
+
+    // 권한 다이얼로그가 앱 상태를 inactive → active로 바꿔도 같은 권한 요청을
+    // 다시 시작하지 않도록, 비동기 등록을 호출하기 전에 시도한 토큰을 기록한다.
+    registeredAccessTokenRef.current = accessToken;
 
     const registered = await registerForPushNotifications(accessToken);
-    if (registered && (await getAccessToken()) === accessToken) {
-      registeredAccessTokenRef.current = accessToken;
+    if (!registered && (await getAccessToken()) !== accessToken) {
+      registeredAccessTokenRef.current = null;
     }
   }, [pathname]);
 
@@ -106,7 +110,7 @@ export function usePushNotifications() {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         refreshNotifications();
-        void registerCurrentSession(true);
+        void registerCurrentSession();
       }
     });
     return () => subscription.remove();

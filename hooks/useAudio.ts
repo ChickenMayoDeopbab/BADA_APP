@@ -11,7 +11,13 @@ import {
   writeAsStringAsync,
 } from "expo-file-system/legacy";
 import { useCallback, useEffect, useRef } from "react";
-import { AppState, AppStateStatus, NativeModules, Platform } from "react-native";
+import {
+  AppState,
+  AppStateStatus,
+  NativeModules,
+  PermissionsAndroid,
+  Platform,
+} from "react-native";
 
 const SAMPLE_RATE = 16000;
 const WAV_HEADER_SIZE = 44;
@@ -24,14 +30,17 @@ const BIT_DEPTH = 16;
  * 그대로 재생하면 조각마다 파일 I/O와 디코더 준비가 끼어 빈틈이 생기고 버벅인다.
  * 이만큼 모아서 한 번에 재생해 왕복 횟수를 줄인다.
  */
-const SEGMENT_MS = 480;
+// expo-audio(Media3)는 짧은 WAV마다 디코더를 다시 준비한다.
+// 너무 작은 조각은 재생 시작/정지만 반복돼 실제 음성이 거의 들리지 않고
+// Android에서 오디오 리소스를 과도하게 소모하므로 충분한 길이로 묶는다.
+const SEGMENT_MS = 2000;
 const SEGMENT_BYTES =
   (SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8) * SEGMENT_MS) / 1000;
 /**
  * 이 시간 동안 새 청크가 없으면 턴이 끝난 것으로 보고 모아둔 분량을 마저 재생한다.
  * 관측된 청크 간격 최댓값이 약 114ms라 그보다 넉넉히 잡는다.
  */
-const SEGMENT_IDLE_FLUSH_MS = 120;
+const SEGMENT_IDLE_FLUSH_MS = 350;
 
 const AUDIO_RECORD_OPTIONS = {
   sampleRate: SAMPLE_RATE,
@@ -161,10 +170,24 @@ export function useAudio(): UseAudioReturn {
         return false;
       }
     }
-    const { granted } = await requestRecordingPermissionsAsync();
+    console.info("[Audio] 마이크 권한 확인 시작");
+    let granted: boolean;
+    if (Platform.OS === "android") {
+      const permission = PermissionsAndroid.PERMISSIONS.RECORD_AUDIO;
+      granted = await PermissionsAndroid.check(permission);
+      if (!granted) {
+        granted =
+          (await PermissionsAndroid.request(permission)) ===
+          PermissionsAndroid.RESULTS.GRANTED;
+      }
+    } else {
+      ({ granted } = await requestRecordingPermissionsAsync());
+    }
+    console.info("[Audio] 마이크 권한 확인 완료", { granted });
     if (!granted || AppState.currentState !== "active") return false;
 
     try {
+      console.info("[Audio] 오디오 모드 설정 시작");
       await setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
@@ -173,6 +196,7 @@ export function useAudio(): UseAudioReturn {
         interruptionMode: "duckOthers",
         shouldRouteThroughEarpiece: false,
       });
+      console.info("[Audio] 오디오 모드 설정 완료");
     } catch (error) {
       console.warn("[Audio] 오디오 모드 설정 실패:", error);
       return false;
@@ -182,6 +206,8 @@ export function useAudio(): UseAudioReturn {
 
   const startSendingAudio = useCallback(
     async (sendFn: (data: ArrayBuffer) => void) => {
+      if (isSendingRef.current) return;
+
       if (Platform.OS === "web") {
         try {
           const stream = await (navigator.mediaDevices as any).getUserMedia({
@@ -239,8 +265,9 @@ export function useAudio(): UseAudioReturn {
 
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const AudioRecord = require("react-native-audio-record").default;
-      AudioRecord.eventEmitter?.removeAllListeners?.("data");
-      isSendingRef.current = true;
+      console.info("[Audio] 네이티브 마이크 스트리밍 시작 요청", {
+        hasNativeModule: Boolean(RNAudioRecord),
+      });
 
       AudioRecord.init(AUDIO_RECORD_OPTIONS);
 
@@ -262,13 +289,27 @@ export function useAudio(): UseAudioReturn {
           return;
         }
 
+        if (dataEventCount === 1) {
+          console.info("[Audio] 첫 PCM 프레임 수신", {
+            byteLength: bytes.length,
+          });
+        }
+
         const buf = bytes.buffer.slice(
           bytes.byteOffset,
           bytes.byteOffset + bytes.byteLength,
         ) as ArrayBuffer;
         sendFn(buf);
       });
-      AudioRecord.start();
+      try {
+        AudioRecord.start();
+        isSendingRef.current = true;
+        console.info("[Audio] 네이티브 마이크 스트리밍 시작 완료");
+      } catch (error) {
+        isSendingRef.current = false;
+        console.warn("[Audio] 네이티브 마이크 스트리밍 시작 실패", error);
+        throw error;
+      }
     },
     [],
   );
@@ -476,6 +517,10 @@ export function useAudio(): UseAudioReturn {
 
       // 네이티브 종료 이벤트가 유실돼도 다음 큐가 영구히 막히지 않도록 안전 타이머를 둔다.
       const playbackMs = (pcm.length / (SAMPLE_RATE * CHANNELS * (BIT_DEPTH / 8))) * 1000;
+      console.info("[Audio] AI 음성 재생 시작", {
+        playbackMs: Math.round(playbackMs),
+        queuedSegments: chunkQueueRef.current.length,
+      });
       playbackTimeout = setTimeout(() => void cleanup(), playbackMs + 5000);
       currentPlaybackTimeoutRef.current = playbackTimeout;
 
