@@ -122,7 +122,7 @@ function CommentActionMenu({
 
       {visible && (
         <View
-          className="absolute right-0 top-8 z-50 h-[104px] w-40 overflow-hidden rounded-component bg-background-normal"
+          className="absolute right-0 top-8 z-50 h-[104px] max-w-48 overflow-hidden rounded-component bg-background-normal"
           style={{
             shadowColor: "#000000",
             shadowOpacity: 0.12,
@@ -136,9 +136,12 @@ function CommentActionMenu({
             accessibilityLabel={editLabel}
             disabled={editDisabled}
             onPress={onEdit}
-            className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+            className="h-[52px] justify-center px-4 active:bg-fill-neutral"
           >
-            <Text className="text-headline2 font-medium text-label-normal">
+            <Text
+              numberOfLines={1}
+              className="text-body font-medium text-label-normal"
+            >
               {editLabel}
             </Text>
           </Pressable>
@@ -147,9 +150,12 @@ function CommentActionMenu({
             accessibilityLabel={deleteLabel}
             disabled={deleteDisabled}
             onPress={onDelete}
-            className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+            className="h-[52px] justify-center px-4 active:bg-fill-neutral"
           >
-            <Text className="text-headline2 font-medium text-label-normal">
+            <Text
+              numberOfLines={1}
+              className="text-body font-medium text-label-normal"
+            >
               {deleteLabel}
             </Text>
           </Pressable>
@@ -883,7 +889,7 @@ export default function CommunityPostDetailScreen() {
 
           {isPostAuthor && isPostMenuVisible && !editingPost && (
             <View
-              className="absolute right-4 top-[53px] z-30 h-[104px] w-40 overflow-hidden rounded-component bg-background-normal"
+              className="absolute right-4 top-[53px] z-30 h-[104px] max-w-48 overflow-hidden rounded-component bg-background-normal"
               style={{
                 shadowColor: "#000000",
                 shadowOpacity: 0.12,
@@ -897,9 +903,12 @@ export default function CommunityPostDetailScreen() {
                 accessibilityLabel="게시글 수정하기"
                 disabled={updatePostMutation.isPending}
                 onPress={startEditingPost}
-                className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
               >
-                <Text className="text-headline2 font-medium text-label-normal">
+                <Text
+                  numberOfLines={1}
+                  className="text-body font-medium text-label-normal"
+                >
                   게시글 수정하기
                 </Text>
               </Pressable>
@@ -912,9 +921,12 @@ export default function CommunityPostDetailScreen() {
                   setDeletePostError(null);
                   setDeletePostModalVisible(true);
                 }}
-                className="h-[52px] justify-center px-3 active:bg-fill-neutral"
+                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
               >
-                <Text className="text-headline2 font-medium text-label-normal">
+                <Text
+                  numberOfLines={1}
+                  className="text-body font-medium text-label-normal"
+                >
                   게시글 삭제하기
                 </Text>
               </Pressable>
