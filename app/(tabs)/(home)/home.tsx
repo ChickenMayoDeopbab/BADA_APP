@@ -42,7 +42,7 @@ const formatDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-function CardGradient({ id, colors }: { id: string; colors: [string, string] }) {
+function CardGradient({ id, colors, descending = false }: { id: string; colors: [string, string]; descending?: boolean }) {
   return (
     <Svg
       width={400}
@@ -55,9 +55,9 @@ function CardGradient({ id, colors }: { id: string; colors: [string, string] }) 
         <LinearGradient
           id={id}
           x1={0}
-          y1={148}
+          y1={descending ? 0 : 148}
           x2={220}
-          y2={0}
+          y2={descending ? 148 : 0}
           gradientUnits="userSpaceOnUse"
         >
           <Stop offset="0" stopColor={colors[0]} />
@@ -309,8 +309,8 @@ export default function Home() {
           onPress={() => router.push("/(tabs)/(train)/list")}
           className="h-[148px] w-[59%] rounded-component shadow-md"
         >
-            <View className="flex-1 overflow-hidden rounded-component bg-[#FFB184] px-3 py-4">
-              <CardGradient id="scenarioGradient" colors={["#FF8A5A", "#FFB184"]} />
+            <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
+              <CardGradient id="scenarioGradient" colors={["#FF8645", "#FFD8BF"]} descending />
               <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
               <Text className="mt-1 font-bold text-white text-headline1">배준하피자{"\n"}배달 주문하기</Text>
               <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
@@ -326,8 +326,8 @@ export default function Home() {
           onPress={() => router.push("/(tabs)/(train)/warmup")}
           className="h-[148px] flex-1 rounded-component shadow-md"
         >
-            <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#9CBBFA] px-3 py-3.5">
-              <CardGradient id="warmupGradient" colors={["#6D9FF5", "#9CBBFA"]} />
+            <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#DCE6FF] px-3 py-3.5">
+              <CardGradient id="warmupGradient" colors={["#4992FF", "#DCE6FF"]} />
               <FireIllustration width={52} height={52} />
               <Text numberOfLines={2} adjustsFontSizeToFit className="mt-2 font-bold text-white text-body">
                 통화 전 워밍업{"\n"}시작하기
