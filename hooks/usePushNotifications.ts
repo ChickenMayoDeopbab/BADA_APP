@@ -36,6 +36,25 @@ export function usePushNotifications() {
   const registeredAccessTokenRef = useRef<string | null>(null);
   const handledInitialNotificationRef = useRef(false);
 
+  const registerCurrentSession = useCallback(async (force = false) => {
+    if (pathname === "/" || pathname.startsWith("/auth")) {
+      registeredAccessTokenRef.current = null;
+      return;
+    }
+
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      registeredAccessTokenRef.current = null;
+      return;
+    }
+    if (!force && registeredAccessTokenRef.current === accessToken) return;
+
+    const registered = await registerForPushNotifications(accessToken);
+    if (registered && (await getAccessToken()) === accessToken) {
+      registeredAccessTokenRef.current = accessToken;
+    }
+  }, [pathname]);
+
   const refreshNotifications = useCallback(() => {
     void queryClient.invalidateQueries({
       queryKey: notificationQueryKeys.all,
@@ -85,34 +104,17 @@ export function usePushNotifications() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") refreshNotifications();
+      if (state === "active") {
+        refreshNotifications();
+        void registerCurrentSession(true);
+      }
     });
     return () => subscription.remove();
-  }, [refreshNotifications]);
+  }, [refreshNotifications, registerCurrentSession]);
 
   useEffect(() => {
-    let active = true;
-
-    void (async () => {
-      const accessToken = await getAccessToken();
-      if (
-        !active ||
-        !accessToken ||
-        registeredAccessTokenRef.current === accessToken
-      ) {
-        return;
-      }
-
-      const registered = await registerForPushNotifications();
-      if (active && registered) {
-        registeredAccessTokenRef.current = accessToken;
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [pathname]);
+    void registerCurrentSession();
+  }, [registerCurrentSession]);
 
   useEffect(() => {
     if (
