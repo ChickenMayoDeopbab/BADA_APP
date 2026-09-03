@@ -24,6 +24,10 @@ module.exports = {
     version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/badaLogo.png",
+    notification: {
+      icon: "./assets/notification-icon.png",
+      color: "#0AE365",
+    },
     scheme: "bada",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
@@ -59,7 +63,14 @@ module.exports = {
       "expo-router",
       ...(FIREBASE_PUSH_ENABLED
         ? [
-            "@react-native-firebase/app",
+            [
+              "@react-native-firebase/app",
+              {
+                ios: {
+                  disableSPM: true,
+                },
+              },
+            ],
             "@react-native-firebase/messaging",
           ]
         : []),
