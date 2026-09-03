@@ -6,7 +6,6 @@ import { getMyPage, patchMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
 import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
-import PhotoLibrarySheet from "@/components/profile/PhotoLibrarySheet";
 import {
   PROFILE_NAME_MAX_LENGTH,
   PROFILE_USERNAME_MAX_LENGTH,
@@ -19,6 +18,8 @@ import { useProfileImage } from "@/hooks/useProfileImage";
 import { setAuthenticatedUsername } from "@/utils/diagnosisFlow";
 import { prepareProfileImageForUpload } from "@/utils/profileImageProcessing";
 import { Ionicons } from "@expo/vector-icons";
+import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -40,11 +41,20 @@ function ProfileField({
   success,
   hint,
   ...props
-}: TextInputProps & { label: string; error?: string; success?: string; hint: string }) {
+}: TextInputProps & {
+  label: string;
+  error?: string;
+  success?: string;
+  hint: string;
+}) {
   return (
     <View className="gap-1 pb-3">
-      <Text className="font-medium text-label text-label-alternative">{label}</Text>
-      <View className={`h-12 justify-center rounded-component bg-neutral-95 px-3 ${error ? "border border-status-error" : ""}`}>
+      <Text className="font-medium text-label text-label-alternative">
+        {label}
+      </Text>
+      <View
+        className={`h-12 justify-center rounded-component bg-neutral-95 px-3 ${error ? "border border-status-error" : ""}`}
+      >
         <TextInput
           {...props}
           accessibilityLabel={label}
@@ -53,7 +63,7 @@ function ProfileField({
           multiline={false}
           numberOfLines={1}
           textAlignVertical="center"
-          className="h-full w-full p-0 text-body text-label-normal"
+          className="w-full h-full p-0 text-body text-label-normal"
         />
       </View>
       <Text
@@ -76,9 +86,11 @@ export default function ProfileEditScreen() {
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [uploadError, setUploadError] = useState("");
-  const [selectedImage, setSelectedImage] = useState<ProfileImageFile | null>(null);
+  const [selectedImage, setSelectedImage] = useState<ProfileImageFile | null>(
+    null,
+  );
   const [uploadedS3Key, setUploadedS3Key] = useState<string | null>(null);
-  const [libraryVisible, setLibraryVisible] = useState(false);
+  const [isPickingImage, setIsPickingImage] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -99,7 +111,12 @@ export default function ProfileEditScreen() {
       setUsername(profile.username);
     } catch (error) {
       if (mounted.current) {
-        setLoadError(getApiErrorMessage(error, "프로필을 불러오지 못했어요. 다시 시도해주세요."));
+        setLoadError(
+          getApiErrorMessage(
+            error,
+            "프로필을 불러오지 못했어요. 다시 시도해주세요.",
+          ),
+        );
       }
     } finally {
       if (mounted.current) setIsLoading(false);
@@ -115,10 +132,15 @@ export default function ProfileEditScreen() {
     };
   }, [loadProfile]);
 
-  const usernameChanged = Boolean(myPage && username.trim() !== myPage.username);
-  const hasChanges = Boolean(myPage && (
-    name.trim() !== (myPage.name?.trim() ?? "") || usernameChanged || selectedImage
-  ));
+  const usernameChanged = Boolean(
+    myPage && username.trim() !== myPage.username,
+  );
+  const hasChanges = Boolean(
+    myPage &&
+    (name.trim() !== (myPage.name?.trim() ?? "") ||
+      usernameChanged ||
+      selectedImage),
+  );
   const canEdit = Boolean(myPage) && !isLoading && !isSaving;
 
   const checkUsername = async () => {
@@ -142,26 +164,99 @@ export default function ProfileEditScreen() {
       setUsernameError("");
     } catch (error) {
       if (mounted.current && request === checkRequest.current) {
-        setUsernameError(getApiErrorMessage(error, "아이디 중복 확인에 실패했어요. 다시 시도해주세요."));
+        setUsernameError(
+          getApiErrorMessage(
+            error,
+            "아이디 중복 확인에 실패했어요. 다시 시도해주세요.",
+          ),
+        );
       }
     } finally {
-      if (mounted.current && request === checkRequest.current) setIsChecking(false);
+      if (mounted.current && request === checkRequest.current)
+        setIsChecking(false);
     }
   };
 
-  const selectImage = (uri: string, fileName?: string) => {
-    if (!canEdit || saving.current) return;
-    setSelectedImage({ uri, fileName });
+  const selectImage = useCallback((uri: string, fileName?: string | null) => {
+    if (saving.current) return;
+    setSelectedImage({ uri, fileName: fileName ?? undefined });
     setUploadedS3Key(null);
     setUploadError("");
     setSaveError("");
+  }, []);
+
+  const pickImage = async () => {
+    if (!canEdit || saving.current || isPickingImage) return;
+
+    setIsPickingImage(true);
+    setUploadError("");
+    try {
+      // Android Photo Picker와 iOS PHPicker는 전체 사진 권한 없이 선택한 파일의
+      // 앱 캐시 URI를 반환하므로 scoped storage와 제한된 사진 권한에 안전하다.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        allowsMultipleSelection: false,
+        quality: 1,
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
+
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset?.uri) throw new Error("선택한 사진의 파일을 읽지 못했습니다.");
+      selectImage(asset.uri, asset.fileName);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error && error.message
+          ? error.message
+          : "사진을 불러오지 못했어요. 다시 시도해주세요.",
+      );
+    } finally {
+      if (mounted.current) setIsPickingImage(false);
+    }
   };
+
+  useEffect(() => {
+    if (Platform.OS !== "android" || !myPage) return;
+
+    let active = true;
+    // Android가 시스템 선택기 실행 중 MainActivity를 재생성한 경우에도
+    // OS에 보관된 선택 결과를 복원한다.
+    void ImagePicker.getPendingResultAsync()
+      .then((result) => {
+        if (!active || !result) return;
+        if (!("canceled" in result)) {
+          setUploadError(
+            "사진 선택 결과를 복원하지 못했어요. 다시 선택해주세요.",
+          );
+          return;
+        }
+        if (result.canceled) return;
+        const asset = result.assets[0];
+        if (asset?.uri) selectImage(asset.uri, asset.fileName);
+      })
+      .catch(() => {
+        if (active) {
+          setUploadError(
+            "사진 선택 결과를 복원하지 못했어요. 다시 선택해주세요.",
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [myPage, selectImage]);
 
   const saveChanges = async () => {
     if (!myPage || !hasChanges || saving.current || isChecking) return;
     const nextNameError = validateProfileName(name);
-    const nextUsernameError = validateProfileUsername(username) ||
-      (usernameChanged && checkedUsername !== username.trim() ? "아이디 중복 확인을 완료해주세요." : "");
+    const nextUsernameError =
+      validateProfileUsername(username) ||
+      (usernameChanged && checkedUsername !== username.trim()
+        ? "아이디 중복 확인을 완료해주세요."
+        : "");
     setNameError(nextNameError);
     setUsernameError(nextUsernameError);
     if (nextNameError || nextUsernameError) return;
@@ -170,9 +265,8 @@ export default function ProfileEditScreen() {
     setIsSaving(true);
     setSaveError("");
     setUploadError("");
-    let stage: "upload" | "profile" = selectedImage && !uploadedS3Key
-      ? "upload"
-      : "profile";
+    let stage: "upload" | "profile" =
+      selectedImage && !uploadedS3Key ? "upload" : "profile";
     try {
       let nextS3Key = uploadedS3Key ?? myPage.s3Key ?? undefined;
       if (selectedImage && !uploadedS3Key) {
@@ -237,7 +331,10 @@ export default function ProfileEditScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
       <Top title="프로필 수정" back onBack={cancelChanges} safeArea={false} />
 
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <ScrollView
           className="flex-1 bg-background-normal"
           keyboardShouldPersistTaps="handled"
@@ -246,18 +343,29 @@ export default function ProfileEditScreen() {
           contentContainerClassName="grow"
         >
           <View className="grow px-[33px] pb-4 pt-[21px]">
-            {isLoading && <ActivityIndicator accessibilityLabel="프로필 불러오는 중" color={SEMANTIC_COLORS.primary.normal} />}
+            {isLoading && (
+              <ActivityIndicator
+                accessibilityLabel="프로필 불러오는 중"
+                color={SEMANTIC_COLORS.primary.normal}
+              />
+            )}
             {loadError ? (
-              <View className="mb-4 gap-2">
-                <Text className="text-label text-status-error">{loadError}</Text>
-                <CustomButton label="다시 불러오기" variant="md" onPress={() => void loadProfile()} />
+              <View className="gap-2 mb-4">
+                <Text className="text-label text-status-error">
+                  {loadError}
+                </Text>
+                <CustomButton
+                  label="다시 불러오기"
+                  variant="md"
+                  onPress={() => void loadProfile()}
+                />
               </View>
             ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="프로필 사진 변경"
-              disabled={!canEdit}
-              onPress={() => setLibraryVisible(true)}
+              disabled={!canEdit || isPickingImage}
+              onPress={() => void pickImage()}
               className="h-[116px] w-[104px] self-center active:opacity-70"
             >
               <View className="h-[107px] w-[100px] items-center justify-center overflow-hidden rounded-[36px] bg-fill-neutral">
@@ -268,23 +376,57 @@ export default function ProfileEditScreen() {
                     className="absolute inset-0 size-full"
                     onError={selectedImage ? undefined : savedImage.onError}
                   />
-                ) : <Ionicons name="person" size={52} color={SEMANTIC_COLORS.line.normal} />}
-                {isUploading && (
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={52}
+                    color={SEMANTIC_COLORS.line.normal}
+                  />
+                )}
+                {(isPickingImage || isUploading) && (
                   <View className="absolute inset-0 items-center justify-center bg-common-100/30">
-                    <ActivityIndicator accessibilityLabel="사진 업로드 중" color={SEMANTIC_COLORS.background.normal} />
+                    <ActivityIndicator
+                      accessibilityLabel={
+                        isPickingImage ? "사진 불러오는 중" : "사진 업로드 중"
+                      }
+                      color={SEMANTIC_COLORS.background.normal}
+                    />
                   </View>
                 )}
               </View>
-              <View className="absolute bottom-0 right-0 size-8 items-center justify-center rounded-component border-2 border-background-normal bg-fill-neutral">
-                <Ionicons name="pencil" size={20} color={SEMANTIC_COLORS.label.neutral} />
+              <View className="absolute bottom-0 right-0 items-center justify-center border-2 size-8 rounded-component border-background-normal bg-fill-neutral">
+                <FontAsweome5
+                  name="pen"
+                  size={20}
+                  color={SEMANTIC_COLORS.label.neutral}
+                />
               </View>
             </Pressable>
-            {isUploading && <Text className="mt-2 text-center text-caption text-label-alternative">사진을 업로드하고 있어요.</Text>}
+            {isPickingImage ? (
+              <Text className="mt-2 text-center text-caption text-label-alternative">
+                사진을 불러오고 있어요.
+              </Text>
+            ) : isUploading ? (
+              <Text className="mt-2 text-center text-caption text-label-alternative">
+                사진을 업로드하고 있어요.
+              </Text>
+            ) : null}
             {uploadError ? (
-              <Text accessibilityLiveRegion="polite" className="mt-2 text-center text-caption text-status-error">{uploadError}</Text>
+              <Text
+                accessibilityLiveRegion="polite"
+                className="mt-2 text-center text-caption text-status-error"
+              >
+                {uploadError}
+              </Text>
             ) : !selectedImage && savedImage.error ? (
-              <Pressable onPress={savedImage.retry} accessibilityRole="button" accessibilityLabel="프로필 사진 다시 불러오기">
-                <Text className="mt-2 text-center text-caption text-status-error">{savedImage.error}</Text>
+              <Pressable
+                onPress={savedImage.retry}
+                accessibilityRole="button"
+                accessibilityLabel="프로필 사진 다시 불러오기"
+              >
+                <Text className="mt-2 text-center text-caption text-status-error">
+                  {savedImage.error}
+                </Text>
               </Pressable>
             ) : null}
 
@@ -305,7 +447,7 @@ export default function ProfileEditScreen() {
                 }}
               />
               <View className="flex-row items-start gap-[5px]">
-                <View className="min-w-0 flex-1">
+                <View className="flex-1 min-w-0">
                   <ProfileField
                     label="아이디"
                     value={username}
@@ -314,10 +456,23 @@ export default function ProfileEditScreen() {
                     returnKeyType="done"
                     onSubmitEditing={() => void checkUsername()}
                     error={usernameError}
-                    success={usernameChanged && checkedUsername === username.trim() ? "사용 가능한 아이디입니다." : ""}
-                    hint={usernameChanged ? "변경 시 중복 확인이 필요해요." : `2~${PROFILE_USERNAME_MAX_LENGTH}자 · ${username.length}/${PROFILE_USERNAME_MAX_LENGTH}`}
+                    success={
+                      usernameChanged && checkedUsername === username.trim()
+                        ? "사용 가능한 아이디입니다."
+                        : ""
+                    }
+                    hint={
+                      usernameChanged
+                        ? "변경 시 중복 확인이 필요해요."
+                        : `2~${PROFILE_USERNAME_MAX_LENGTH}자 · ${username.length}/${PROFILE_USERNAME_MAX_LENGTH}`
+                    }
                     onChangeText={(text) => {
-                      setUsername(toSingleLine(text).slice(0, PROFILE_USERNAME_MAX_LENGTH));
+                      setUsername(
+                        toSingleLine(text).slice(
+                          0,
+                          PROFILE_USERNAME_MAX_LENGTH,
+                        ),
+                      );
                       checkRequest.current += 1;
                       setCheckedUsername(null);
                       setIsChecking(false);
@@ -332,28 +487,43 @@ export default function ProfileEditScreen() {
                     variant="lg"
                     tone="primary"
                     className="h-12"
-                    disabled={!canEdit || isChecking || !usernameChanged || checkedUsername === username.trim()}
+                    disabled={
+                      !canEdit ||
+                      isChecking ||
+                      !usernameChanged ||
+                      checkedUsername === username.trim()
+                    }
                     onPress={() => void checkUsername()}
                   />
                 </View>
               </View>
             </View>
 
-            <View className="mt-auto gap-1 pt-6">
-              {saveError ? <Text accessibilityLiveRegion="polite" className="mb-2 text-center text-label text-status-error">{saveError}</Text> : null}
+            <View className="gap-1 pt-6 mt-auto">
+              {saveError ? (
+                <Text
+                  accessibilityLiveRegion="polite"
+                  className="mb-2 text-center text-label text-status-error"
+                >
+                  {saveError}
+                </Text>
+              ) : null}
               <CustomButton
                 label={isSaving ? "저장 중" : "변경사항 저장하기"}
                 disabled={!canEdit || !hasChanges || isChecking}
                 onPress={() => void saveChanges()}
                 tone="primary"
               />
-              <CustomButton label="취소하기" disabled={isSaving} onPress={cancelChanges} tone="neutral" />
+              <CustomButton
+                label="취소하기"
+                disabled={isSaving}
+                onPress={cancelChanges}
+                tone="neutral"
+              />
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <PhotoLibrarySheet visible={libraryVisible} onClose={() => setLibraryVisible(false)} onSelect={selectImage} />
     </SafeAreaView>
   );
 }
