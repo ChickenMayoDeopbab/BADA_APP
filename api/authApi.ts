@@ -125,10 +125,6 @@ export const patchPassword = async (
   await apiClient.patch("/api/v1/auth/password", data);
 };
 
-export const deleteWithdraw = async (): Promise<void> => {
-  await apiClient.delete("/api/v1/auth/withdraw");
-};
-
 export const deleteSignout = async (): Promise<void> => {
   await apiClient.delete("/api/v1/auth/signout");
 };
