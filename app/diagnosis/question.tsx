@@ -105,12 +105,14 @@ export default function Question() {
   useEffect(() => {
     if (status === 'done') {
       const timer = setTimeout(() => {
-        router.push(isProfileRetake
-          ? {
-              pathname: "/diagnosis/result",
-              params: { from: "profile" },
-            }
-          : "/diagnosis/result");
+        router.replace(
+          isProfileRetake
+            ? {
+                pathname: "/diagnosis/result",
+                params: { from: "profile" },
+              }
+            : "/diagnosis/result",
+        );
       }, 3000);
       return () => clearTimeout(timer);
     }
