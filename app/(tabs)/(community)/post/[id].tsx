@@ -43,6 +43,7 @@ import {
   Easing,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -103,14 +104,30 @@ function CommentActionMenu({
   onEdit,
   onDelete,
 }: CommentActionMenuProps) {
+  const triggerRef = useRef<View>(null);
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+
+  const toggleMenu = () => {
+    if (visible) {
+      onToggle();
+      return;
+    }
+
+    triggerRef.current?.measureInWindow((x, y, width, height) => {
+      setMenuPosition({ left: x + width - 135, top: y + height + 4 });
+      onToggle();
+    });
+  };
+
   return (
     <View className="relative ml-1">
       <Pressable
+        ref={triggerRef}
         accessibilityRole="button"
         accessibilityLabel={`${editLabel.replace("하기", "")} 및 삭제 메뉴`}
         accessibilityState={{ expanded: visible }}
         hitSlop={6}
-        onPress={onToggle}
+        onPress={toggleMenu}
         className="h-7 w-7 items-center justify-center rounded-full active:bg-fill-neutral"
       >
         <Ionicons
@@ -120,47 +137,62 @@ function CommentActionMenu({
         />
       </Pressable>
 
-      {visible && (
-        <View
-          className="absolute right-0 top-8 z-50 h-[104px] max-w-48 overflow-hidden rounded-component bg-background-normal"
-          style={{
-            shadowColor: "#000000",
-            shadowOpacity: 0.12,
-            shadowRadius: 4.3,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 5,
-          }}
-        >
+      <Modal
+        transparent
+        visible={visible}
+        statusBarTranslucent
+        onRequestClose={onToggle}
+      >
+        <View className="flex-1">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={editLabel}
-            disabled={editDisabled}
-            onPress={onEdit}
-            className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+            accessibilityLabel={`${editLabel.replace("하기", "")} 및 삭제 메뉴 닫기`}
+            onPress={onToggle}
+            className="absolute inset-0"
+          />
+          <View
+            className="absolute h-[104px] w-[135px] overflow-hidden rounded-component bg-background-normal"
+            style={{
+              left: menuPosition.left,
+              top: menuPosition.top,
+              shadowColor: "#000000",
+              shadowOpacity: 0.12,
+              shadowRadius: 4.3,
+              shadowOffset: { width: 0, height: 0 },
+              elevation: 5,
+            }}
           >
-            <Text
-              numberOfLines={1}
-              className="text-body font-medium text-label-normal"
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={editLabel}
+              disabled={editDisabled}
+              onPress={onEdit}
+              className="h-[52px] justify-center px-4 active:bg-fill-neutral"
             >
-              {editLabel}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={deleteLabel}
-            disabled={deleteDisabled}
-            onPress={onDelete}
-            className="h-[52px] justify-center px-4 active:bg-fill-neutral"
-          >
-            <Text
-              numberOfLines={1}
-              className="text-body font-medium text-label-normal"
+              <Text
+                numberOfLines={1}
+                className="text-body font-medium text-label-normal"
+              >
+                {editLabel}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={deleteLabel}
+              disabled={deleteDisabled}
+              onPress={onDelete}
+              className="h-[52px] justify-center px-4 active:bg-fill-neutral"
             >
-              {deleteLabel}
-            </Text>
-          </Pressable>
+              <Text
+                numberOfLines={1}
+                className="text-body font-medium text-label-normal"
+              >
+                {deleteLabel}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
