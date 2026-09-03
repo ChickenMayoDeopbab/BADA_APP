@@ -1,12 +1,7 @@
 import { createSession } from "@/api/trainApi";
-import CommunityIcon from "@/assets/community.svg";
-import {
-  PendingCallProvider,
-  usePendingCall,
-} from "@/context/PendingCallContext";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import Octicons from "@expo/vector-icons/Octicons";
-import { Tabs, router, usePathname } from "expo-router";
+import BottomNav from "@/components/navigation/BottomNav";
+import { usePendingCall } from "@/context/PendingCallContext";
+import { Tabs, router, usePathname, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 
@@ -24,8 +19,14 @@ function CallWatcher() {
       cancel();
       try {
         const session = await createSession(config);
+        /*
+          예약 발신은 사용자가 어디에 있든 걸려온다. 시나리오 상세처럼 모달로 열린
+          화면이 남아 있으면 통화 화면 위를 덮으므로, 세션을 얻은 뒤 현재 스택을 비운다.
+          훈련이 끝나면 리포트를 거쳐 훈련 목록으로 가므로 스택을 되돌릴 일도 없다.
+        */
+        if (router.canDismiss()) router.dismissAll();
         router.push({
-          pathname: "/(tabs)/(train)/train",
+          pathname: "/train",
           params: {
             sessionId: session.sessionId,
             wsUrl: session.wsUrl,
@@ -52,23 +53,25 @@ function CallWatcher() {
 
 export default function TabLayout() {
   const pathname = usePathname();
+  const segments = useSegments();
+  const isCommunityStack = segments.some(
+    (segment) => segment === "(community)",
+  );
+  const currentRoute = segments[segments.length - 1];
+  const isCommunityRoot =
+    currentRoute === "(community)" || currentRoute === "community";
+  const hideTabBar =
+    pathname.endsWith("/notifications") ||
+    pathname.endsWith("/search") ||
+    (isCommunityStack && !isCommunityRoot);
 
   return (
-    <PendingCallProvider>
+    <>
       <CallWatcher />
       <Tabs
+        tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
         screenOptions={{
           headerShown: false,
-          tabBarStyle:
-            pathname === "/train"
-              ? { display: "none" }
-              : {
-                  backgroundColor: SEMANTIC_COLORS.background.normal,
-                  borderTopWidth: 1,
-                  shadowOpacity: 0.1,
-                  height: 110,
-                  paddingTop: 10,
-                },
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
           tabBarInactiveTintColor: SEMANTIC_COLORS.line.normal,
           tabBarLabelStyle: {
@@ -80,19 +83,14 @@ export default function TabLayout() {
         <Tabs.Screen
           name="(home)"
           options={{
-            title: "메인",
-            tabBarIcon: ({ color, size }) => (
-              <Octicons name="home-fill" size={size} color={color} />
-            ),
+            title: "홈",
           }}
         />
         <Tabs.Screen
           name="(train)"
           options={{
             title: "훈련",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="call" size={size} color={color} />
-            ),
+            popToTopOnBlur: true,
           }}
         />
 
@@ -100,18 +98,13 @@ export default function TabLayout() {
           name="(record)"
           options={{
             title: "기록",
-            tabBarIcon: ({ color, size }) => (
-              <Octicons name="history" size={size} color={color} />
-            ),
           }}
         />
         <Tabs.Screen
           name="(community)"
           options={{
             title: "커뮤니티",
-            tabBarIcon: ({ color, size }) => (
-              <CommunityIcon width={size} height={size} color={color} />
-            ),
+            popToTopOnBlur: true,
           }}
         />
         <Tabs.Screen
@@ -119,12 +112,9 @@ export default function TabLayout() {
           options={{
             title: "프로필",
             popToTopOnBlur: true,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
-            ),
           }}
         />
       </Tabs>
-    </PendingCallProvider>
+    </>
   );
 }
