@@ -48,6 +48,7 @@ const toGridRows = (scenarios: ScenarioInfo[]): ScenarioInfo[][] =>
 export default function List() {
   const { width: pageWidth } = useWindowDimensions();
   const pagerRef = useRef<FlatList<(typeof SCENARIO_TABS)[number]>>(null);
+  const pagerScrollX = useRef(new Animated.Value(0)).current;
   // 스크롤을 내렸을 때만 상단 페이드를 보여준다
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeOpacity = scrollY.interpolate({
@@ -59,9 +60,17 @@ export default function List() {
   const [selectedCategory, setSelectedCategory] =
     useState<ScenarioCategory | null>(null);
 
-  // 시나리오 목록은 페이지네이션이 없어 한 번에 받고 탭·카테고리는 클라이언트에서 거른다
-  const { data: scenarios, isPending, isError, isFetching, refetch } =
-    useScenarios();
+  // 전체 목록은 커스텀·공유 탭 분류와 추천 카드에 사용한다.
+  const {
+    data: scenarios,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+  } = useScenarios();
+  // 카테고리를 고르면 API의 category 쿼리로 다시 조회한다.
+  // 전체 목록 쿼리는 커스텀·공유 탭과 추천 카드에서 계속 사용한다.
+  const categoryScenariosQuery = useScenarios(selectedCategory);
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -82,21 +91,15 @@ export default function List() {
     [scenarios],
   );
 
-  const visibleScenarios = useMemo(() => {
-    if (selectedTab === "custom") return customScenarios;
-    if (selectedTab === "shared") return sharedScenarios;
+  const categorizedBasicScenarios = useMemo(() => {
     if (!selectedCategory) return basicScenarios;
-    // 서버 값의 대소문자·공백 차이로 카테고리가 통째로 비어 보이지 않도록 정규화해서 비교한다
-    return basicScenarios.filter(
-      (scenario) => scenario.category?.trim().toLowerCase() === selectedCategory,
+
+    return (categoryScenariosQuery.data ?? []).filter(
+      (scenario) =>
+        !scenario.is_custom &&
+        scenario.category?.trim().toLowerCase() === selectedCategory,
     );
-  }, [
-    basicScenarios,
-    customScenarios,
-    selectedCategory,
-    selectedTab,
-    sharedScenarios,
-  ]);
+  }, [basicScenarios, categoryScenariosQuery.data, selectedCategory]);
 
   const recommendedScenario = basicScenarios[0];
 
@@ -122,7 +125,7 @@ export default function List() {
   const getVisibleScenarios = (tab: ScenarioTabValue) => {
     if (tab === "custom") return customScenarios;
     if (tab === "shared") return sharedScenarios;
-    return visibleScenarios;
+    return categorizedBasicScenarios;
   };
 
   return (
@@ -138,7 +141,12 @@ export default function List() {
       </View>
 
       <View className="h-[53px] px-8">
-        <ScenarioTabs value={selectedTab} onChange={selectTab} />
+        <ScenarioTabs
+          value={selectedTab}
+          onChange={selectTab}
+          pageWidth={pageWidth}
+          scrollX={pagerScrollX}
+        />
       </View>
 
       {/* 목록 로딩 중 */}
@@ -170,7 +178,7 @@ export default function List() {
 
       {!isPending && !isError && (
         <View className="flex-1">
-          <FlatList
+          <Animated.FlatList
             ref={pagerRef}
             horizontal
             pagingEnabled
@@ -236,7 +244,32 @@ export default function List() {
                       />
                     )}
 
-                    {tabScenarios.length === 0 ? (
+                    {item.value === "basic" &&
+                    selectedCategory &&
+                    categoryScenariosQuery.isPending ? (
+                      <ActivityIndicator className="py-10" color="#0AE365" />
+                    ) : item.value === "basic" &&
+                      selectedCategory &&
+                      categoryScenariosQuery.isError ? (
+                      <View className="items-center py-10 gap-y-3">
+                        <Text className="text-center text-label text-label-alternative">
+                          카테고리 시나리오를 불러오지 못했어요.
+                        </Text>
+                        <View className="w-[140px]">
+                          <CustomButton
+                            label={
+                              categoryScenariosQuery.isFetching
+                                ? "불러오는 중..."
+                                : "다시 불러오기"
+                            }
+                            tone="primary"
+                            variant="md"
+                            disabled={categoryScenariosQuery.isFetching}
+                            onPress={() => categoryScenariosQuery.refetch()}
+                          />
+                        </View>
+                      </View>
+                    ) : tabScenarios.length === 0 ? (
                       <Text className="py-10 text-center text-label text-label-alternative">
                         {item.value === "custom"
                           ? "아직 만든 커스텀 시나리오가 없습니다."
@@ -266,6 +299,11 @@ export default function List() {
                 </Animated.ScrollView>
               );
             }}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: pagerScrollX } } }],
+              { useNativeDriver: true },
+            )}
+            scrollEventThrottle={16}
             onMomentumScrollEnd={handlePageSettled}
           />
 
