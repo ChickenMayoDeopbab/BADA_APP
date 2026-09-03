@@ -176,6 +176,7 @@ export default function Train() {
     streamPcmChunk,
     flushPlayback,
     resetStream,
+    isAiVoiceActive,
   } = useAudio();
 
   /** A1 착수 전 실측용 임시 진단 훅 — 개편 완료 후 제거 */
@@ -207,6 +208,12 @@ export default function Train() {
       handleEndCall();
     },
   });
+  /**
+   * 상대가 말하는 중임을 emotion 수신부터 실제 재생이 끝날 때까지 표시한다.
+   * speaking_end는 서버가 송출을 마친 시점이라 재생보다 이르므로 그것만으로는 이르게 꺼진다.
+   */
+  const isAiTurnSpeaking = isAiSpeaking || isAiVoiceActive;
+
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
    * 그대로 두면 종료 화면에 다시 "연결 중..."이 뜨므로 한 번 받은 이름을 붙들어 둔다.
@@ -426,7 +433,7 @@ export default function Train() {
           style={{ color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral }}
         >
           {formatTime(seconds)}
-          {isEnd ? " 훈련을 종료했습니다." : isAiSpeaking ? "  AI 발화 중..." : ""}
+          {isEnd ? " 훈련을 종료했습니다." : isAiTurnSpeaking ? "  AI 발화 중..." : ""}
         </Text>
       </View>
 
@@ -434,7 +441,7 @@ export default function Train() {
         <CalleeProfile
           name={roleName}
           phoneNumber={generatedPhoneNumber}
-          isSpeaking={isAiSpeaking}
+          isSpeaking={isAiTurnSpeaking}
           avatarSize={isCompactScreen ? 112 : 140}
         />
         {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}

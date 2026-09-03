@@ -1,5 +1,5 @@
 import { Audio } from "expo-av";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NativeModules, Platform } from "react-native";
 import type {
   AudioBuffer as NativeAudioBuffer,
@@ -110,12 +110,15 @@ export interface UseAudioReturn {
   flushPlayback: () => void;
   /** 현재 재생 중인 오디오와 버퍼를 모두 지움 (interrupt 수신·통화 종료 시 호출) */
   resetStream: () => void;
+  /** AI 음성이 스피커를 점유 중인지 (재생 구간 + 잔향 방어 구간). 화면 표시용 */
+  isAiVoiceActive: boolean;
 }
 
 /** 마이크 실시간 PCM 전송 + AI 음성 스트리밍 재생 훅 */
 export function useAudio(): UseAudioReturn {
   const isSendingRef = useRef(false);
   const isMutedRef = useRef(false);
+  const [isAiVoiceActive, setIsAiVoiceActive] = useState(false);
 
   // Web Audio: 녹음 전용
   const audioContextRef = useRef<any>(null);
@@ -303,6 +306,16 @@ export function useAudio(): UseAudioReturn {
     await AudioRecord.stop();
   }, []);
 
+  /**
+   * AI 음성이 스피커를 쓰는 동안은 마이크를 막고, 같은 구간을 화면 표시용 상태로도 내보낸다.
+   * 청크마다 불리므로 값이 바뀔 때만 리렌더한다.
+   */
+  const setAiVoiceActive = useCallback((isActive: boolean) => {
+    if (isMutedRef.current === isActive) return;
+    isMutedRef.current = isActive;
+    setIsAiVoiceActive(isActive);
+  }, []);
+
   const clearMuteReleaseTimer = useCallback(() => {
     if (!muteReleaseTimerRef.current) return;
     clearTimeout(muteReleaseTimerRef.current);
@@ -319,10 +332,10 @@ export function useAudio(): UseAudioReturn {
     clearMuteReleaseTimer();
     muteReleaseTimerRef.current = setTimeout(() => {
       muteReleaseTimerRef.current = null;
-      isMutedRef.current = false;
+      setAiVoiceActive(false);
       if (isSendingRef.current) reassertAec();
     }, PLAYBACK_TAIL_GUARD_MS);
-  }, [clearMuteReleaseTimer]);
+  }, [clearMuteReleaseTimer, setAiVoiceActive]);
 
   /** 네이티브 재생 그래프를 준비한다. 컨텍스트와 큐 소스는 통화 한 통에 하나만 쓴다 */
   const ensureNativePlayback = useCallback(() => {
@@ -404,7 +417,7 @@ export function useAudio(): UseAudioReturn {
         source.start(startAt);
         nextPlayTimeRef.current = startAt + audioBuffer.duration;
 
-        isMutedRef.current = true;
+        setAiVoiceActive(true);
         if (muteReleaseTimerRef.current) {
           clearTimeout(muteReleaseTimerRef.current);
         }
@@ -413,7 +426,7 @@ export function useAudio(): UseAudioReturn {
           (nextPlayTimeRef.current - ctx.currentTime) * 1000,
         );
         muteReleaseTimerRef.current = setTimeout(() => {
-          isMutedRef.current = false;
+          setAiVoiceActive(false);
           muteReleaseTimerRef.current = null;
         }, remainMs + 50);
         return;
@@ -422,7 +435,7 @@ export function useAudio(): UseAudioReturn {
       const { ctx, source } = ensureNativePlayback();
 
       // 청크가 들어오는 동안은 아직 이번 턴이 끝나지 않았다
-      isMutedRef.current = true;
+      setAiVoiceActive(true);
       isTurnSendingDoneRef.current = false;
       isQueueDrainedRef.current = false;
       clearMuteReleaseTimer();
@@ -441,7 +454,7 @@ export function useAudio(): UseAudioReturn {
         flushPrebuffer(source);
       }
     },
-    [clearMuteReleaseTimer, ensureNativePlayback, flushPrebuffer],
+    [clearMuteReleaseTimer, ensureNativePlayback, flushPrebuffer, setAiVoiceActive],
   );
 
   /**
@@ -463,7 +476,7 @@ export function useAudio(): UseAudioReturn {
     if (Platform.OS === "web") {
       nextPlayTimeRef.current = 0;
       clearMuteReleaseTimer();
-      isMutedRef.current = false;
+      setAiVoiceActive(false);
       return;
     }
 
@@ -474,10 +487,10 @@ export function useAudio(): UseAudioReturn {
     isTurnSendingDoneRef.current = false;
     isQueueDrainedRef.current = true;
     clearMuteReleaseTimer();
-    isMutedRef.current = false;
+    setAiVoiceActive(false);
     // 큐 소스는 살려둔다. 비운 채로 두면 다음 턴 버퍼를 그대로 이어 받는다
     queueSourceRef.current?.clearBuffers();
-  }, [clearMuteReleaseTimer]);
+  }, [clearMuteReleaseTimer, setAiVoiceActive]);
 
   useEffect(() => {
     return () => {
@@ -517,5 +530,6 @@ export function useAudio(): UseAudioReturn {
     streamPcmChunk,
     flushPlayback,
     resetStream,
+    isAiVoiceActive,
   };
 }
