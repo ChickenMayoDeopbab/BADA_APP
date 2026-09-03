@@ -1,5 +1,9 @@
 import ScoreTooltip from "@/assets/scoreTooltip.svg";
-import { ANXIETY_SCORE_COLORS, ANXIETY_SCORE_MAX } from "@/constants/train";
+import {
+  ANXIETY_SCORE_COLORS,
+  ANXIETY_SCORE_MAX,
+  ANXIETY_SCORE_MIN,
+} from "@/constants/train";
 import { useEffect, useRef, useState } from "react";
 import { PanResponder, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
@@ -18,7 +22,7 @@ interface AnxietyScoreScaleProps {
 }
 
 /**
- * 0~10 불안 점수를 고르는 막대 스케일.
+ * 1~10 불안 점수를 고르는 막대 스케일.
  * 막대 10칸은 편안함(초록)에서 매우 불안(빨강)으로 이어지고,
  * 고른 점수까지의 막대만 색이 채워진다.
  * 막대와 말풍선 어느 쪽을 잡아도 드래그로 점수를 바꿀 수 있다.
@@ -38,22 +42,27 @@ export default function AnxietyScoreScale({ score, onChange }: AnxietyScoreScale
     transform: [{ translateX: bubbleLeft.value }],
   }));
 
-  /** 점수가 가리키는 막대의 중심 x — 0점도 첫 칸을 채우므로 최소 한 칸은 항상 색이 있다 */
+  /** 점수가 가리키는 막대의 중심 x */
   const getPointerCenterX = (targetScore: number, width: number): number => {
     const barWidth = (width - BAR_GAP * (BAR_COUNT - 1)) / BAR_COUNT;
-    const pointerIndex = Math.max(targetScore, 1) - 1;
+    const pointerIndex = targetScore - ANXIETY_SCORE_MIN;
     return pointerIndex * (barWidth + BAR_GAP) + barWidth / 2;
   };
 
   /**
    * x 좌표 → 가장 가까운 점수.
-   * 고를 수 있는 값은 0~10으로 11가지라 막대 10칸이 아니라 트랙 전체 폭을 11등분한다.
+   * 고를 수 있는 값은 막대와 같은 1~10이며, 트랙 양 끝도 각각 1점과 10점이다.
    */
   const getScoreAt = (x: number): number => {
     const width = trackWidthRef.current;
     if (width === 0) return scoreRef.current;
-    const nextScore = Math.round((x / width) * ANXIETY_SCORE_MAX);
-    return Math.max(0, Math.min(ANXIETY_SCORE_MAX, nextScore));
+    const scoreRange = ANXIETY_SCORE_MAX - ANXIETY_SCORE_MIN;
+    const nextScore =
+      ANXIETY_SCORE_MIN + Math.round((Math.max(0, Math.min(width, x)) / width) * scoreRange);
+    return Math.max(
+      ANXIETY_SCORE_MIN,
+      Math.min(ANXIETY_SCORE_MAX, nextScore),
+    );
   };
 
   /** 말풍선은 즉시 옮기고, 점수는 실제로 바뀔 때만 부모에 알린다 */
@@ -97,7 +106,7 @@ export default function AnxietyScoreScale({ score, onChange }: AnxietyScoreScale
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [score, trackWidth]);
 
-  const filledCount = Math.max(score, 1);
+  const filledCount = score;
 
   return (
     <View className="gap-y-[6px]">
@@ -138,7 +147,7 @@ export default function AnxietyScoreScale({ score, onChange }: AnxietyScoreScale
       </View>
 
       <View className="flex-row items-center justify-between">
-        <Text className="text-body font-medium text-label-alternative">0 (편안함)</Text>
+        <Text className="text-body font-medium text-label-alternative">1 (편안함)</Text>
         <Text className="text-body font-medium text-label-alternative">10 (매우 불안)</Text>
       </View>
     </View>
