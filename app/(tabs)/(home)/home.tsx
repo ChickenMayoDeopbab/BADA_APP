@@ -1,12 +1,14 @@
 import { getAttendantDays } from "@/api/AttendanceApi";
+import { getScenarioRecommendation } from "@/api/trainApi";
 import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
-import PizzaIllustration from "@/assets/home-pizza.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
+import StyledImage from "@/components/common/StyledImage";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "@tanstack/react-query";
 import { Href, router, useFocusEffect } from "expo-router";
 import {
   useCallback,
@@ -72,6 +74,13 @@ function CardGradient({ id, colors, descending = false }: { id: string; colors: 
 export default function Home() {
   useDoubleBackExit();
   const notificationsQuery = useNotifications("ALL");
+  const recommendationQuery = useQuery({
+    queryKey: ["scenario-recommendation"],
+    queryFn: getScenarioRecommendation,
+  });
+  const recommendedScenario = recommendationQuery.data?.scenario;
+  const recommendationImageUrl =
+    recommendedScenario?.scenario_image ?? recommendationQuery.data?.category_icon_url;
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -312,14 +321,21 @@ export default function Home() {
             <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8645", "#FFD8BF"]} descending />
               <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
-              <Text className="mt-1 font-bold text-white text-headline1">배준하피자{"\n"}배달 주문하기</Text>
-              <View className="absolute bottom-4 left-3 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
+              <Text className="mt-1 font-bold text-white text-headline1" numberOfLines={2}>
+                {recommendedScenario?.title ?? "추천 시나리오를\n불러오는 중이에요"}
+              </Text>
+              <View className="absolute bottom-4 left-3 z-10 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
                 <Ionicons name="call" size={14} color={PALETTE.common[0]} />
                 <Text className="font-medium text-white text-label">훈련 하러가기</Text>
               </View>
-              <View className="absolute -bottom-1.5 -right-6">
-                <PizzaIllustration width={105} height={105} />
-              </View>
+              {recommendationImageUrl && (
+                <StyledImage
+                  source={recommendationImageUrl}
+                  className="absolute -bottom-1.5 -right-4 h-[90px] w-[90px]"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                />
+              )}
             </View>
         </Pressable>
         <Pressable
