@@ -1108,7 +1108,7 @@ export default function CommunityPostDetailScreen() {
           <View className="mt-4 h-px bg-line-alternative" />
 
           <View className="mt-5 flex-row items-center justify-between">
-            <View className="ml-[26px] flex-row items-center gap-x-2">
+            <View className="flex-row items-center gap-x-2">
               <Text className="text-headline2 font-bold text-label-neutral">
                 댓글
               </Text>
@@ -1166,7 +1166,7 @@ export default function CommunityPostDetailScreen() {
               첫 댓글을 남겨보세요.
             </Text>
           ) : (
-            <View className="mt-3 gap-y-4">
+            <View className="mt-5 gap-y-4">
               {comments.map((comment) => {
                 const replies = comment.replies ?? [];
                 const repliesVisible = expandedReplies.has(comment.comment_id);
