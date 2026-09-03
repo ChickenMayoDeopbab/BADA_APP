@@ -44,7 +44,7 @@ export const useDiagnosisQuestion = () => {
   useEffect(() => {
     if (status === "done") {
       const timer = setTimeout(() => {
-        router.push(isProfileRetake
+        router.replace(isProfileRetake
           ? {
               pathname: "/diagnosis/result",
               params: { from: "profile" },

@@ -13,7 +13,12 @@ import {
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { isDiagnosisRequiredForAuthenticatedUser } from "@/utils/diagnosisFlow";
-import { clearAuthTokens, getAccessToken } from "@/utils/authTokenStorage";
+import {
+  clearAuthTokens,
+  getAccessToken,
+} from "@/utils/authTokenStorage";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { unregisterForPushNotifications } from "@/services/pushNotifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +28,11 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function PushNotificationManager() {
+  usePushNotifications();
+  return null;
+}
 
 export default function RootLayout() {
   const navigationState = useRootNavigationState();
@@ -46,6 +56,7 @@ export default function RootLayout() {
       const token = await getAccessToken();
       const autoLogin = await AsyncStorage.getItem("autoLogin");
       if (!token || autoLogin !== "true") {
+        await unregisterForPushNotifications();
         await clearAuthTokens();
         router.replace("/auth");
         return;
@@ -61,15 +72,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <PendingCallProvider>
-          {/*
-            훈련 흐름(설정·통화·불안 점수·리포트)은 탭 그룹 밖 루트 스택에 둔다.
-            탭 안에 두면 시나리오 상세 시트(transparentModal) 위에 쌓여, iOS가
-            뒤따르는 화면도 모달 컨텍스트로 보고 pageSheet(둥근 모서리 + 뒤 화면
-            노출)로 그린다. 상세 시트는 훈련 시작 시점에 닫으므로(detail/[id].tsx)
-            이 화면들은 모달이 아닌 일반 push로 열린다. 모달로 띄우면 화면끼리
-            replace할 때 앞 화면만 닫히고 다음 화면이 뜨지 않는다.
-            Screen을 선언하면 선언 순서가 초기 화면 결정에 끼어들므로 선언하지 않는다.
-          */}
+          <PushNotificationManager />
           <Stack
             screenOptions={{
               headerShown: false,

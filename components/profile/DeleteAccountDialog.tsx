@@ -1,6 +1,7 @@
 import { deleteWithdraw } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import CustomModal from "@/components/common/CustomModal";
+import { deleteLocalPushToken } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -42,6 +43,7 @@ export default function DeleteAccountDialog({
     }
 
     const cleanupResults = await Promise.allSettled([
+      deleteLocalPushToken(),
       clearAuthTokens(),
       AsyncStorage.multiRemove([
         "autoLogin",
