@@ -77,7 +77,7 @@ export default function CommunitySearchScreen() {
             color={SEMANTIC_COLORS.label.alternative}
           />
         </Pressable>
-        <View className="mr-6 flex-1">
+        <View className="mr-6 flex-1 flex-row">
           <SearchBox
             autoFocus
             placeholder="제목 또는 설명으로 검색"
@@ -97,9 +97,8 @@ export default function CommunitySearchScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             gap: 8,
-            paddingHorizontal: 11,
-            paddingTop: 14,
-            paddingBottom: 24,
+            paddingHorizontal: 21,
+            paddingVertical: 12,
           }}
           renderItem={({ item }) => (
             <CommunityPostCard

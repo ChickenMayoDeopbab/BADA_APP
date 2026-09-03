@@ -49,6 +49,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  TextInputProps,
   View,
 } from "react-native";
 import {
@@ -64,6 +65,8 @@ const REACTION_COUNT_KEYS: Record<
   RELATE: "relate",
   LIKE: "like",
 };
+
+const COMMENT_INPUT_HEIGHT = 51;
 
 const replaceCommunityComment = (
   currentComments: CommunityCommentListResponse,
@@ -202,6 +205,7 @@ interface CommentEditorProps {
   errorMessage: string | null;
   isSaving: boolean;
   onChangeText: (value: string) => void;
+  onFocus: NonNullable<TextInputProps["onFocus"]>;
 }
 
 function CommentEditor({
@@ -209,6 +213,7 @@ function CommentEditor({
   errorMessage,
   isSaving,
   onChangeText,
+  onFocus,
 }: CommentEditorProps) {
   return (
     <View className="mt-1 gap-y-1">
@@ -217,6 +222,7 @@ function CommentEditor({
           autoFocus
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           maxLength={1000}
           multiline
           submitBehavior="newline"
@@ -345,8 +351,13 @@ export default function CommunityPostDetailScreen() {
   } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [commentInputOffset, setCommentInputOffset] = useState(0);
   const commentInputRef = useRef<TextInput>(null);
   const postContentInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const currentScrollOffset = useRef(0);
+  const scrollOffsetBeforeCommentInput = useRef(0);
+  const shouldRestoreCommentInputScroll = useRef(false);
   const commentRefreshRotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -354,11 +365,29 @@ export default function CommunityPostDetailScreen() {
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSubscription = Keyboard.addListener(showEvent, () => {
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
       setIsKeyboardVisible(true);
+      if (Platform.OS === "android") {
+        setCommentInputOffset(event.endCoordinates.height);
+      }
+      setTimeout(() => {
+        if (commentInputRef.current?.isFocused()) {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }
+      }, 120);
     });
     const hideSubscription = Keyboard.addListener(hideEvent, () => {
       setIsKeyboardVisible(false);
+      setCommentInputOffset(0);
+      if (shouldRestoreCommentInputScroll.current) {
+        shouldRestoreCommentInputScroll.current = false;
+        requestAnimationFrame(() => {
+          scrollViewRef.current?.scrollTo({
+            y: scrollOffsetBeforeCommentInput.current,
+            animated: true,
+          });
+        });
+      }
     });
 
     return () => {
@@ -676,6 +705,7 @@ export default function CommunityPostDetailScreen() {
 
   const cancelEditingPost = () => {
     if (updatePostMutation.isPending) return;
+    Keyboard.dismiss();
     setEditingPost(false);
     setFocusedPostField(null);
     setInteractionError(null);
@@ -698,6 +728,7 @@ export default function CommunityPostDetailScreen() {
 
   const cancelEditingComment = () => {
     if (updateCommentMutation.isPending) return;
+    Keyboard.dismiss();
     setEditingCommentId(null);
     setEditCommentContent("");
     setEditCommentError(null);
@@ -715,6 +746,20 @@ export default function CommunityPostDetailScreen() {
   const selectReplyTarget = (commentId: number) => {
     setReplyTarget(commentId);
     requestAnimationFrame(() => commentInputRef.current?.focus());
+  };
+
+  const revealCommentEditor: NonNullable<TextInputProps["onFocus"]> = (
+    event,
+  ) => {
+    shouldRestoreCommentInputScroll.current = false;
+    const inputHandle = event.nativeEvent.target;
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollResponderScrollNativeHandleToKeyboard(
+        inputHandle,
+        120,
+        true,
+      );
+    });
   };
 
   const confirmDeleteComment = (commentId: number, removedCount: number) => {
@@ -784,8 +829,8 @@ export default function CommunityPostDetailScreen() {
         <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
-          <Text className="mt-3 text-body text-label-alternative">
-            게시물을 불러오는 중이에요.
+          <Text className="mt-3 self-stretch px-8 text-center text-body text-label-alternative">
+            게시글 로딩 중...
           </Text>
         </View>
       </SafeAreaView>
@@ -798,7 +843,7 @@ export default function CommunityPostDetailScreen() {
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
         <CommunityHeader title="게시물" onBack={handleBack} />
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-center text-body text-label-alternative">
+          <Text className="self-stretch text-center text-body text-label-alternative">
             {notFound
               ? "게시물을 찾을 수 없어요."
               : getApiErrorMessage(
@@ -967,10 +1012,15 @@ export default function CommunityPostDetailScreen() {
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => setCommentMenuTargetId(null)}
+          onScroll={(event) => {
+            currentScrollOffset.current = event.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
           contentContainerStyle={{
             paddingHorizontal: 33,
             paddingTop: 16,
@@ -1190,7 +1240,7 @@ export default function CommunityPostDetailScreen() {
             <ActivityIndicator className="py-10" />
           ) : commentsQuery.isError ? (
             <View className="items-center py-10">
-              <Text className="text-center text-body text-label-alternative">
+              <Text className="self-stretch text-center text-body text-label-alternative">
                 {getApiErrorMessage(
                   commentsQuery.error,
                   "댓글을 불러오지 못했어요.",
@@ -1291,6 +1341,7 @@ export default function CommunityPostDetailScreen() {
                             errorMessage={editCommentError}
                             isSaving={updateCommentMutation.isPending}
                             onChangeText={setEditCommentContent}
+                            onFocus={revealCommentEditor}
                           />
                         ) : (
                           <Pressable
@@ -1394,6 +1445,7 @@ export default function CommunityPostDetailScreen() {
                                   errorMessage={editCommentError}
                                   isSaving={updateCommentMutation.isPending}
                                   onChangeText={setEditCommentContent}
+                                  onFocus={revealCommentEditor}
                                 />
                               ) : (
                                 <Text className="mt-0.5 text-body text-label-normal">
@@ -1453,7 +1505,9 @@ export default function CommunityPostDetailScreen() {
         <View
           className="px-8 pt-2"
           style={{
-            paddingBottom: isKeyboardVisible ? 6 : Math.max(insets.bottom, 20),
+            paddingBottom: isKeyboardVisible
+              ? commentInputOffset + COMMENT_INPUT_HEIGHT + 6
+              : insets.bottom + 20,
           }}
         >
           <View
@@ -1470,6 +1524,11 @@ export default function CommunityPostDetailScreen() {
               ref={commentInputRef}
               value={message}
               onChangeText={setMessage}
+              onFocus={() => {
+                shouldRestoreCommentInputScroll.current = true;
+                scrollOffsetBeforeCommentInput.current =
+                  currentScrollOffset.current;
+              }}
               onSubmitEditing={submitMessage}
               maxLength={1000}
               editable={!commentMutation.isPending}
