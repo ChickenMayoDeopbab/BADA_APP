@@ -16,6 +16,7 @@ export const useTrainingRecordDates = () =>
         const response = await getTrainingRecords({
           page,
           size: DATE_PAGE_SIZE,
+          sort: "trainedAt,desc",
         });
 
         records.push(...response.data.content);

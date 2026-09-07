@@ -1,11 +1,10 @@
-import { deleteWithdraw } from "@/api/authApi";
-import { getApiErrorMessage } from "@/api/error";
-import CustomModal from "@/components/common/CustomModal";
-import { deleteLocalPushToken } from "@/services/pushNotifications";
-import { clearAuthTokens } from "@/utils/authTokenStorage";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import CustomButton from "@/components/common/CustomButton";
+import { PALETTE } from "@/design-system/colors";
+import { Modal, Pressable, Text, View } from "react-native";
+
+const dialogShadow = {
+  boxShadow: `0px 0px 12.5px 0px ${PALETTE.common[100]}33`,
+} as const;
 
 interface DeleteAccountDialogProps {
   visible: boolean;
@@ -16,72 +15,52 @@ export default function DeleteAccountDialog({
   visible,
   onClose,
 }: DeleteAccountDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (visible) setErrorMessage(null);
-  }, [visible]);
-
-  const handleWithdraw = async () => {
-    if (isDeleting) return;
-
-    setIsDeleting(true);
-    setErrorMessage(null);
-
-    try {
-      await deleteWithdraw();
-    } catch (error) {
-      const message = getApiErrorMessage(
-        error,
-        "잠시 후 다시 시도해 주세요.",
-      );
-      console.warn("[회원 탈퇴 실패]", message);
-      setErrorMessage(message);
-      setIsDeleting(false);
-      return;
-    }
-
-    const cleanupResults = await Promise.allSettled([
-      deleteLocalPushToken(),
-      clearAuthTokens(),
-      AsyncStorage.multiRemove([
-        "autoLogin",
-        "authenticatedUsername",
-        "diagnosisResult",
-      ]),
-    ]);
-
-    cleanupResults.forEach((result) => {
-      if (result.status === "rejected") {
-        console.error("[회원 탈퇴 후 로컬 정보 삭제 실패]", result.reason);
-      }
-    });
-
-    onClose();
-    router.replace("/auth");
-  };
-
   return (
-    <CustomModal
+    <Modal
       visible={visible}
-      title="정말 탈퇴할까요?"
-      description="탈퇴 후에는 계정을 복구할 수 없어요."
-      errorMessage={errorMessage}
-      onClose={onClose}
-      secondaryAction={{
-        label: "취소하기",
-        tone: "neutral",
-        disabled: isDeleting,
-        onPress: onClose,
-      }}
-      primaryAction={{
-        label: "탈퇴하기",
-        loadingLabel: "탈퇴 중...",
-        tone: "danger",
-        loading: isDeleting,
-        onPress: () => void handleWithdraw(),
-      }}
-    />
+      transparent
+      statusBarTranslucent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 items-center justify-center bg-common-100/30 px-[33px]">
+        <Pressable
+          accessibilityLabel="회원 탈퇴 창 닫기"
+          onPress={onClose}
+          className="absolute inset-0"
+        />
+        <View
+          className="w-full gap-4 rounded-dialog bg-background-normal p-5"
+          style={dialogShadow}
+        >
+          <View className="w-full gap-[10px] overflow-hidden">
+            <Text className="text-headline2 font-bold text-label-normal">
+              정말 탈퇴할까요?
+            </Text>
+            <Text className="text-label font-medium text-label-alternative">
+              탈퇴 후에는 계정을 복구할 수 없어요.
+            </Text>
+          </View>
+          <View className="w-full flex-row items-center gap-2 overflow-hidden">
+            <View className="min-w-0 flex-1">
+              <CustomButton
+                label="취소하기"
+                variant="md"
+                tone="neutral"
+                onPress={onClose}
+              />
+            </View>
+            <View className="min-w-0 flex-1">
+              <CustomButton
+                label="탈퇴하기"
+                variant="md"
+                tone="danger"
+                onPress={onClose}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }

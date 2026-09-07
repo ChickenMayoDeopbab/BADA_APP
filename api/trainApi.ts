@@ -9,7 +9,6 @@ import {
   ScenarioCategory,
   ExampleConversationResponse,
   ScenarioListResponse,
-  ScenarioRecommendationResponse,
 } from "./types";
 
 /** 훈련 시나리오 목록 조회 */
@@ -17,14 +16,6 @@ export const getScenarios = async (category?: ScenarioCategory): Promise<Scenari
   const response = await aiApiClient.get<ScenarioListResponse>('/api/v1/scenario/scenarios', {
     params: category ? { category } : undefined,
   });
-  return response.data;
-};
-
-/** 오늘의 훈련 시나리오 추천 */
-export const getScenarioRecommendation = async (): Promise<ScenarioRecommendationResponse> => {
-  const response = await aiApiClient.get<ScenarioRecommendationResponse>(
-    '/api/v1/scenario/recommendation',
-  );
   return response.data;
 };
 
