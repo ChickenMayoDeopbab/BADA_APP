@@ -1,4 +1,6 @@
 import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 import apiClient from "./client";
 import {
   ApiResponse,
@@ -35,17 +37,35 @@ export const getOAuthLoginUrl = (provider: OAuthProvider): string => {
 
 export const openOAuthLogin = async (
   provider: OAuthProvider
-): Promise<void> => {
-  await Linking.openURL(getOAuthLoginUrl(provider));
+): Promise<string | undefined> => {
+  const url = getOAuthLoginUrl(provider);
+
+  if (Platform.OS === "web") {
+    await Linking.openURL(url);
+    return;
+  }
+
+  // 서버의 최종 리다이렉트는 bada://auth/callback?code=... 입니다.
+  // iOS는 ASWebAuthenticationSession, Android는 Custom Tabs를 사용합니다.
+  const result = await WebBrowser.openAuthSessionAsync(
+    url,
+    Linking.createURL("auth/callback", { scheme: "bada" }),
+  );
+
+  // Android는 Linking 이벤트로 Expo Router가 콜백 화면을 엽니다.
+  // iOS는 인증 세션이 URL을 반환하므로 호출 화면에서 직접 이동합니다.
+  if (result.type === "success" && Platform.OS === "ios") {
+    return result.url;
+  }
 };
 
-export const getGoogleLogin = (): Promise<void> =>
+export const getGoogleLogin = (): Promise<string | undefined> =>
   openOAuthLogin("google");
 
-export const getNaverLogin = (): Promise<void> =>
+export const getNaverLogin = (): Promise<string | undefined> =>
   openOAuthLogin("naver");
 
-export const getAppleLogin = (): Promise<void> =>
+export const getAppleLogin = (): Promise<string | undefined> =>
   openOAuthLogin("apple");
 
 export const postOAuthToken = async (
