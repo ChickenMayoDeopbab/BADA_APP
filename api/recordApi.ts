@@ -1,94 +1,101 @@
 import apiClient from "./client";
+import { isAxiosError } from "axios";
 import {
-  ApiResponse,
+  ApiResponseAnxietyScoreResponse,
+  ApiResponsePageTrainingRecordResponse,
+  ApiResponseTrainingRecordDetailResponse,
+  ApiResponseVoid,
+  FeedbackResponse,
+  GetFeedbackParams,
   GetTrainingRecordsParams,
-  PageData,
-  TrainingFeedbackResponse,
-  TrainingRecordDetail,
-  TrainingRecordItem,
+  RecordAnxietyScoreRequest,
 } from "./types";
 
 export const getTrainingRecords = async (
-  params: GetTrainingRecordsParams,
-): Promise<ApiResponse<PageData<TrainingRecordItem>>> => {
-  const response = await apiClient.get<
-    ApiResponse<PageData<TrainingRecordItem>>
-  >("/api/v1/training-records", { params });
+  params: GetTrainingRecordsParams = {},
+): Promise<ApiResponsePageTrainingRecordResponse> => {
+  const { page, size } = params;
+  const response = await apiClient.get<ApiResponsePageTrainingRecordResponse>(
+    "/api/v1/training-records",
+    { params: { page, size } },
+  );
   return response.data;
 };
 
-export const getTrainingRecordDetail = async (
+export const getTrainingRecord = async (
   recordId: number,
-): Promise<ApiResponse<TrainingRecordDetail>> => {
-  const response = await apiClient.get<ApiResponse<TrainingRecordDetail>>(
+): Promise<ApiResponseTrainingRecordDetailResponse> => {
+  const response = await apiClient.get<ApiResponseTrainingRecordDetailResponse>(
+    `/api/v1/training-records/${recordId}`,
+  );
+  if (__DEV__) {
+    console.info("[AnxietyScore][DetailResponse]", {
+      recordId: response.data.data.recordId,
+      sessionId: response.data.data.sessionId,
+      anxietyScore: response.data.data.anxietyScore,
+    });
+  }
+  return response.data;
+};
+
+export const deleteTrainingRecord = async (
+  recordId: number,
+): Promise<ApiResponseVoid> => {
+  const response = await apiClient.delete<ApiResponseVoid>(
     `/api/v1/training-records/${recordId}`,
   );
   return response.data;
 };
 
-export const getTrainingRecordFeedback = async (
-  recordId: number,
-  scenarioId?: string,
-): Promise<TrainingFeedbackResponse> => {
-  const response = await apiClient.get<
-    ApiResponse<TrainingFeedbackResponse> | TrainingFeedbackResponse
-  >("/api/v1/training-records/feedback", {
-    params: { recordId, scenarioId },
-  });
-  const body = response.data;
-
-  return "data" in body ? body.data : body;
-};
-
-
-export const getTrainingFeedbackBySessionId = async (
+export const postAnxietyScore = async (
   sessionId: string,
-): Promise<TrainingFeedbackResponse> => {
-  const maxAttempts = 15;
-  let recordId: number | null = null;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      if (recordId == null) {
-        const recordsResponse = await getTrainingRecords({
-          page: 0,
-          size: 20,
-          sort: "trainedAt,desc",
-        });
-        const record = recordsResponse.data.content.find(
-          (item) => item.sessionId === sessionId,
-        );
-        recordId = record?.recordId ?? null;
-      }
-
-      if (recordId != null) {
-        const detailResponse = await getTrainingRecordDetail(recordId);
-        const detail = detailResponse.data;
-        const totalSeconds = Math.max(0, Math.round(detail.durationSeconds));
-
-        return {
-          sessionType: detail.sessionType,
-          scenarioName: detail.scenarioName,
-          trainingTime: {
-            hour: Math.floor(totalSeconds / 3600),
-            minute: Math.floor((totalSeconds % 3600) / 60),
-            second: totalSeconds % 60,
-            nano: 0,
-          },
-          goodSegments: detail.positiveFeedbacks.map((part) => ({
-            start: part.startSecond,
-            end: part.endSecond,
-            good_point: part.good_point,
-          })),
-          recordingUrl: detail.recordingUrl,
-        };
-      }
-    } catch {}
-
-    if (attempt < maxAttempts - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+  request: RecordAnxietyScoreRequest,
+): Promise<ApiResponseAnxietyScoreResponse> => {
+  if (__DEV__) {
+    console.info("[AnxietyScore][SaveRequest]", {
+      sessionId,
+      score: request.score,
+    });
   }
 
-  throw new Error("훈련 결과 생성에 시간이 오래 걸리고 있습니다.");
+  try {
+    const response = await apiClient.post<ApiResponseAnxietyScoreResponse>(
+      `/api/v1/training-records/${sessionId}/anxiety-score`,
+      request,
+    );
+    if (__DEV__) {
+      console.info("[AnxietyScore][SaveResponse]", {
+        httpStatus: response.status,
+        data: response.data.data,
+      });
+    }
+    return response.data;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[AnxietyScore][SaveFailed]", {
+        sessionId,
+        score: request.score,
+        message: error instanceof Error ? error.message : String(error),
+        ...(isAxiosError(error)
+          ? {
+              httpStatus: error.response?.status ?? null,
+              responseData: error.response?.data ?? null,
+            }
+          : {}),
+      });
+    }
+    throw error;
+  }
+};
+
+export const getFeedback = async (
+  params: GetFeedbackParams,
+): Promise<FeedbackResponse> => {
+  const response = await apiClient.get<FeedbackResponse>(
+    "/api/v1/training-records/feedback",
+    {
+      params,
+    },
+  );
+  return response.data;
 };

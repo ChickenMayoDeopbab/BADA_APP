@@ -102,12 +102,14 @@ export function useTrainWebSocket({
 
     // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
     const url = `${getWsBaseUrl()}/ws/voice/${sessionId}?token=${token}`;
+    console.info("[TrainWS] 연결 시도", { sessionId });
     const ws = new WebSocket(url);
     // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
+      console.info("[TrainWS] 연결 완료", { sessionId });
       setIsConnected(true);
       // keep-alive ping 30초마다
       pingIntervalRef.current = setInterval(() => {
@@ -143,6 +145,7 @@ export function useTrainWebSocket({
               onSpeakingEndRef.current?.();
               break;
             case "interrupt":
+              aiSpeakingRef.current = false;
               setIsAiSpeaking(false);
               onInterruptRef.current?.();
               break;
@@ -169,12 +172,19 @@ export function useTrainWebSocket({
       } else {
         // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
         if (event.data instanceof ArrayBuffer) {
+          aiSpeakingRef.current = true;
+          setIsAiSpeaking(true);
           onBinaryMessageRef.current?.(event.data);
         }
       }
     };
 
     ws.onclose = (event) => {
+      console.warn("[TrainWS] 연결 종료", {
+        sessionId,
+        code: event.code,
+        reason: event.reason,
+      });
       setIsConnected(false);
       setIsAiSpeaking(false);
       if (pingIntervalRef.current) {
@@ -195,11 +205,18 @@ export function useTrainWebSocket({
         } else {
           onErrorRef.current?.(`WS_CLOSE_${event.reason}`);
         }
+      } else if (event.code !== 1000) {
+        // onerror만으로 끝나면 통화 화면이 "연결 중..."에 머문다.
+        // 비정상 종료는 화면에도 전달해 녹음과 통화 상태를 함께 정리한다.
+        onErrorRef.current?.(`WS_CLOSE_${event.code}`);
       }
     };
 
     ws.onerror = () => {
+      console.warn("[TrainWS] 연결 오류", { sessionId });
+      aiSpeakingRef.current = false;
       setIsConnected(false);
+      setIsAiSpeaking(false);
     };
   }, [sessionId]);
 
@@ -228,18 +245,15 @@ export function useTrainWebSocket({
     }
   }, []);
 
-  const sendBinary = useCallback(
-    (data: ArrayBuffer) => {
-      if (isAiSpeaking) {
-        return;
-      }
+  const sendBinary = useCallback((data: ArrayBuffer) => {
+    // 녹음 시작 시 등록된 콜백도 최신 AI 발화 상태를 읽어야 한다.
+    // React state를 캡처하면 AI가 말하기 시작한 뒤에도 마이크 데이터가 계속 전송된다.
+    if (aiSpeakingRef.current) return;
 
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(data);
-      }
-    },
-    [isAiSpeaking],
-  );
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(data);
+    }
+  }, []);
 
   return {
     isConnected,

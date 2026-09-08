@@ -1,9 +1,8 @@
 import CustomButton from "@/components/common/CustomButton";
-import { SEMANTIC_COLORS } from "@/design-system/colors";
-import { Ionicons } from "@expo/vector-icons";
+import Top from "@/components/common/Top";
 import { router } from "expo-router";
 import { ReactNode } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface ProfileSettingsScreenProps {
@@ -29,25 +28,7 @@ export default function ProfileSettingsScreen({
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
-      <View className="flex-row items-center justify-between h-16 px-2 bg-background-normal">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="프로필로 돌아가기"
-          onPress={cancel}
-          hitSlop={8}
-          className="items-center justify-center size-16 active:opacity-70"
-        >
-          <Ionicons
-            name="chevron-back"
-            size={32}
-            color={SEMANTIC_COLORS.label.alternative}
-          />
-        </Pressable>
-        <Text className="font-bold text-headline1 text-label-neutral">
-          {title}
-        </Text>
-        <View className="items-center justify-center size-16">{headerAction}</View>
-      </View>
+      <Top title={title} back onBack={cancel} right={headerAction} safeArea={false} />
 
       <ScrollView
         className="flex-1 bg-background-alternative"

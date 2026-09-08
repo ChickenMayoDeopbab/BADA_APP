@@ -42,7 +42,13 @@ app-example
 /ios
 /android
 
+# 별도로 관리하는 Swift/Xcode 프로젝트
+/bada/
+
 # env
 .env
 
 .idea/
+docs/
+
+AGENTS.md

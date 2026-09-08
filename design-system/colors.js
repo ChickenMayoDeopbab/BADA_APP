@@ -112,6 +112,15 @@ const SEMANTIC_COLORS = {
     success: "#0BF46D",
     warning: "#FFCC00",
   },
+  record: {
+    iconBackground: "#E7F2FA",
+    summaryGradientStart: "#092EC3",
+    summaryGradientEnd: "#44AAB7",
+  },
+  train: {
+    callGradientStart: "#F5F5F5",
+    callGradientEnd: "#ABEFA8",
+  },
 };
 
 const DARK_SEMANTIC_COLORS = {
@@ -148,6 +157,8 @@ const DARK_SEMANTIC_COLORS = {
     alternative: "#2D2D2D",
   },
   status: SEMANTIC_COLORS.status,
+  record: SEMANTIC_COLORS.record,
+  train: SEMANTIC_COLORS.train,
 };
 
 module.exports = {
