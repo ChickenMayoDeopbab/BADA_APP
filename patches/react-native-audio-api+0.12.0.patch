@@ -1,0 +1,12 @@
+diff --git a/node_modules/react-native-audio-api/android/src/main/cpp/audioapi/android/core/AndroidAudioRecorder.cpp b/node_modules/react-native-audio-api/android/src/main/cpp/audioapi/android/core/AndroidAudioRecorder.cpp
+--- a/node_modules/react-native-audio-api/android/src/main/cpp/audioapi/android/core/AndroidAudioRecorder.cpp
++++ b/node_modules/react-native-audio-api/android/src/main/cpp/audioapi/android/core/AndroidAudioRecorder.cpp
+@@ -321,7 +321,7 @@
+     const std::string &fileNameOverride) {
+ #if RN_AUDIO_API_FFMPEG_DISABLED
+   if (properties->format != AudioFileProperties::Format::WAV) {
+-    return Result<std::string, std::string>::Err(
++    return Result<NoneType, std::string>::Err(
+         "FFmpeg backend is disabled. Cannot create file writer for the requested format. Use WAV format instead.");
+   }
+ #endif

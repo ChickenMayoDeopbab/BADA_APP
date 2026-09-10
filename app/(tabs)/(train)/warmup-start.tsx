@@ -1,88 +1,17 @@
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
+import StepSlider from "@/components/train/StepSlider";
 import { createSession } from "@/api/trainApi";
 import { ATTITUDE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_MAP, SPRING_PERSONALITY_MAP } from "@/constants/train";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import { PanResponder, StyleSheet, Text, View } from "react-native";
-
-interface StepSliderProps {
-  steps: readonly string[];
-  value: number;
-  onChange: (index: number) => void;
-}
-
-/** 단계별 슬라이더 (탭 및 드래그로 선택) */
-function StepSlider({ steps, value, onChange }: StepSliderProps) {
-  const [trackWidth, setTrackWidth] = useState(0);
-  const trackWidthRef = useRef(0);
-  const valueRef = useRef(value);
-  valueRef.current = value;
-
-  /** x 좌표 → 가장 가까운 단계 인덱스 계산 */
-  const getStepIndex = (x: number): number => {
-    const w = trackWidthRef.current;
-    if (w === 0) return valueRef.current;
-    const index = Math.round((x / w) * (steps.length - 1));
-    return Math.max(0, Math.min(steps.length - 1, index));
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => onChange(getStepIndex(evt.nativeEvent.locationX)),
-      onPanResponderMove: (evt) => onChange(getStepIndex(evt.nativeEvent.locationX)),
-    })
-  ).current;
-
-  return (
-    <View>
-      <View
-        style={styles.sliderArea}
-        onLayout={(e) => {
-          trackWidthRef.current = e.nativeEvent.layout.width;
-          setTrackWidth(e.nativeEvent.layout.width);
-        }}
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.trackLine} />
-        {steps.map((_, index) => {
-          const isSelected = index === value;
-          const size = isSelected ? 30 : 10;
-          const centerX = trackWidth > 0
-            ? 15 + (index / (steps.length - 1)) * (trackWidth - 30)
-            : 0;
-          return (
-            <View
-              key={index}
-              style={[
-                isSelected ? styles.knob : styles.dot,
-                { left: centerX - size / 2, top: (50 - size) / 2 },
-              ]}
-            />
-          );
-        })}
-      </View>
-      <View style={styles.labelRow}>
-        {steps.map((step, index) => (
-          <Text
-            key={index}
-            style={[styles.label, { color: index === value ? "#0AE365" : "#BDBEBE" }]}
-          >
-            {step}
-          </Text>
-        ))}
-      </View>
-    </View>
-  );
-}
+import { useCallback, useState } from "react";
+import { Text, View } from "react-native";
 
 export default function WarmupStart() {
   const { id } = useLocalSearchParams<{ id?: string }>();
 
-  const [difficulty, setDifficulty] = useState(0); // 상(0) 중(1) 하(2)
+  const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
   const [attitude, setAttitude] = useState(0); // 친절(0) 보통(1) 까다로움(2) 진상(3)
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
@@ -108,7 +37,7 @@ export default function WarmupStart() {
         maxDurationSeconds: 0,
       });
       router.push({
-        pathname: "/(tabs)/(train)/train",
+        pathname: "/train",
         params: {
           sessionId: session.sessionId,
           wsUrl: session.wsUrl,
@@ -162,43 +91,3 @@ export default function WarmupStart() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  sliderArea: {
-    height: 50,
-    justifyContent: "center",
-  },
-  trackLine: {
-    height: 18,
-    backgroundColor: "#EBEBEC",
-    borderRadius: 9,
-  },
-  knob: {
-    position: "absolute",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  dot: {
-    position: "absolute",
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#C8C8C8",
-  },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-});

@@ -4,19 +4,18 @@ import { getTrainingRecords } from "@/api/recordApi";
 const PAGE_SIZE = 20;
 
 interface UseTrainingRecordsParams {
-  sort: string;
-  date?: string;
+  size?: number;
 }
 
-export const useTrainingRecords = ({ sort, date }: UseTrainingRecordsParams) => {
+export const useTrainingRecords = ({
+  size = PAGE_SIZE,
+}: UseTrainingRecordsParams = {}) => {
   return useInfiniteQuery({
-    queryKey: ["trainingRecords", { sort, date }],
+    queryKey: ["trainingRecords", { size }],
     queryFn: async ({ pageParam = 0 }) => {
       const res = await getTrainingRecords({
         page: pageParam,
-        size: PAGE_SIZE,
-        sort,
-        date,
+        size,
       });
       return res.data;
     },
