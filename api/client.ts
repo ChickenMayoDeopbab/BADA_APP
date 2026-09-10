@@ -81,7 +81,16 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch {
+        // 인증이 만료되면 서버 등록 해제 API를 호출할 수 없으므로 FCM 토큰을
+        // 직접 폐기해 이전 계정의 알림이 이 기기로 계속 오지 않게 합니다.
+        const deletePushToken = import('@/services/pushNotifications')
+          .then(({ deleteLocalPushToken }) => deleteLocalPushToken())
+          .catch((pushError) => {
+            console.warn('[Push] 인증 만료 후 FCM 토큰 삭제 실패', pushError);
+          });
+
         await Promise.all([
+          deletePushToken,
           clearAuthTokens(),
           AsyncStorage.removeItem('autoLogin'),
         ]);
