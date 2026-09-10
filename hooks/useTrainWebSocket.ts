@@ -38,6 +38,8 @@ export interface UseTrainWebSocketReturn {
   isConnected: boolean;
   isAiSpeaking: boolean;
   displayName: string | null;
+  setPlaybackBlocked: (blocked: boolean) => void;
+  sendJson: (payload: object) => boolean;
   sendEndCall: () => void;
   sendMute: (muted: boolean) => void;
   sendBinary: (data: ArrayBuffer) => void;
@@ -132,21 +134,13 @@ export function useTrainWebSocket({
           }
           switch (msg.type) {
             case "emotion":
-              aiSpeakingRef.current = true;
-              setIsAiSpeaking(true);
               onEmotionRef.current?.(msg.value);
               break;
             case "speaking_end":
-              setTimeout(() => {
-                aiSpeakingRef.current = false;
-                setIsAiSpeaking(false);
-              }, 300);
-
+              // Output completion + tail guard owns the microphone gate.
               onSpeakingEndRef.current?.();
               break;
             case "interrupt":
-              aiSpeakingRef.current = false;
-              setIsAiSpeaking(false);
               onInterruptRef.current?.();
               break;
             case "transcript":
@@ -172,14 +166,13 @@ export function useTrainWebSocket({
       } else {
         // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
         if (event.data instanceof ArrayBuffer) {
-          aiSpeakingRef.current = true;
-          setIsAiSpeaking(true);
           onBinaryMessageRef.current?.(event.data);
         }
       }
     };
 
     ws.onclose = (event) => {
+      aiSpeakingRef.current = false;
       console.warn("[TrainWS] 연결 종료", {
         sessionId,
         code: event.code,
@@ -233,6 +226,21 @@ export function useTrainWebSocket({
     };
   }, [enabled, connect, disconnect]);
 
+  const setPlaybackBlocked = useCallback((blocked: boolean) => {
+    aiSpeakingRef.current = blocked;
+    setIsAiSpeaking(blocked);
+  }, []);
+
+  const sendJson = useCallback((payload: object): boolean => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return false;
+    try {
+      wsRef.current.send(JSON.stringify(payload));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const sendEndCall = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "end" }));
@@ -259,6 +267,8 @@ export function useTrainWebSocket({
     isConnected,
     isAiSpeaking,
     displayName,
+    setPlaybackBlocked,
+    sendJson,
     sendEndCall,
     sendMute,
     sendBinary,

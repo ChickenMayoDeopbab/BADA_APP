@@ -152,6 +152,15 @@ module.exports = {
             "대화 훈련 중 음성을 녹음하여 발화 내용을 분석하고 피드백을 제공하기 위해 마이크를 사용합니다.",
         },
       ],
+      [
+        "react-native-audio-api",
+        {
+          iosBackgroundMode: false,
+          androidForegroundService: false,
+          androidPermissions: [],
+          disableFFmpeg: true,
+        },
+      ],
       "expo-asset",
     ],
     experiments: {
