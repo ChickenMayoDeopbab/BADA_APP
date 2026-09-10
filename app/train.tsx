@@ -213,11 +213,17 @@ export default function Train() {
     requestPermission,
     startSendingAudio,
     stopSendingAudio,
+    beginPlayback,
     streamPcmChunk,
+    flushPlayback,
     resetStream,
-  } = useAudio();
+  } = useAudio({
+    onPlaybackBlocked: (blocked) => setPlaybackBlocked(blocked),
+    onPlaybackStats: (stats) => { sendJson(stats); },
+    onPlaybackError: () => handleEndCall(),
+  });
 
-  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
+  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training",
@@ -225,9 +231,8 @@ export default function Train() {
       streamPcmChunk(data);
     },
     onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
-    onEmotion: () => {
-      resetStream();
-    },
+    onEmotion: beginPlayback,
+    onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
     onError: (code) => {
@@ -372,9 +377,9 @@ export default function Train() {
   };
   /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
   const handleEndCall = () => {
+    resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
-    stopSendingAudio();
-    resetStream();
+    void stopSendingAudio().catch((error) => console.warn("녹음 종료 실패", error));
     if (timerRef.current) clearInterval(timerRef.current);
     setStep("end");
   };

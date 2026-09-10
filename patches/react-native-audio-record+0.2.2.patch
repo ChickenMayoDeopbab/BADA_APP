@@ -1,23 +1,20 @@
 diff --git a/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java b/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java
-index 11c5ad8..c3f1e59 100644
 --- a/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java
 +++ b/node_modules/react-native-audio-record/android/src/main/java/com/goodatlas/audiorecord/RNAudioRecordModule.java
-@@ -3,6 +3,11 @@ package com.goodatlas.audiorecord;
+@@ -3,6 +3,9 @@
  import android.media.AudioFormat;
  import android.media.AudioRecord;
  import android.media.MediaRecorder.AudioSource;
 +import android.media.audiofx.AcousticEchoCanceler;
 +import android.media.audiofx.AutomaticGainControl;
 +import android.media.audiofx.NoiseSuppressor;
-+import android.os.Handler;
-+import android.os.Looper;
  import android.util.Base64;
  import android.util.Log;
- 
-@@ -32,11 +37,15 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+
+@@ -32,11 +35,15 @@
      private int bufferSize;
      private boolean isRecording;
- 
+
 +    // 🔥 오디오 이펙트 변수 추가
 +    private AcousticEchoCanceler echoCanceler;
 +    private NoiseSuppressor noiseSuppressor;
@@ -26,19 +23,17 @@ index 11c5ad8..c3f1e59 100644
      private String tmpFile;
      private String outFile;
      private Promise stopRecordingPromise;
- 
+
 -
      public RNAudioRecordModule(ReactApplicationContext reactContext) {
          super(reactContext);
          this.reactContext = reactContext;
-@@ -47,6 +56,63 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+@@ -47,8 +54,64 @@
          return "RNAudioRecord";
      }
- 
+
 +    // 🔥 오디오 이펙트 활성화 메서드 추가
 +    private void enableAudioEffects() {
-+        releaseAudioEffects();
-+
 +        if (recorder == null) {
 +            Log.w(TAG, "enableAudioEffects: recorder is null");
 +            return;
@@ -51,7 +46,7 @@ index 11c5ad8..c3f1e59 100644
 +            return;
 +        }
 +
-+        if (AcousticEchoCanceler.isAvailable()) {
++        if (echoCanceler == null && AcousticEchoCanceler.isAvailable()) {
 +            echoCanceler = AcousticEchoCanceler.create(audioSessionId);
 +            if (echoCanceler != null) {
 +                echoCanceler.setEnabled(true);
@@ -59,7 +54,7 @@ index 11c5ad8..c3f1e59 100644
 +            }
 +        }
 +
-+        if (NoiseSuppressor.isAvailable()) {
++        if (noiseSuppressor == null && NoiseSuppressor.isAvailable()) {
 +            noiseSuppressor = NoiseSuppressor.create(audioSessionId);
 +            if (noiseSuppressor != null) {
 +                noiseSuppressor.setEnabled(true);
@@ -67,7 +62,7 @@ index 11c5ad8..c3f1e59 100644
 +            }
 +        }
 +
-+        if (AutomaticGainControl.isAvailable()) {
++        if (autoGainControl == null && AutomaticGainControl.isAvailable()) {
 +            autoGainControl = AutomaticGainControl.create(audioSessionId);
 +            if (autoGainControl != null) {
 +                autoGainControl.setEnabled(true);
@@ -94,18 +89,21 @@ index 11c5ad8..c3f1e59 100644
 +
      @ReactMethod
      public void init(ReadableMap options) {
++        releaseAudioEffects();
          sampleRateInHz = 44100;
-@@ -68,7 +134,7 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+         if (options.hasKey("sampleRate")) {
+             sampleRateInHz = options.getInt("sampleRate");
+@@ -68,7 +131,7 @@
              }
          }
- 
+
 -        audioSource = AudioSource.VOICE_RECOGNITION;
-+        audioSource = AudioSource.VOICE_RECOGNITION; // VOICE_RECOGNITION이 에코 캔슬링에 유리함
++        audioSource = AudioSource.VOICE_RECOGNITION; // AEC support depends on the device and audio session
          if (options.hasKey("audioSource")) {
              audioSource = options.getInt("audioSource");
          }
-@@ -91,9 +157,25 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
- 
+@@ -91,9 +154,18 @@
+
      @ReactMethod
      public void start() {
 +        if (recorder == null) {
@@ -120,20 +118,13 @@ index 11c5ad8..c3f1e59 100644
 +        // 🔥 녹음 시작 직후 오디오 이펙트 켜기
 +        enableAudioEffects();
 +
-+        // 🔥 일부 기기 AEC 지연 적용 방어
-+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-+            if (isRecording) {
-+                enableAudioEffects();
-+            }
-+        }, 150);
-+
 +        Log.d(TAG, "started recording with audio effects");
- 
+
          Thread recordingThread = new Thread(new Runnable() {
              public void run() {
-@@ -105,22 +187,45 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+@@ -105,22 +177,45 @@
                      FileOutputStream os = new FileOutputStream(tmpFile);
- 
+
                      while (isRecording) {
 +                        // ⚠️ (3) recorder null 안전 (스레드 내부 방어)
 +                        if (recorder == null) {
@@ -142,7 +133,7 @@ index 11c5ad8..c3f1e59 100644
 +                        }
 +
                          bytesRead = recorder.read(buffer, 0, buffer.length);
- 
+
 +                        // ⚠️ (1) AudioRecord.read 방어 (-1, 0 튀는 기기 무시)
 +                        if (bytesRead <= 0) {
 +                            continue;
@@ -160,7 +151,7 @@ index 11c5ad8..c3f1e59 100644
                              os.write(buffer, 0, bytesRead);
                          }
                      }
- 
+
 -                    recorder.stop();
 +                    // 루프를 빠져나온 후 안전하게 자원 해제
 +                    if (recorder != null) {
@@ -181,7 +172,7 @@ index 11c5ad8..c3f1e59 100644
                  }
              }
          });
-@@ -132,13 +237,23 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
+@@ -132,13 +227,23 @@
      public void stop(Promise promise) {
          isRecording = false;
          stopRecordingPromise = promise;
@@ -196,7 +187,7 @@ index 11c5ad8..c3f1e59 100644
 +        Log.d(TAG, "[AEC] reassert called");
 +        enableAudioEffects();
      }
- 
+
      private void saveAsWav() {
          try {
              FileInputStream in = new FileInputStream(tmpFile);
@@ -204,12 +195,12 @@ index 11c5ad8..c3f1e59 100644
 -            long totalAudioLen = in.getChannel().size();;
 +            long totalAudioLen = in.getChannel().size();
              long totalDataLen = totalAudioLen + 36;
- 
+
              addWavHeader(out, totalAudioLen, totalDataLen);
-@@ -170,47 +285,28 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
- 
+@@ -170,47 +275,28 @@
+
          byte[] header = new byte[44];
- 
+
 -        header[0] = 'R';                                    // RIFF chunk
 -        header[1] = 'I';
 -        header[2] = 'F';
@@ -267,8 +258,8 @@ index 11c5ad8..c3f1e59 100644
          header[41] = (byte) ((totalAudioLen >> 8) & 0xff);
          header[42] = (byte) ((totalAudioLen >> 16) & 0xff);
          header[43] = (byte) ((totalAudioLen >> 24) & 0xff);
-@@ -220,6 +316,8 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
- 
+@@ -220,6 +306,8 @@
+
      private void deleteTempFile() {
          File file = new File(tmpFile);
 -        file.delete();
@@ -278,38 +269,40 @@ index 11c5ad8..c3f1e59 100644
      }
  }
 diff --git a/node_modules/react-native-audio-record/ios/RNAudioRecord.m b/node_modules/react-native-audio-record/ios/RNAudioRecord.m
-index 7304653..420d34e 100644
 --- a/node_modules/react-native-audio-record/ios/RNAudioRecord.m
 +++ b/node_modules/react-native-audio-record/ios/RNAudioRecord.m
-@@ -1,9 +1,45 @@
+@@ -1,8 +1,47 @@
  #import "RNAudioRecord.h"
- 
-+#import <AVFoundation/AVFoundation.h>
 +
++#import <AVFoundation/AVFoundation.h>
+
  @implementation RNAudioRecord
- 
+
  RCT_EXPORT_MODULE();
- 
++
 +/*
 +  통화 훈련은 상대 음성 재생과 마이크 입력이 동시에 돌아간다.
 +  업스트림이 쓰는 Record 카테고리는 재생을 끊고 에코도 잡지 못하므로
-+  PlayAndRecord + VoiceChat 모드로 iOS 내장 에코 캔슬링을 켠다.
++  PlayAndRecord + VoiceChat으로 통화 라우팅을 유지한다.
++  AudioQueue 입력에서 이 모드만으로 완전한 AEC가 보장되지는 않는다.
++  앱은 AI 재생과 잔향 구간 동안 마이크 전송을 차단한다.
 +*/
 +- (void)applyAecVoiceChatMode {
 +    AVAudioSession *session = [AVAudioSession sharedInstance];
 +    if (!session) return;
 +
-+    NSError *categoryError = nil;
-+    if (![session setCategory:AVAudioSessionCategoryPlayAndRecord
-+                  withOptions:(AVAudioSessionCategoryOptionDefaultToSpeaker |
-+                               AVAudioSessionCategoryOptionAllowBluetooth)
-+                        error:&categoryError]) {
-+        RCTLogInfo(@"[AEC] setCategory 실패: %@", categoryError);
-+    }
-+
-+    NSError *modeError = nil;
-+    if (![session setMode:AVAudioSessionModeVoiceChat error:&modeError]) {
-+        RCTLogInfo(@"[AEC] setMode 실패: %@", modeError);
++    AVAudioSessionCategoryOptions options = AVAudioSessionCategoryOptionDefaultToSpeaker |
++                                            AVAudioSessionCategoryOptionAllowBluetooth;
++    // Avoid renegotiating the route if the shared session already matches.
++    if (![session.category isEqualToString:AVAudioSessionCategoryPlayAndRecord] ||
++        ![session.mode isEqualToString:AVAudioSessionModeVoiceChat] ||
++        session.categoryOptions != options) {
++        NSError *error = nil;
++        if (![session setCategory:AVAudioSessionCategoryPlayAndRecord
++                             mode:AVAudioSessionModeVoiceChat
++                          options:options error:&error]) {
++            RCTLogInfo(@"[AEC] session 설정 실패: %@", error);
++        }
 +    }
 +
 +    NSError *activeError = nil;
@@ -323,27 +316,26 @@ index 7304653..420d34e 100644
 +    RCTLogInfo(@"[AEC] reassert");
 +    [self applyAecVoiceChatMode];
 +}
-+
+
  RCT_EXPORT_METHOD(init:(NSDictionary *) options) {
      RCTLogInfo(@"init");
-     _recordState.mDataFormat.mSampleRate        = options[@"sampleRate"] == nil ? 44100 : [options[@"sampleRate"] doubleValue];
-@@ -16,7 +52,6 @@ RCT_EXPORT_METHOD(init:(NSDictionary *) options) {
+@@ -16,7 +55,6 @@
      _recordState.mDataFormat.mFormatID          = kAudioFormatLinearPCM;
      _recordState.mDataFormat.mFormatFlags       = _recordState.mDataFormat.mBitsPerChannel == 8 ? kLinearPCMFormatFlagIsPacked : (kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked);
- 
+
 -    
      _recordState.bufferByteSize = 2048;
      _recordState.mSelf = self;
- 
-@@ -28,9 +63,8 @@ RCT_EXPORT_METHOD(init:(NSDictionary *) options) {
+
+@@ -28,9 +66,8 @@
  RCT_EXPORT_METHOD(start) {
      RCTLogInfo(@"start");
- 
+
 -    // most audio players set session category to "Playback", record won't work in this mode
 -    // therefore set session category to "Record" before recording
 -    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryRecord error:nil];
 +    // 업스트림은 여기서 Record 카테고리를 걸지만, 통화 훈련은 재생이 함께 돌아야 한다
 +    [self applyAecVoiceChatMode];
- 
+
      _recordState.mIsRunning = true;
      _recordState.mCurrentPacket = 0;
