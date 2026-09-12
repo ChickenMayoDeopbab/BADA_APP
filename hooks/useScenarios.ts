@@ -13,7 +13,7 @@ export const useScenarios = (category?: ScenarioCategory | null) =>
 /** 오늘의 훈련 시나리오 추천 조회 */
 export const useRecommendedScenario = () =>
   useQuery({
-    queryKey: ["scenarios", "recommendation"],
+    queryKey: ["scenario-recommendation"],
     queryFn: getScenarioRecommendation,
     select: (data): ScenarioInfo => data.scenario,
   });
