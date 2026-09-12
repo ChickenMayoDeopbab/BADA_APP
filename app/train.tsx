@@ -6,10 +6,10 @@ import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ResizeMode, Video } from "expo-av";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   BackHandler,
   Modal,
   ScrollView,
@@ -73,6 +73,47 @@ function MeditationDialog({ onSkip, onMeditate }: MeditationDialogProps) {
             <Text className="text-label font-bold text-label-buttonText">명상하기</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    </View>
+  );
+}
+
+/** 명상을 선택했을 때만 기존 영상 모듈을 불러와 일반 통화에서는 오디오 세션에 관여하지 않게 한다. */
+function MeditationVideoContent({
+  bottomInset,
+  onEnd,
+}: {
+  bottomInset: number;
+  onEnd: () => void;
+}) {
+  // expo-video를 추가하지 않는 동안 명상 영상 기능만 기존 모듈을 지연 로드한다.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ResizeMode, Video } = require("expo-av") as typeof import("expo-av");
+
+  return (
+    <View style={styles.meditationVideoContainer}>
+      <Video
+        source={require("@/assets/meditate.mp4")}
+        style={styles.meditationVideo}
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay
+        onPlaybackStatusUpdate={(status) => {
+          if (status.isLoaded && status.didJustFinish) onEnd();
+        }}
+      />
+      <View
+        style={[
+          styles.meditationSkipWrapper,
+          { paddingBottom: bottomInset + 24 },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={onEnd}
+          activeOpacity={0.8}
+          style={styles.meditationSkipButton}
+        >
+          <Text className="text-base font-bold text-white">건너뛰기</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -142,6 +183,7 @@ export default function Train() {
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [seconds, setSeconds] = useState(0);
   const [calleeName, setCalleeName] = useState<string | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -156,7 +198,6 @@ export default function Train() {
   const isCompactScreen = windowHeight < 700;
 
   const [isMuted, setIsMuted] = useState(false);
-  const permissionGrantedRef = useRef(false);
   const isWarmupSession = isWarmup === "true";
   const generatedPhoneNumber = useMemo(() => {
     const source = sessionId ?? "";
@@ -172,18 +213,26 @@ export default function Train() {
     requestPermission,
     startSendingAudio,
     stopSendingAudio,
+    beginPlayback,
     streamPcmChunk,
+    flushPlayback,
     resetStream,
-  } = useAudio();
+  } = useAudio({
+    onPlaybackBlocked: (blocked) => setPlaybackBlocked(blocked),
+    onPlaybackStats: (stats) => { sendJson(stats); },
+    onPlaybackError: () => handleEndCall(),
+  });
 
-  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute } = useTrainWebSocket({
+  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training",
-    onBinaryMessage: streamPcmChunk,
-    onSpeakingEnd: () => {},
+    onBinaryMessage: (data) => {
+      streamPcmChunk(data);
+    },
     onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
-    onEmotion: () => resetStream(),
+    onEmotion: beginPlayback,
+    onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
     onError: (code) => {
@@ -200,13 +249,16 @@ export default function Train() {
   }, [displayName]);
   const roleName = calleeName ?? "연결 중...";
 
-  // WS 연결 완료 후 오디오 스트리밍 시작 (연결 전 전송 시 프레임 유실 방지)
+  // WS 연결과 오디오 준비가 모두 끝난 뒤 마이크 스트리밍 시작.
+  // 둘 중 어느 쪽이 먼저 끝나도 state 변경으로 이 effect가 다시 실행된다.
   useEffect(() => {
-    if (isConnected && step === "training" && permissionGrantedRef.current) {
-      permissionGrantedRef.current = false;
-      startSendingAudio(sendBinary);
+    if (isConnected && step === "training" && isAudioReady) {
+      console.info("[Train] 웹소켓·오디오 준비 완료, 마이크 시작");
+      void startSendingAudio(sendBinary).catch((error) => {
+        console.warn("[Train] 마이크 시작 실패", error);
+      });
     }
-  }, [isConnected, step, startSendingAudio, sendBinary]);
+  }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
 
   useEffect(() => {
     if (step !== "training") return;
@@ -238,8 +290,8 @@ export default function Train() {
       () =>
         router.replace({
           pathname: isWarmupSession
-            ? "/(tabs)/(train)/report"
-            : "/(tabs)/(train)/anxiety",
+            ? "/report"
+            : "/anxiety",
           params: nextParams,
         }),
       isWarmupSession ? WARMUP_REPORT_DELAY_MS : END_STEP_DURATION_MS,
@@ -267,7 +319,7 @@ export default function Train() {
       setSeconds(0);
       setCalleeName(null);
       setIsMuted(false);
-      permissionGrantedRef.current = false;
+      setIsAudioReady(false);
       if (timerRef.current) clearInterval(timerRef.current);
       stopSendingAudio();
       resetStream();
@@ -287,11 +339,25 @@ export default function Train() {
     sendMute(next);
   }, [isMuted, sendMute]);
 
-  /** 훈련 시작: 마이크 권한 확인 후 WS 연결 대기, 연결 완료 시 오디오 스트리밍 시작 */
+  /**
+   * 훈련 시작: WS는 즉시 연결하고 오디오 권한/세션은 병렬로 준비한다.
+   * 오디오 초기화가 느리거나 실패해도 서버에 WS 연결 시도 자체가 누락되지 않는다.
+   */
   const startTraining = useCallback(async () => {
-    const granted = await requestPermission();
-    if (granted) permissionGrantedRef.current = true;
+    setIsAudioReady(false);
     setStep("training");
+
+    const granted = await requestPermission();
+    if (!granted) {
+      Alert.alert(
+        "마이크를 사용할 수 없어요",
+        "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
+      );
+      setStep("receive");
+      return;
+    }
+    console.info("[Train] 오디오 준비 완료");
+    setIsAudioReady(true);
   }, [requestPermission]);
 
   /** 명상 건너뛰기: 다이얼로그 닫고 훈련 시작 */
@@ -311,9 +377,9 @@ export default function Train() {
   };
   /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
   const handleEndCall = () => {
+    resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
-    stopSendingAudio();
-    resetStream();
+    void stopSendingAudio().catch((error) => console.warn("녹음 종료 실패", error));
     if (timerRef.current) clearInterval(timerRef.current);
     setStep("end");
   };
@@ -363,28 +429,14 @@ export default function Train() {
         <Modal visible={isMeditationVisible} transparent animationType="fade">
           <MeditationDialog onSkip={handleMeditationSkip} onMeditate={handleMeditationStart} />
         </Modal>
-        <Modal visible={isMeditationVideoVisible} animationType="fade">
-          <View style={styles.meditationVideoContainer}>
-            <Video
-              source={require("@/assets/meditate.mp4")}
-              style={styles.meditationVideo}
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-              onPlaybackStatusUpdate={(status) => {
-                if (status.isLoaded && status.didJustFinish) handleMeditationVideoEnd();
-              }}
+        {isMeditationVideoVisible && (
+          <Modal visible animationType="fade">
+            <MeditationVideoContent
+              bottomInset={insets.bottom}
+              onEnd={handleMeditationVideoEnd}
             />
-            <View style={[styles.meditationSkipWrapper, { paddingBottom: insets.bottom + 24 }]}>
-              <TouchableOpacity
-                onPress={handleMeditationVideoEnd}
-                activeOpacity={0.8}
-                style={styles.meditationSkipButton}
-              >
-                <Text className="text-base font-bold text-white">건너뛰기</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
       </>
     );
   }

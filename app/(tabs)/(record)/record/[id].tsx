@@ -1,6 +1,7 @@
 import { deleteTrainingRecord } from "@/api/recordApi";
 import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
+import Top from "@/components/common/Top";
 import DeleteTrainingRecordModal from "@/components/record/DeleteTrainingRecordModal";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
@@ -151,36 +152,34 @@ export default function RecordDetailScreen() {
         className="flex-1 bg-background-alternative"
         edges={["top"]}
       >
-        <View className="z-20 flex-row items-center justify-between h-16 px-2 bg-background-alternative">
-          <TouchableOpacity
-            className="items-center justify-center w-16 h-16"
-            onPress={goBack}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={32}
-              color={SEMANTIC_COLORS.label.alternative}
-            />
-          </TouchableOpacity>
+        {isMenuVisible && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="기록 설정 메뉴 닫기"
+            onPress={() => setIsMenuVisible(false)}
+            className="absolute inset-0 z-20"
+          />
+        )}
 
-          <Text className="font-bold text-headline1 text-label-neutral">
-            훈련 기록
-          </Text>
-
-          <TouchableOpacity
-            className="items-center justify-center w-16 h-16"
-            onPress={() => setIsMenuVisible((visible) => !visible)}
-          >
-            <Ionicons
-              name="ellipsis-vertical"
-              size={26}
-              color={SEMANTIC_COLORS.label.normal}
-            />
-          </TouchableOpacity>
+        <View className="relative z-30">
+          <Top
+            title="훈련 기록"
+            back
+            onBack={goBack}
+            right={
+              <TouchableOpacity
+                className="items-center justify-center w-16 h-16"
+                onPress={() => setIsMenuVisible((visible) => !visible)}
+              >
+                <Ionicons name="ellipsis-vertical" size={26} color={SEMANTIC_COLORS.label.normal} />
+              </TouchableOpacity>
+            }
+            safeArea={false}
+          />
 
           {isMenuVisible && (
             <View
-              className="absolute right-4 top-[53px] z-30 w-40 h-[52px] overflow-hidden bg-background-normal rounded-component"
+              className="absolute right-4 top-[53px] z-30 h-[52px] max-w-48 overflow-hidden rounded-component bg-background-normal"
               style={{
                 shadowColor: SEMANTIC_COLORS.label.strong,
                 shadowOpacity: 0.12,
@@ -190,14 +189,15 @@ export default function RecordDetailScreen() {
               }}
             >
               <Pressable
-                className="justify-center flex-1 px-3"
+                className="flex-1 justify-center px-4 active:bg-fill-neutral"
                 disabled={deleteRecordMutation.isPending}
                 onPress={handleDeletePress}
               >
-                <Text className="font-medium text-headline2 text-label-normal">
-                  {deleteRecordMutation.isPending
-                    ? "삭제 중..."
-                    : "기록 삭제하기"}
+                <Text
+                  numberOfLines={1}
+                  className="font-medium text-body text-label-normal"
+                >
+                  {deleteRecordMutation.isPending ? "삭제 중..." : "기록 삭제하기"}
                 </Text>
               </Pressable>
             </View>

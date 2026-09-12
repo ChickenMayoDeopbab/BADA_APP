@@ -1,4 +1,5 @@
 import apiClient from "./client";
+import { isAxiosError } from "axios";
 import {
   ApiResponseAnxietyScoreResponse,
   ApiResponsePageTrainingRecordResponse,
@@ -27,6 +28,13 @@ export const getTrainingRecord = async (
   const response = await apiClient.get<ApiResponseTrainingRecordDetailResponse>(
     `/api/v1/training-records/${recordId}`,
   );
+  if (__DEV__) {
+    console.info("[AnxietyScore][DetailResponse]", {
+      recordId: response.data.data.recordId,
+      sessionId: response.data.data.sessionId,
+      anxietyScore: response.data.data.anxietyScore,
+    });
+  }
   return response.data;
 };
 
@@ -39,15 +47,45 @@ export const deleteTrainingRecord = async (
   return response.data;
 };
 
-export const recordAnxietyScore = async (
+export const postAnxietyScore = async (
   sessionId: string,
   request: RecordAnxietyScoreRequest,
 ): Promise<ApiResponseAnxietyScoreResponse> => {
-  const response = await apiClient.post<ApiResponseAnxietyScoreResponse>(
-    `/api/v1/training-records/${sessionId}/anxiety-score`,
-    request,
-  );
-  return response.data;
+  if (__DEV__) {
+    console.info("[AnxietyScore][SaveRequest]", {
+      sessionId,
+      score: request.score,
+    });
+  }
+
+  try {
+    const response = await apiClient.post<ApiResponseAnxietyScoreResponse>(
+      `/api/v1/training-records/${sessionId}/anxiety-score`,
+      request,
+    );
+    if (__DEV__) {
+      console.info("[AnxietyScore][SaveResponse]", {
+        httpStatus: response.status,
+        data: response.data.data,
+      });
+    }
+    return response.data;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[AnxietyScore][SaveFailed]", {
+        sessionId,
+        score: request.score,
+        message: error instanceof Error ? error.message : String(error),
+        ...(isAxiosError(error)
+          ? {
+              httpStatus: error.response?.status ?? null,
+              responseData: error.response?.data ?? null,
+            }
+          : {}),
+      });
+    }
+    throw error;
+  }
 };
 
 export const getFeedback = async (

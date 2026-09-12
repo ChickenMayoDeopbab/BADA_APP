@@ -3,7 +3,6 @@ import CustomButton from "@/components/common/CustomButton";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
-import { getDummyTrainingCount } from "@/constants/dummyTrainingCounts";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { getAccessToken } from "@/utils/authTokenStorage";
@@ -232,8 +231,17 @@ export default function Detail() {
   const handleStart = () => {
     if (!scenario) return;
 
+    /*
+      상세는 목록 위에 뜬 모달이라, 닫지 않으면 훈련 흐름 내내 화면 위에 남고
+      뒤따르는 화면들이 모달 컨텍스트를 물려받아 시트로 그려진다. 먼저 닫는다.
+    */
+    if (router.canGoBack() && !isClosingRef.current) {
+      isClosingRef.current = true;
+      router.back();
+    }
+
     router.push({
-      pathname: "/(tabs)/(train)/start",
+      pathname: "/start",
       params: {
         id: String(scenario.scenario_id),
         title: scenario.title,
@@ -358,7 +366,7 @@ export default function Detail() {
                     {scenario.title}
                   </Text>
                   <TrainingCountLabel
-                    count={getDummyTrainingCount(scenario.scenario_id)}
+                    count={scenario.practice_count ?? 0}
                     size="md"
                     color="#5C5E5E"
                   />

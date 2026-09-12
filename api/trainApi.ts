@@ -21,7 +21,7 @@ export const getScenarios = async (category?: ScenarioCategory): Promise<Scenari
 };
 
 /** 오늘의 훈련 시나리오 추천 */
-export const getRecommendedScenario = async (): Promise<ScenarioRecommendationResponse> => {
+export const getScenarioRecommendation = async (): Promise<ScenarioRecommendationResponse> => {
   const response = await aiApiClient.get<ScenarioRecommendationResponse>(
     '/api/v1/scenario/recommendation',
   );

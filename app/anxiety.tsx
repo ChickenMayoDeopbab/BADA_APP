@@ -1,4 +1,4 @@
-import { recordAnxietyScore } from "@/api/recordApi";
+import { postAnxietyScore } from "@/api/recordApi";
 import GrinningFace from "@/assets/grinningFace.svg";
 import ThinkingFace from "@/assets/thinkingFace.svg";
 import WinkingFace from "@/assets/winkingFace.svg";
@@ -61,7 +61,7 @@ export default function Anxiety() {
   const [messageIndex, setMessageIndex] = useState(0);
   const [typedLength, setTypedLength] = useState(0);
   const [isScoreVisible, setIsScoreVisible] = useState(false);
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 안드로이드 뒤로 가기로는 훈련 중간 상태로 되돌아갈 수 없게 막는다
@@ -127,13 +127,18 @@ export default function Anxiety() {
 
     if (sessionId) {
       try {
-        await recordAnxietyScore(sessionId, { score });
+        await postAnxietyScore(sessionId, { score });
       } catch {
         // 점수 기록 실패는 리포트 열람을 막을 이유가 아니라 조용히 넘어간다
       }
+    } else if (__DEV__) {
+      console.warn("[AnxietyScore][SaveSkipped]", {
+        reason: "missing-session-id",
+        score,
+      });
     }
 
-    router.replace({ pathname: "/(tabs)/(train)/report", params });
+    router.replace({ pathname: "/report", params });
   };
 
   return (

@@ -1,4 +1,4 @@
-import { getRecommendedScenario, getScenarios } from "@/api/trainApi";
+import { getScenarioRecommendation, getScenarios } from "@/api/trainApi";
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import { useQuery } from "@tanstack/react-query";
 
@@ -14,7 +14,7 @@ export const useScenarios = (category?: ScenarioCategory | null) =>
 export const useRecommendedScenario = () =>
   useQuery({
     queryKey: ["scenarios", "recommendation"],
-    queryFn: getRecommendedScenario,
+    queryFn: getScenarioRecommendation,
     select: (data): ScenarioInfo => data.scenario,
   });
 
