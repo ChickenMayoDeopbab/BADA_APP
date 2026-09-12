@@ -1,5 +1,4 @@
 import { File } from "expo-file-system";
-import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
 const MAX_UPLOAD_BYTES = 850 * 1024;
 
@@ -17,6 +16,17 @@ export async function prepareProfileImageForUpload(
   uri: string,
   fileName?: string,
 ) {
+  let imageManipulatorModule: typeof import("expo-image-manipulator");
+
+  try {
+    imageManipulatorModule = await import("expo-image-manipulator");
+  } catch {
+    throw new Error(
+      "프로필 사진 기능을 사용하려면 앱을 최신 개발 빌드로 다시 설치해주세요.",
+    );
+  }
+
+  const { ImageManipulator, SaveFormat } = imageManipulatorModule;
   const source = await ImageManipulator.manipulate(uri).renderAsync();
 
   for (const pass of OUTPUT_PASSES) {

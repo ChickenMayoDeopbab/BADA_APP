@@ -2,7 +2,12 @@ import type { CommunityReactionKind } from "@/api/types";
 import CheerReactionIcon from "@/assets/community/reaction-cheer.svg";
 import LikeReactionIcon from "@/assets/community/reaction-like.svg";
 import RelateReactionIcon from "@/assets/community/reaction-relate.svg";
-import { Pressable, Text, View } from "react-native";
+import {
+  GestureResponderEvent,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 
 const REACTION_LABELS: Record<CommunityReactionKind, string> = {
   CHEER: "힘내요",
@@ -22,7 +27,7 @@ interface ReactionPillProps {
   compact?: boolean;
   selected?: boolean;
   loading?: boolean;
-  onPress?: () => void;
+  onPress?: (event: GestureResponderEvent) => void;
 }
 
 export default function ReactionPill({
@@ -45,8 +50,10 @@ export default function ReactionPill({
       accessibilityState={{ disabled: loading, selected }}
       disabled={!onPress || loading}
       onPress={onPress}
-      className={`flex-row items-center justify-center gap-1 rounded-[10px] px-1.5 py-1 ${
-        compact ? "" : "h-9 w-[94px] border border-[#F0F0F0]"
+      className={`flex-row items-center justify-center gap-1 rounded-[10px] py-1 ${
+        compact
+          ? "px-1.5"
+          : "h-9 border border-[#F0F0F0] px-2.5"
       } ${
         selected ? "bg-green-40" : "bg-transparent"
       }`}

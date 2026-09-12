@@ -1,4 +1,5 @@
 import { TrainingRecordItem } from "@/api/types";
+import Top from "@/components/common/Top";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
@@ -342,11 +343,7 @@ export default function RecordScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background-normal" edges={["top"]}>
-      <View className="items-center justify-center h-16 bg-background-normal">
-        <Text className="font-bold text-headline1 text-label-neutral">
-          훈련 기록
-        </Text>
-      </View>
+      <Top title="훈련 기록" safeArea={false} />
 
       <View className="flex-1 bg-background-alternative">
         {isLoading ? (
@@ -379,7 +376,7 @@ export default function RecordScreen() {
           </View>
         ) : (
           <View className="flex-1">
-            <View className="px-[11px] pt-[18px]">
+            <View className="px-8 pt-[18px]">
               <PeriodTabs selected={period} onSelect={setPeriod} />
               <View className="mt-2">
                 <SummaryCard
@@ -427,13 +424,13 @@ export default function RecordScreen() {
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
               >
                 {sections.length > 0 && (
-                  <View className="px-[11px]">
+                  <View className="px-8">
                     {sections.map((section) => (
                       <View key={section.dateKey} className="mb-5">
                         <Text className="px-3 mb-[6px] font-medium text-body text-label-normal">
                           {section.title}
                         </Text>
-                        <View className="gap-y-[6px]">
+                        <View className="gap-y-3">
                           {section.records.map((record) => (
                             <RecordCard key={record.recordId} item={record} />
                           ))}

@@ -34,7 +34,7 @@ export const TRAIN_END_MESSAGES = [
   { face: "grinning", text: "그렇지 않아도 괜찮아요!" },
   { face: "grinning", text: "바다와 함께라면\n두려움이 사라질거라 믿어요!" },
   { face: "winking", text: "자, 이제\n이번 훈련이 어땠는지 알려줄래요?" },
-  { face: "winking", text: "불안 점수를\n0-10 중 하나로 골라주면 돼요!" },
+  { face: "winking", text: "불안 점수를\n1-10 중 하나로 골라주면 돼요!" },
 ] as const;
 
 /** 안내 메시지 한 글자가 타이핑되는 간격(ms) */
@@ -60,7 +60,8 @@ export const ANXIETY_SCORE_COLORS = [
   "#D54254",
 ] as const;
 
-/** 불안 점수 최댓값 (서버 스펙상 0 이상 10 이하) */
+/** 화면에서 입력받는 불안 점수 범위 */
+export const ANXIETY_SCORE_MIN = 1;
 export const ANXIETY_SCORE_MAX = 10;
 
 /**

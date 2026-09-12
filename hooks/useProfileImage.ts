@@ -1,5 +1,8 @@
 import { getApiErrorMessage } from "@/api/error";
-import { resolveProfileImage } from "@/utils/profileImage";
+import {
+  invalidateProfileImageUrl,
+  resolveProfileImage,
+} from "@/utils/profileImage";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 
@@ -11,7 +14,11 @@ export function useProfileImage(s3Key?: string | null) {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      setState({ key: requestKey, uri: "", error: "" });
+      setState((current) =>
+        current.key === requestKey && current.uri
+          ? current
+          : { key: requestKey, uri: "", error: "" },
+      );
       if (s3Key) {
         void resolveProfileImage(s3Key)
           .then((uri) => {
@@ -38,7 +45,10 @@ export function useProfileImage(s3Key?: string | null) {
   return {
     uri: state.key === requestKey ? state.uri : "",
     error: state.key === requestKey ? state.error : "",
-    retry: () => setRevision((value) => value + 1),
+    retry: () => {
+      if (s3Key) invalidateProfileImageUrl(s3Key);
+      setRevision((value) => value + 1);
+    },
     onError: () => setState({
       key: requestKey,
       uri: "",

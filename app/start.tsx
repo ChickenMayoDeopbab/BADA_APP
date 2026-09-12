@@ -103,7 +103,7 @@ export default function Start() {
       try {
         const session = await createSession(sessionConfig);
         router.push({
-          pathname: "/(tabs)/(train)/train",
+          pathname: "/train",
           params: {
             sessionId: session.sessionId,
             wsUrl: session.wsUrl,
