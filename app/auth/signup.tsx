@@ -143,7 +143,7 @@ export default function SignupScreen() {
           <View style={{ marginTop: formTopMargin }}>
             <FormProvider {...methods}>
               {step === 1 && (
-                <EmailStep
+                <UsernameStep
                   inputTranslateY={inputTranslateY}
                   inputAreaHeight={inputAreaHeight}
                   onNext={() => setStep(2)}
@@ -158,7 +158,7 @@ export default function SignupScreen() {
                 />
               )}
               {step === 3 && (
-                <UsernameStep
+                <EmailStep
                   inputTranslateY={inputTranslateY}
                   inputAreaHeight={inputAreaHeight}
                   onPrev={() => {
