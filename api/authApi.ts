@@ -45,18 +45,20 @@ export const openOAuthLogin = async (
     return;
   }
 
-  // 서버의 최종 리다이렉트는 bada://auth/callback?code=... 입니다.
-  // iOS는 ASWebAuthenticationSession, Android는 Custom Tabs를 사용합니다.
-  const result = await WebBrowser.openAuthSessionAsync(
+  // iOS 심사에서는 앱 안에서 표시되는 Safari View Controller를 사용한다.
+  // bada://auth/callback 딥 링크는 Expo Router가 콜백 화면으로 전달한다.
+  if (Platform.OS === "ios") {
+    await WebBrowser.openBrowserAsync(url);
+    return;
+  }
+
+  // Android는 Custom Tabs 인증 세션을 사용한다.
+  await WebBrowser.openAuthSessionAsync(
     url,
     Linking.createURL("auth/callback", { scheme: "bada" }),
   );
 
-  // Android는 Linking 이벤트로 Expo Router가 콜백 화면을 엽니다.
-  // iOS는 인증 세션이 URL을 반환하므로 호출 화면에서 직접 이동합니다.
-  if (result.type === "success" && Platform.OS === "ios") {
-    return result.url;
-  }
+  // Android는 Linking 이벤트로 Expo Router가 콜백 화면을 연다.
 };
 
 export const getGoogleLogin = (): Promise<string | undefined> =>
