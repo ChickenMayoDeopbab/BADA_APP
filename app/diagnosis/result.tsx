@@ -10,8 +10,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { FONT_WEIGHT } from "@/design-system/typography";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Result() {
+  const insets = useSafeAreaInsets();
   const { from } = useLocalSearchParams<{ from?: string | string[] }>();
   const isProfileRetake = Array.isArray(from)
     ? from[0] === "profile"
@@ -55,7 +57,7 @@ export default function Result() {
           <View className="absolute inset-0 z-10" />
         </TouchableWithoutFeedback>
       )}
-      <View className="flex-col flex-1 px-10 mb-10">
+      <View className="flex-col flex-1 px-10" style={{ paddingBottom: insets.bottom + 40 }}>
         <View className="flex-col items-center justify-center flex-1">
           <Text className="text-headline1 text-label-alternative" style={{ fontWeight: FONT_WEIGHT.medium as TextStyle["fontWeight"] }}>내 레벨은?</Text>
           <View className="relative flex-row items-center gap-1 mt-3">
