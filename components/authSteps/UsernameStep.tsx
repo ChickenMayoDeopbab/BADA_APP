@@ -4,11 +4,13 @@ import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import { nameRules, usernameRules } from "@/constants/authValidation";
 import { RegisterFormValues } from "@/types/auth";
-import { useState } from "react";
+import { router } from "expo-router";
+import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
   Animated,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -17,25 +19,18 @@ import {
 type UsernameProps = {
   inputTranslateY: Animated.Value;
   inputAreaHeight: number;
-  onPrev: () => void;
-  onNext: () => boolean | Promise<boolean>;
-  isSubmitting?: boolean;
-  submitError?: string;
-  onFormChange?: () => void;
+  onNext: () => void;
 };
 
 export default function UsernameStep({
   inputTranslateY,
-  onPrev,
   onNext,
-  isSubmitting = false,
-  submitError = "",
-  onFormChange,
 }: UsernameProps) {
   const { width } = useWindowDimensions();
   const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
   const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const nameRef = useRef<TextInput>(null);
   const {
     control,
     getValues,
@@ -98,25 +93,6 @@ export default function UsernameStep({
         className="mb-5"
         style={{ transform: [{ translateY: inputTranslateY }] }}
       >
-        <Controller
-          control={control}
-          name="name"
-          rules={nameRules}
-          render={({ field: { value, onChange } }) => (
-            <CustomInput
-              value={value}
-              onChangeText={(text) => {
-                onChange(text);
-                clearErrors("name");
-                onFormChange?.();
-              }}
-              label="이름"
-              returnKeyType="next"
-              onSubmitEditing={handleNext}
-              error={errors.name?.message}
-            />
-          )}
-        />
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <Controller
@@ -130,11 +106,10 @@ export default function UsernameStep({
                     onChange(text);
                     setCheckedUsername(null);
                     clearErrors("username");
-                    onFormChange?.();
                   }}
                   label="아이디"
-                  returnKeyType="done"
-                  onSubmitEditing={handleNext}
+                  returnKeyType="next"
+                  onSubmitEditing={() => nameRef.current?.focus()}
                   error={errors.username?.message}
                   success={
                     checkedUsername === value.trim()
@@ -155,28 +130,42 @@ export default function UsernameStep({
             />
           </View>
         </View>
+        <Controller
+          control={control}
+          name="name"
+          rules={nameRules}
+          render={({ field: { value, onChange } }) => (
+            <CustomInput
+              ref={nameRef}
+              value={value}
+              onChangeText={(text) => {
+                onChange(text);
+                clearErrors("name");
+              }}
+              label="이름"
+              returnKeyType="done"
+              onSubmitEditing={handleNext}
+              error={errors.name?.message}
+            />
+          )}
+        />
       </Animated.View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
-          label={isSubmitting ? "가입 중" : "회원가입"}
+          label="다음으로"
           color="#F6F6F6"
           backgroundColor="#0AE365"
-          disabled={isLoading || isSubmitting}
+          disabled={isLoading}
           onPress={handleNext}
         />
-        {submitError ? (
-          <Text className="text-xs text-center text-[#FF0000]">
-            {submitError}
-          </Text>
-        ) : null}
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
-        <TouchableOpacity onPress={onPrev}>
-          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
+        <TouchableOpacity onPress={() => router.replace("/auth")}>
+          <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
         </TouchableOpacity>
       </View>
     </View>
