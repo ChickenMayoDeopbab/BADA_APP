@@ -186,7 +186,7 @@ export default function EmailStep({
           }
           color="#F6F6F6"
           backgroundColor="#0AE365"
-          disabled={isSending || isChecking || isSubmitting}
+          disabled={isChecking || isSubmitting}
           onPress={handleEmailCheck}
         />
       </View>
