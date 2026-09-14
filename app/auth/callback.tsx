@@ -5,6 +5,7 @@ import CustomButton from "@/components/common/CustomButton";
 import { setAuthTokens } from "@/utils/authTokenStorage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -39,6 +40,9 @@ export default function OAuthCallbackScreen() {
   useEffect(() => {
     if (exchangeStartedRef.current) return;
     exchangeStartedRef.current = true;
+
+    // iOS Safari View Controller가 딥 링크 뒤에 남지 않도록 닫는다.
+    void WebBrowser.dismissBrowser().catch(() => undefined);
 
     if (oauthError) {
       setErrorMessage(

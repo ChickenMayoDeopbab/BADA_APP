@@ -33,7 +33,7 @@ export default function UsernameStep({
   onFormChange,
 }: UsernameProps) {
   const { width } = useWindowDimensions();
-  const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
+  const codeButtonWidth = Math.min(Math.max(width * 0.31, 116), 128);
   const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const {
