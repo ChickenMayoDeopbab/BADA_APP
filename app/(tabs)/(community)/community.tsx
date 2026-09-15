@@ -1,6 +1,7 @@
 import { getApiErrorMessage } from "@/api/error";
 import type { CommunityPostSummary } from "@/api/types";
 import SearchIconButton from "@/components/common/SearchIconButton";
+import Top from "@/components/common/Top";
 import CommunityPostCard from "@/components/community/CommunityPostCard";
 import {
   CommunityPostListMode,
@@ -169,13 +170,16 @@ export default function Community() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-[60px] flex-row items-center justify-between px-8">
-        <Text className="text-title2 font-bold text-label-normal">커뮤니티</Text>
-        <SearchIconButton
-          onPress={() => router.push("/(tabs)/(community)/search")}
-          size={30}
-        />
-      </View>
+      <Top
+        title="커뮤니티"
+        safeArea={false}
+        right={
+          <SearchIconButton
+            onPress={() => router.push("/(tabs)/(community)/search")}
+            size={30}
+          />
+        }
+      />
 
       <View className="relative h-[53px] px-8">
         <View className="flex-row gap-x-[15px]">

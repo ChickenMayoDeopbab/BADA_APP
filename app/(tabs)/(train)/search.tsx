@@ -1,15 +1,14 @@
 import SearchBox from "@/components/common/SearchBox";
+import Top from "@/components/common/Top";
 import RecentSearchChips from "@/components/train/RecentSearchChips";
 import ScenarioRowCard from "@/components/train/ScenarioRowCard";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
 import { useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   Text,
   View,
@@ -55,15 +54,9 @@ export default function Search() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-[60px] flex-row items-center px-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-16 w-16 items-center justify-center active:opacity-60"
-        >
-          <Ionicons name="chevron-back" size={28} color="#0D0D0E" />
-        </Pressable>
-
-        <View className="flex-1 flex-row mr-6">
+      <Top title="훈련 검색" back onBack={() => router.back()} safeArea={false} />
+      <View className="h-[60px] flex-row items-center px-8">
+        <View className="flex-1 flex-row">
           <SearchBox
             placeholder="제목 또는 설명으로 검색"
             value={keyword}

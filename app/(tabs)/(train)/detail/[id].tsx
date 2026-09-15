@@ -1,5 +1,6 @@
 import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
+import Top from "@/components/common/Top";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
@@ -281,7 +282,7 @@ export default function Detail() {
         }}
       >
         <View
-          className="mx-[11px] gap-y-4 overflow-hidden rounded-dialog bg-background-normal px-[22px] pt-2 pb-[22px]"
+          className="mx-[11px] gap-y-2 overflow-hidden rounded-dialog bg-background-normal px-[22px] pt-2 pb-[22px]"
           style={{
             shadowColor: "#000",
             shadowOpacity: 0.25,
@@ -293,6 +294,7 @@ export default function Detail() {
         <View className="h-3 items-center justify-center">
           <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
         </View>
+        <Top title="훈련 자세히 보기" back onBack={handleDismiss} safeArea={false} />
 
         {/* 시나리오 정보를 아직 못 받았을 때 */}
         {isPending ? (

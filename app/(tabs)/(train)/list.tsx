@@ -7,6 +7,7 @@ import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
 import ScenarioTabs from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
+import Top from "@/components/common/Top";
 import { SCENARIO_TABS, ScenarioTabValue } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useRecommendedScenario, useScenarios } from "@/hooks/useScenarios";
@@ -128,15 +129,16 @@ export default function List() {
   };
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-[60px] flex-row items-center justify-between px-8">
-        <Text className="text-title2 font-bold text-label-normal">
-          시나리오 훈련
-        </Text>
-        <SearchIconButton
-          onPress={() => router.push("/(tabs)/(train)/search")}
-          size={30}
-        />
-      </View>
+      <Top
+        title="시나리오 훈련"
+        safeArea={false}
+        right={
+          <SearchIconButton
+            onPress={() => router.push("/(tabs)/(train)/search")}
+            size={30}
+          />
+        }
+      />
 
       <View className="h-[53px] px-8">
         <ScenarioTabs
