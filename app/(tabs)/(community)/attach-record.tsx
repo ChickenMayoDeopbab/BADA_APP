@@ -1,6 +1,7 @@
 import { getApiErrorMessage } from "@/api/error";
 import type { TrainingRecordItem } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import CommunityHeader from "@/components/community/CommunityHeader";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { useCommunityPostDraft } from "@/context/CommunityPostDraftContext";
@@ -12,7 +13,6 @@ import { ko } from "date-fns/locale";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   Text,
@@ -231,7 +231,7 @@ export default function AttachTrainingRecordScreen() {
         ListEmptyComponent={
           recordsQuery.isLoading ? (
             <View className="items-center justify-center flex-1">
-              <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+              <LoadingIndicator />
             </View>
           ) : recordsQuery.isError ? (
             <View className="items-center justify-center flex-1 px-6">

@@ -5,6 +5,7 @@ import type {
   CommunityScenarioCopyResponse,
 } from "@/api/types";
 import CustomModal from "@/components/common/CustomModal";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import { CARD_TEXT_SHADOW } from "@/components/train/cardTextShadow";
@@ -15,7 +16,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Modal,
   Pressable,
@@ -197,7 +197,7 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
             }}
           >
             {!status.isLoaded && normalizedUrl ? (
-              <ActivityIndicator size="small" color={primaryTextColor} />
+              <LoadingIndicator size="small" color={primaryTextColor} />
             ) : (
               <Ionicons
                 name={getRecordIcon(record.session_type)}
@@ -335,7 +335,7 @@ function ScenarioCard({ postId, attachment }: ScenarioCardProps) {
             className="h-9 min-w-[92px] flex-row items-center justify-center gap-x-0.5 rounded-[8px] border border-white/30 bg-black/20 px-2.5 active:opacity-80"
           >
             {copyMutation.isPending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <LoadingIndicator size="small" tone="inverse" />
             ) : (
               <>
                 <Text className="text-body font-medium text-white">

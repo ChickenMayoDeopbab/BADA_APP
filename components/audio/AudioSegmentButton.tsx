@@ -1,8 +1,9 @@
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { useAudioPlaybackGroup } from "./AudioPlaybackGroup";
 
 const WAVEFORM_HEIGHTS = [
@@ -106,7 +107,7 @@ export default function AudioSegmentButton({
         onPress={handlePress}
       >
         {!status.isLoaded ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <LoadingIndicator size="small" tone="inverse" />
         ) : (
           <Ionicons
             name={status.playing ? "pause" : "play"}

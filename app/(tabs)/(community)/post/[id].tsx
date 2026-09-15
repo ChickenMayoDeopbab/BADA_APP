@@ -15,6 +15,7 @@ import type {
   CommunityReactionKind,
 } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import CommunityAvatar from "@/components/community/CommunityAvatar";
 import DeleteCommunityCommentModal from "@/components/community/DeleteCommunityCommentModal";
@@ -38,7 +39,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Keyboard,
@@ -828,10 +828,7 @@ export default function CommunityPostDetailScreen() {
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
         <Top title="게시물" back onBack={handleBack} safeArea={false} />
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
-          <Text className="mt-3 self-stretch px-8 text-center text-body text-label-alternative">
-            게시글 로딩 중...
-          </Text>
+          <LoadingIndicator />
         </View>
       </SafeAreaView>
     );
@@ -1239,7 +1236,7 @@ export default function CommunityPostDetailScreen() {
           </View>
 
           {commentsQuery.isPending ? (
-            <ActivityIndicator className="py-10" />
+            <LoadingIndicator className="py-10" />
           ) : commentsQuery.isError ? (
             <View className="items-center py-10">
               <Text className="self-stretch text-center text-body text-label-alternative">
@@ -1550,7 +1547,7 @@ export default function CommunityPostDetailScreen() {
               className="h-10 w-10 items-center justify-center"
             >
               {commentMutation.isPending ? (
-                <ActivityIndicator size="small" />
+                <LoadingIndicator size="small" />
               ) : (
                 <Ionicons
                   name="send"

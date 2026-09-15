@@ -1,5 +1,6 @@
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import CategoryChips from "@/components/train/CategoryChips";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import CustomScenarioBanner from "@/components/train/CustomScenarioBanner";
@@ -15,7 +16,6 @@ import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   FlatList,
   NativeScrollEvent,
@@ -152,7 +152,7 @@ export default function List() {
       {/* 목록 로딩 중 */}
       {isPending && (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#0AE365" />
+          <LoadingIndicator />
         </View>
       )}
 
@@ -247,7 +247,7 @@ export default function List() {
                     {item.value === "basic" &&
                     selectedCategory &&
                     categoryScenariosQuery.isPending ? (
-                      <ActivityIndicator className="py-10" color="#0AE365" />
+                      <LoadingIndicator className="py-10" />
                     ) : item.value === "basic" &&
                       selectedCategory &&
                       categoryScenariosQuery.isError ? (

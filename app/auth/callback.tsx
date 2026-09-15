@@ -2,13 +2,14 @@ import { postOAuthToken } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { setAuthTokens } from "@/utils/authTokenStorage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type CallbackStatus = "loading" | "error";
@@ -95,7 +96,7 @@ export default function OAuthCallbackScreen() {
 
         {status === "loading" ? (
           <View className="items-center mt-12">
-            <ActivityIndicator size="large" color="#0AE365" />
+            <LoadingIndicator />
             <Text className="mt-6 text-2xl font-bold text-[#0D0D0E]">
               로그인 확인 중
             </Text>

@@ -2,6 +2,7 @@ import { deleteSignout } from "@/api/authApi";
 import { MyPageResponse } from "@/api/types";
 import { getMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
@@ -63,12 +64,15 @@ function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
 
 function ProfileScreen() {
   const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [loadedImageUri, setLoadedImageUri] = useState("");
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const profileImage = useProfileImage(myPage?.s3Key);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      setIsProfileLoading(true);
 
       void (async () => {
         try {
@@ -79,6 +83,8 @@ function ProfileScreen() {
           setMyPage(profile);
         } catch {
           // 이전에 불러온 정보가 있다면 그대로 유지합니다.
+        } finally {
+          if (active) setIsProfileLoading(false);
         }
       })();
 
@@ -126,17 +132,35 @@ function ProfileScreen() {
           <View className="items-center gap-4">
             <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
               {profileImage.uri ? (
-                <StyledImage
-                  source={{ uri: profileImage.uri }}
-                  contentFit="cover"
-                  className="absolute inset-0 size-full"
-                  onError={profileImage.onError}
+                <>
+                  <StyledImage
+                    source={{ uri: profileImage.uri }}
+                    contentFit="cover"
+                    className="absolute inset-0 size-full"
+                    onLoad={() => setLoadedImageUri(profileImage.uri)}
+                    onError={profileImage.onError}
+                  />
+                  {loadedImageUri !== profileImage.uri ? (
+                    <View className="absolute inset-0 items-center justify-center bg-fill-neutral">
+                      <LoadingIndicator
+                        size="small"
+                        accessibilityLabel="프로필 사진 로딩 중"
+                      />
+                    </View>
+                  ) : null}
+                </>
+              ) : isProfileLoading || profileImage.isLoading ? (
+                <LoadingIndicator
+                  size="small"
+                  accessibilityLabel="프로필 사진 로딩 중"
                 />
-              ) : <Ionicons
-                name="person"
-                size={52}
-                color={SEMANTIC_COLORS.line.normal}
-              />}
+              ) : (
+                <Ionicons
+                  name="person"
+                  size={52}
+                  color={SEMANTIC_COLORS.line.normal}
+                />
+              )}
             </View>
             {profileImage.error ? (
               <Pressable onPress={profileImage.retry} accessibilityRole="button" accessibilityLabel="프로필 사진 다시 불러오기">

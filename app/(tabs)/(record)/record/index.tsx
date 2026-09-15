@@ -1,5 +1,6 @@
 import { TrainingRecordItem } from "@/api/types";
 import Top from "@/components/common/Top";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
@@ -19,7 +20,6 @@ import { ko } from "date-fns/locale";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   RefreshControl,
   ScrollView,
@@ -348,7 +348,7 @@ export default function RecordScreen() {
       <View className="flex-1 bg-background-alternative">
         {isLoading ? (
           <View className="items-center justify-center flex-1">
-            <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+            <LoadingIndicator />
           </View>
         ) : isError ? (
           <View className="items-center justify-center flex-1 px-8">

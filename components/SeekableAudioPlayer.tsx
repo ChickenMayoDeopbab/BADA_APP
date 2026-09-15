@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   PanResponder,
   Text,
   TouchableOpacity,
@@ -145,7 +145,7 @@ export default function SeekableAudioPlayer({
             />
           ) : (
             <View className="items-center justify-center w-11 h-11">
-              <ActivityIndicator color="#0AE365" />
+              <LoadingIndicator size="small" />
             </View>
           )}
         </TouchableOpacity>
