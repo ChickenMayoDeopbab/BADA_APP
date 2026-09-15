@@ -24,10 +24,10 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -108,7 +108,7 @@ export default function ResetPasswordScreen() {
 
     setIsSending(true);
     try {
-      await postEmailSend({ email: getValues("email").trim() });
+      await postEmailSend({ email: getValues("email").trim(), type: "RESET_PASSWORD" });
       clearErrors("email");
       setIsEmailSent(true);
       verificationRef.current?.focus();
@@ -144,6 +144,7 @@ export default function ResetPasswordScreen() {
       await postEmailCheck({
         email: email.trim(),
         authNum: authNum.trim(),
+        type: "RESET_PASSWORD",
       });
       clearErrors("authNum");
       clearErrors("username");
@@ -201,289 +202,280 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View
-          className="flex-1 px-7"
-          style={{
-            width: "100%",
-            maxWidth: isTablet ? 430 : undefined,
-            alignSelf: "center",
-          }}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView className="flex-1 bg-white" edges={["bottom"]}>
+        <Top title="비밀번호 재설정" back onBack={handleBack} />
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <Top title="비밀번호 재설정" back onBack={handleBack} safeArea={false} />
+          <View
+            className="flex-1 px-7"
+            style={{
+              width: "100%",
+              maxWidth: isTablet ? 430 : undefined,
+              alignSelf: "center",
+            }}
+          >
+            {step === "identity" && (
+              <>
+                <View
+                  className="flex-1"
+                  style={{
+                    paddingTop: Math.min(Math.max(height * 0.08, 44), 78),
+                    paddingBottom: 16,
+                  }}
+                >
+                  <Controller
+                    control={control}
+                    name="username"
+                    rules={loginUsernameRules}
+                    render={({ field: { value, onChange } }) => (
+                      <CustomInput
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          clearErrors("username");
+                        }}
+                        label="아이디"
+                        autoCapitalize="none"
+                        returnKeyType="next"
+                        onSubmitEditing={() => emailRef.current?.focus()}
+                        error={errors.username?.message}
+                      />
+                    )}
+                  />
 
-          {step === "identity" && (
-            <>
-              <ScrollView
-                className="flex-1"
-                contentContainerStyle={{
-                  paddingTop: Math.min(Math.max(height * 0.08, 44), 78),
-                  paddingBottom: 16,
-                }}
-                keyboardDismissMode={
-                  Platform.OS === "ios" ? "interactive" : "on-drag"
-                }
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <Controller
-                  control={control}
-                  name="username"
-                  rules={loginUsernameRules}
-                  render={({ field: { value, onChange } }) => (
-                    <CustomInput
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        clearErrors("username");
-                      }}
-                      label="아이디"
-                      autoCapitalize="none"
-                      returnKeyType="next"
-                      onSubmitEditing={() => emailRef.current?.focus()}
-                      error={errors.username?.message}
-                    />
-                  )}
-                />
+                  <View className="flex-row items-start gap-x-3">
+                    <View className="flex-1">
+                      <Controller
+                        control={control}
+                        name="email"
+                        rules={emailRules}
+                        render={({ field: { value, onChange } }) => (
+                          <CustomInput
+                            ref={emailRef}
+                            value={value}
+                            onChangeText={(text) => {
+                              onChange(text);
+                              setIsEmailSent(false);
+                              clearErrors("email");
+                            }}
+                            label="이메일"
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            returnKeyType="next"
+                            onSubmitEditing={handleEmailSend}
+                            error={errors.email?.message}
+                            success={
+                              isEmailSent ? "인증코드가 전송됐습니다." : ""
+                            }
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={{ marginTop: 18, width: codeButtonWidth }}>
+                      <CustomButton
+                        label={isSending ? "전송 중" : "인증코드 전송"}
+                        variant="lg"
+                        backgroundColor="#0AE365"
+                        disabled={isSending}
+                        onPress={handleEmailSend}
+                      />
+                    </View>
+                  </View>
 
-                <View className="flex-row items-start gap-x-3">
-                  <View className="flex-1">
-                    <Controller
-                      control={control}
-                      name="email"
-                      rules={emailRules}
-                      render={({ field: { value, onChange } }) => (
-                        <CustomInput
-                          ref={emailRef}
-                          value={value}
-                          onChangeText={(text) => {
-                            onChange(text);
-                            setIsEmailSent(false);
-                            clearErrors("email");
-                          }}
-                          label="이메일"
-                          autoCapitalize="none"
-                          keyboardType="email-address"
-                          returnKeyType="next"
-                          onSubmitEditing={handleEmailSend}
-                          error={errors.email?.message}
-                          success={
-                            isEmailSent ? "인증코드가 전송됐습니다." : ""
-                          }
-                        />
-                      )}
-                    />
-                  </View>
-                  <View style={{ marginTop: 18, width: codeButtonWidth }}>
-                    <CustomButton
-                      label={isSending ? "전송 중" : "인증코드 전송"}
-                      variant="lg"
-                      backgroundColor="#0AE365"
-                      disabled={isSending}
-                      onPress={handleEmailSend}
-                    />
-                  </View>
+                  <Controller
+                    control={control}
+                    name="authNum"
+                    rules={authCodeRules}
+                    render={({ field: { value, onChange } }) => (
+                      <CustomInput
+                        ref={verificationRef}
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          clearErrors("authNum");
+                        }}
+                        label="인증코드"
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        onSubmitEditing={handleIdentityNext}
+                        error={errors.authNum?.message}
+                      />
+                    )}
+                  />
                 </View>
 
-                <Controller
-                  control={control}
-                  name="authNum"
-                  rules={authCodeRules}
-                  render={({ field: { value, onChange } }) => (
-                    <CustomInput
-                      ref={verificationRef}
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        clearErrors("authNum");
-                      }}
-                      label="인증코드"
-                      keyboardType="number-pad"
-                      returnKeyType="done"
-                      onSubmitEditing={handleIdentityNext}
-                      error={errors.authNum?.message}
-                    />
-                  )}
-                />
-              </ScrollView>
+                <View className="pt-3 pb-7">
+                  <CustomButton
+                    label={isSubmitting ? "확인 중" : "다음으로"}
+                    backgroundColor="#0AE365"
+                    disabled={isSubmitting}
+                    onPress={handleIdentityNext}
+                  />
+                </View>
+              </>
+            )}
 
-              <View className="pt-3 pb-7">
+            {step === "password" && (
+              <>
+                <View
+                  className="flex-1"
+                  style={{
+                    paddingTop: Math.min(Math.max(height * 0.08, 44), 78),
+                    paddingBottom: 16,
+                  }}
+                >
+                  <Controller
+                    control={control}
+                    name="oldPassword"
+                    rules={oldPasswordRules}
+                    render={({ field: { value, onChange } }) => (
+                      <CustomInput
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          clearErrors("oldPassword");
+                        }}
+                        label="기존 비밀번호"
+                        secureTextEntry={!passwordVisibility.old}
+                        returnKeyType="next"
+                        onSubmitEditing={() => newPasswordRef.current?.focus()}
+                        error={errors.oldPassword?.message}
+                        rightIcon={
+                          <TouchableOpacity
+                            onPress={() => toggleVisibility("old")}
+                          >
+                            <Ionicons
+                              name={
+                                passwordVisibility.old
+                                  ? "eye-off-sharp"
+                                  : "eye"
+                              }
+                              size={20}
+                              color="#BDBEBE"
+                            />
+                          </TouchableOpacity>
+                        }
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="newPassword"
+                    rules={newPasswordRules}
+                    render={({ field: { value, onChange } }) => (
+                      <CustomInput
+                        ref={newPasswordRef}
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          clearErrors("newPassword");
+                        }}
+                        label="새 비밀번호"
+                        secureTextEntry={!passwordVisibility.next}
+                        returnKeyType="next"
+                        onSubmitEditing={() =>
+                          confirmPasswordRef.current?.focus()
+                        }
+                        error={errors.newPassword?.message}
+                        rightIcon={
+                          <TouchableOpacity
+                            onPress={() => toggleVisibility("next")}
+                          >
+                            <Ionicons
+                              name={
+                                passwordVisibility.next
+                                  ? "eye-off-sharp"
+                                  : "eye"
+                              }
+                              size={20}
+                              color="#BDBEBE"
+                            />
+                          </TouchableOpacity>
+                        }
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="confirmPassword"
+                    rules={createConfirmPasswordRules(
+                      () => getValues("newPassword"),
+                      "새 비밀번호를 다시 입력해주세요.",
+                    )}
+                    render={({ field: { value, onChange } }) => (
+                      <CustomInput
+                        ref={confirmPasswordRef}
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          clearErrors("confirmPassword");
+                        }}
+                        label="새 비밀번호 확인"
+                        placeholder="새 비밀번호를 다시 입력하세요."
+                        secureTextEntry={!passwordVisibility.confirm}
+                        returnKeyType="done"
+                        onSubmitEditing={handlePasswordReset}
+                        error={errors.confirmPassword?.message}
+                        rightIcon={
+                          <TouchableOpacity
+                            onPress={() => toggleVisibility("confirm")}
+                          >
+                            <Ionicons
+                              name={
+                                passwordVisibility.confirm
+                                  ? "eye-off-sharp"
+                                  : "eye"
+                              }
+                              size={20}
+                              color="#BDBEBE"
+                            />
+                          </TouchableOpacity>
+                        }
+                      />
+                    )}
+                  />
+                </View>
+
+                <View className="pt-3 pb-7">
+                  <CustomButton
+                    label={isSubmitting ? "변경 중" : "비밀번호 재설정"}
+                    backgroundColor="#0AE365"
+                    disabled={isSubmitting}
+                    onPress={handlePasswordReset}
+                  />
+                </View>
+              </>
+            )}
+
+            {step === "success" && (
+              <View className="justify-between flex-1 pb-7">
+                <View
+                  className="items-center px-4"
+                  style={{
+                    marginTop: Math.min(Math.max(height * 0.15, 104), 150),
+                  }}
+                >
+                  <PartyFace width={88} height={88} />
+                  <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
+                    비밀번호가 성공적으로{"\n"}변경되었습니다!
+                  </Text>
+                </View>
+
                 <CustomButton
-                  label={isSubmitting ? "확인 중" : "다음으로"}
+                  label="로그인 하러가기"
                   backgroundColor="#0AE365"
-                  disabled={isSubmitting}
-                  onPress={handleIdentityNext}
+                  onPress={() => router.replace("/auth/login")}
                 />
               </View>
-            </>
-          )}
-
-          {step === "password" && (
-            <>
-              <ScrollView
-                className="flex-1"
-                contentContainerStyle={{
-                  paddingTop: Math.min(Math.max(height * 0.08, 44), 78),
-                  paddingBottom: 16,
-                }}
-                keyboardDismissMode={
-                  Platform.OS === "ios" ? "interactive" : "on-drag"
-                }
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <Controller
-                  control={control}
-                  name="oldPassword"
-                  rules={oldPasswordRules}
-                  render={({ field: { value, onChange } }) => (
-                    <CustomInput
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        clearErrors("oldPassword");
-                      }}
-                      label="기존 비밀번호"
-                      secureTextEntry={!passwordVisibility.old}
-                      returnKeyType="next"
-                      onSubmitEditing={() => newPasswordRef.current?.focus()}
-                      error={errors.oldPassword?.message}
-                      rightIcon={
-                        <TouchableOpacity
-                          onPress={() => toggleVisibility("old")}
-                        >
-                          <Ionicons
-                            name={
-                              passwordVisibility.old
-                                ? "eye-off-sharp"
-                                : "eye"
-                            }
-                            size={20}
-                            color="#BDBEBE"
-                          />
-                        </TouchableOpacity>
-                      }
-                    />
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="newPassword"
-                  rules={newPasswordRules}
-                  render={({ field: { value, onChange } }) => (
-                    <CustomInput
-                      ref={newPasswordRef}
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        clearErrors("newPassword");
-                      }}
-                      label="새 비밀번호"
-                      secureTextEntry={!passwordVisibility.next}
-                      returnKeyType="next"
-                      onSubmitEditing={() =>
-                        confirmPasswordRef.current?.focus()
-                      }
-                      error={errors.newPassword?.message}
-                      rightIcon={
-                        <TouchableOpacity
-                          onPress={() => toggleVisibility("next")}
-                        >
-                          <Ionicons
-                            name={
-                              passwordVisibility.next
-                                ? "eye-off-sharp"
-                                : "eye"
-                            }
-                            size={20}
-                            color="#BDBEBE"
-                          />
-                        </TouchableOpacity>
-                      }
-                    />
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="confirmPassword"
-                  rules={createConfirmPasswordRules(
-                    () => getValues("newPassword"),
-                    "새 비밀번호를 다시 입력해주세요.",
-                  )}
-                  render={({ field: { value, onChange } }) => (
-                    <CustomInput
-                      ref={confirmPasswordRef}
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        clearErrors("confirmPassword");
-                      }}
-                      label="새 비밀번호 확인"
-                      placeholder="새 비밀번호를 다시 입력하세요."
-                      secureTextEntry={!passwordVisibility.confirm}
-                      returnKeyType="done"
-                      onSubmitEditing={handlePasswordReset}
-                      error={errors.confirmPassword?.message}
-                      rightIcon={
-                        <TouchableOpacity
-                          onPress={() => toggleVisibility("confirm")}
-                        >
-                          <Ionicons
-                            name={
-                              passwordVisibility.confirm
-                                ? "eye-off-sharp"
-                                : "eye"
-                            }
-                            size={20}
-                            color="#BDBEBE"
-                          />
-                        </TouchableOpacity>
-                      }
-                    />
-                  )}
-                />
-              </ScrollView>
-
-              <View className="pt-3 pb-7">
-                <CustomButton
-                  label={isSubmitting ? "변경 중" : "비밀번호 재설정"}
-                  backgroundColor="#0AE365"
-                  disabled={isSubmitting}
-                  onPress={handlePasswordReset}
-                />
-              </View>
-            </>
-          )}
-
-          {step === "success" && (
-            <View className="justify-between flex-1 pb-7">
-              <View
-                className="items-center px-4"
-                style={{
-                  marginTop: Math.min(Math.max(height * 0.15, 104), 150),
-                }}
-              >
-                <PartyFace width={88} height={88} />
-                <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
-                  비밀번호가 성공적으로{"\n"}변경되었습니다!
-                </Text>
-              </View>
-
-              <CustomButton
-                label="로그인 하러가기"
-                backgroundColor="#0AE365"
-                onPress={() => router.replace("/auth/login")}
-              />
-            </View>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
