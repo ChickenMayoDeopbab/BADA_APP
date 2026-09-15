@@ -149,7 +149,15 @@ export default function NotificationsScreen() {
   return (
     <View className="flex-1 bg-background-normal">
       <StatusBar style="dark" backgroundColor={SEMANTIC_COLORS.background.normal} />
-      <Top title="알림" back />
+      <Top
+        title="알림"
+        back
+        onBack={() =>
+          router.canGoBack()
+            ? router.back()
+            : router.replace("/(tabs)/(home)/home")
+        }
+      />
 
       <View className="flex-1 bg-background-alternative">
         <View className="flex-row gap-2 px-8 pt-[15px]">

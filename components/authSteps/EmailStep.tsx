@@ -46,7 +46,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     setIsSending(true);
     try {
       const email = getValues("email").trim();
-      await postEmailSend({ email });
+      await postEmailSend({ email, type: "SIGNUP" });
       clearErrors("email");
       setIsSent(true);
       verificationRef.current?.focus();
@@ -79,7 +79,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     try {
       const email = getValues("email").trim();
       const authNum = getValues("authNum").trim();
-      await postEmailCheck({ email, authNum });
+      await postEmailCheck({ email, authNum, type: "SIGNUP" });
       clearErrors(["email", "authNum"]);
       onNext();
     } catch (error) {

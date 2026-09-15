@@ -75,7 +75,7 @@ export default function Top({
         <Text className="font-bold text-headline1 text-label-neutral">{title}</Text>
       )}
 
-      <View className="absolute right-2 items-center justify-center size-16" style={{ top: actionTop }}>
+      <View className="absolute right-2 items-center justify-center size-16" style={{ top: safeAreaTop }}>
         {right}
       </View>
     </View>
