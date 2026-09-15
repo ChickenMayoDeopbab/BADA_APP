@@ -4,6 +4,7 @@ import { ProfileImageFile, uploadProfileImage } from "@/api/fileApi";
 import { MyPageResponse } from "@/api/types";
 import { getMyPage, patchMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
 import {
@@ -23,7 +24,6 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -94,6 +94,7 @@ export default function ProfileEditScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [loadedImageUri, setLoadedImageUri] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const mounted = useRef(false);
   const checkRequest = useRef(0);
@@ -326,6 +327,12 @@ export default function ProfileEditScreen() {
     router.back();
   };
   const imageUri = selectedImage?.uri || savedImage.uri;
+  const isPhotoLoading =
+    isLoading ||
+    isPickingImage ||
+    isUploading ||
+    (!selectedImage && savedImage.isLoading) ||
+    Boolean(imageUri && loadedImageUri !== imageUri);
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
@@ -343,12 +350,6 @@ export default function ProfileEditScreen() {
           contentContainerClassName="grow"
         >
           <View className="grow px-[33px] pb-4 pt-[21px]">
-            {isLoading && (
-              <ActivityIndicator
-                accessibilityLabel="프로필 불러오는 중"
-                color={SEMANTIC_COLORS.primary.normal}
-              />
-            )}
             {loadError ? (
               <View className="gap-2 mb-4">
                 <Text className="text-label text-status-error">
@@ -374,7 +375,13 @@ export default function ProfileEditScreen() {
                     source={{ uri: imageUri }}
                     contentFit="cover"
                     className="absolute inset-0 size-full"
+                    onLoad={() => setLoadedImageUri(imageUri)}
                     onError={selectedImage ? undefined : savedImage.onError}
+                  />
+                ) : isPhotoLoading ? (
+                  <LoadingIndicator
+                    size="small"
+                    accessibilityLabel="프로필 사진 로딩 중"
                   />
                 ) : (
                   <Ionicons
@@ -383,13 +390,20 @@ export default function ProfileEditScreen() {
                     color={SEMANTIC_COLORS.line.normal}
                   />
                 )}
-                {(isPickingImage || isUploading) && (
-                  <View className="absolute inset-0 items-center justify-center bg-common-100/30">
-                    <ActivityIndicator
+                {isPhotoLoading && Boolean(imageUri) && (
+                  <View
+                    className={`absolute inset-0 items-center justify-center ${loadedImageUri === imageUri ? "bg-common-100/30" : "bg-fill-neutral"}`}
+                  >
+                    <LoadingIndicator
+                      size="small"
+                      tone={loadedImageUri === imageUri ? "inverse" : "primary"}
                       accessibilityLabel={
-                        isPickingImage ? "사진 불러오는 중" : "사진 업로드 중"
+                        isPickingImage
+                          ? "사진 불러오는 중"
+                          : isUploading
+                            ? "사진 업로드 중"
+                            : "프로필 사진 로딩 중"
                       }
-                      color={SEMANTIC_COLORS.background.normal}
                     />
                   </View>
                 )}
@@ -402,15 +416,6 @@ export default function ProfileEditScreen() {
                 />
               </View>
             </Pressable>
-            {isPickingImage ? (
-              <Text className="mt-2 text-center text-caption text-label-alternative">
-                사진을 불러오고 있어요.
-              </Text>
-            ) : isUploading ? (
-              <Text className="mt-2 text-center text-caption text-label-alternative">
-                사진을 업로드하고 있어요.
-              </Text>
-            ) : null}
             {uploadError ? (
               <Text
                 accessibilityLiveRegion="polite"

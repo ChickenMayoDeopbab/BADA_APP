@@ -2,6 +2,7 @@ import { deleteTrainingRecord } from "@/api/recordApi";
 import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
 import Top from "@/components/common/Top";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import DeleteTrainingRecordModal from "@/components/record/DeleteTrainingRecordModal";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
@@ -11,7 +12,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
@@ -206,7 +206,7 @@ export default function RecordDetailScreen() {
 
         {isLoading ? (
           <View className="items-center justify-center flex-1">
-            <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+            <LoadingIndicator />
           </View>
         ) : isError || !data ? (
           <View className="items-center justify-center flex-1 px-8">

@@ -1,6 +1,7 @@
 import { getApiErrorMessage } from "@/api/error";
 import type { ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import CommunityHeader from "@/components/community/CommunityHeader";
 import { CARD_TEXT_SHADOW } from "@/components/train/cardTextShadow";
@@ -13,7 +14,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -141,7 +141,7 @@ export default function AttachScenarioScreen() {
 
       {scenariosQuery.isPending ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+          <LoadingIndicator />
         </View>
       ) : scenariosQuery.isError ? (
         <View className="flex-1 items-center justify-center px-[33px]">

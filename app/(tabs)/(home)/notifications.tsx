@@ -1,6 +1,7 @@
 import { InAppNotificationResponse, NotificationFilter } from "@/api/types";
 import EmptyNotificationIcon from "@/assets/notifications/empty-notification.svg";
 import StyledImage from "@/components/common/StyledImage";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/useNotifications";
@@ -12,7 +13,6 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { memo, useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   Text,
@@ -172,7 +172,7 @@ export default function NotificationsScreen() {
 
       {notificationsQuery.isLoading ? (
         <View className="items-center justify-center flex-1 pb-20">
-          <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+          <LoadingIndicator />
         </View>
       ) : notificationsQuery.isError ? (
         <View className="items-center justify-center flex-1 px-8 pb-20">
@@ -210,7 +210,7 @@ export default function NotificationsScreen() {
             </View>
           )}
           ListFooterComponent={notificationsQuery.isFetchingNextPage ? (
-            <ActivityIndicator className="py-5" color={SEMANTIC_COLORS.primary.normal} />
+            <LoadingIndicator size="small" className="py-5" />
           ) : notifications.length > 0 ? (
             <Text className="py-8 font-medium text-center opacity-50 text-caption text-label-alternative">
               받은 알림은 3일 동안 표시됩니다.

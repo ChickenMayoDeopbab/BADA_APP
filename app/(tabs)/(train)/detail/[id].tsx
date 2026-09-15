@@ -1,5 +1,6 @@
 import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
@@ -14,7 +15,6 @@ import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -299,7 +299,7 @@ export default function Detail() {
         {/* 시나리오 정보를 아직 못 받았을 때 */}
         {isPending ? (
           <View className="h-[163px] items-center justify-center">
-            <ActivityIndicator color="#0AE365" />
+            <LoadingIndicator />
           </View>
         ) : isError ? (
           /* 목록 조회 자체가 실패한 경우 — 재시도를 제공한다 */
@@ -340,7 +340,7 @@ export default function Detail() {
                 <View className="flex-1 items-end justify-end p-3">
                   <GlassChip onPress={handleExamplePress}>
                     {isExampleLoading ? (
-                      <ActivityIndicator size="small" color="white" />
+                      <LoadingIndicator size="small" tone="inverse" />
                     ) : (
                       <Ionicons
                         name={isExamplePlaying ? "pause" : "play"}

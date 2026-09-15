@@ -1,4 +1,5 @@
 import SearchBox from "@/components/common/SearchBox";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import RecentSearchChips from "@/components/train/RecentSearchChips";
 import ScenarioRowCard from "@/components/train/ScenarioRowCard";
@@ -8,7 +9,6 @@ import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   Text,
   View,
@@ -71,7 +71,7 @@ export default function Search() {
       {/* 시나리오 목록 로딩 중 */}
       {isPending ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#0AE365" />
+          <LoadingIndicator />
         </View>
       ) : submittedKeyword ? (
         <ScrollView

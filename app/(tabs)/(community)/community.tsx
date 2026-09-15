@@ -1,6 +1,7 @@
 import { getApiErrorMessage } from "@/api/error";
 import type { CommunityPostSummary } from "@/api/types";
 import SearchIconButton from "@/components/common/SearchIconButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import CommunityPostCard from "@/components/community/CommunityPostCard";
 import {
@@ -11,7 +12,6 @@ import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   FlatList,
   NativeScrollEvent,
@@ -55,14 +55,7 @@ function CommunityFeed({
     [postsQuery.data],
   );
 
-  const emptyContent = postsQuery.isPending ? (
-    <View className="items-center justify-center py-20">
-      <ActivityIndicator />
-      <Text className="mt-3 text-body text-label-alternative">
-        게시물을 불러오는 중이에요.
-      </Text>
-    </View>
-  ) : postsQuery.isError ? (
+  const emptyContent = postsQuery.isError ? (
     <View className="items-center justify-center px-8 py-20">
       <Text className="text-center text-body text-label-alternative">
         {getApiErrorMessage(postsQuery.error, "게시물을 불러오지 못했어요.")}
@@ -83,6 +76,14 @@ function CommunityFeed({
       </Text>
     </View>
   );
+
+  if (postsQuery.isPending) {
+    return (
+      <View className="flex-1 items-center justify-center" style={{ width: pageWidth }}>
+        <LoadingIndicator />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1" style={{ width: pageWidth }}>
@@ -106,7 +107,7 @@ function CommunityFeed({
         ListEmptyComponent={emptyContent}
         ListFooterComponent={
           postsQuery.isFetchingNextPage ? (
-            <ActivityIndicator className="py-5" />
+            <LoadingIndicator size="small" className="py-5" />
           ) : null
         }
         refreshing={
