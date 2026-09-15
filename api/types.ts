@@ -71,9 +71,16 @@ export interface EmailRequest {
   email: string;
 }
 
+export type EmailVerificationType = "SIGNUP" | "FIND_ID" | "RESET_PASSWORD";
+
+export interface EmailSendRequest extends EmailRequest {
+  type: EmailVerificationType;
+}
+
 export interface EmailVerificationRequest {
   email: string;
   authNum: string;
+  type: EmailVerificationType;
 }
 
 export interface FindIdRequest {

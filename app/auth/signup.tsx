@@ -14,8 +14,8 @@ import {
   Animated,
   Keyboard,
   Platform,
-  ScrollView,
   Text,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -117,12 +117,8 @@ export default function SignupScreen() {
   }, [inputTranslateY]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView className="flex-1 bg-white">
         <View
           className="flex-1 px-8"
           style={{
@@ -130,7 +126,6 @@ export default function SignupScreen() {
             width: "100%",
             maxWidth: isTablet ? 430 : undefined,
             alignSelf: "center",
-            minHeight: height,
           }}
         >
           <View>
@@ -174,7 +169,7 @@ export default function SignupScreen() {
             </FormProvider>
           </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
