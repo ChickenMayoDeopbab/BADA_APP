@@ -221,26 +221,14 @@ export default function CommunityPostCard({
         </Text>
       </View>
 
-      <View className="relative mt-1.5 h-10 overflow-hidden">
+      <View className="mt-1.5 h-10 overflow-hidden">
         <Text
           numberOfLines={2}
-          ellipsizeMode="clip"
+          ellipsizeMode="tail"
           className="text-label leading-5 text-label-alternative"
         >
           {post.content_preview}
         </Text>
-        <View
-          pointerEvents="none"
-          className="absolute bottom-0 right-0 h-5 w-[45%] flex-row"
-        >
-          {[0.15, 0.35, 0.6, 0.82, 1].map((opacity) => (
-            <View
-              key={opacity}
-              className="flex-1"
-              style={{ backgroundColor: `rgba(254, 254, 254, ${opacity})` }}
-            />
-          ))}
-        </View>
       </View>
 
       <View className="mt-2 flex-row items-center justify-between">

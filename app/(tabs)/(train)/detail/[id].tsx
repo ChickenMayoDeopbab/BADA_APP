@@ -339,15 +339,21 @@ export default function Detail() {
                 {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
                 <View className="flex-1 items-end justify-end p-3">
                   <GlassChip onPress={handleExamplePress}>
-                    {isExampleLoading ? (
-                      <LoadingIndicator size="small" tone="inverse" />
-                    ) : (
-                      <Ionicons
-                        name={isExamplePlaying ? "pause" : "play"}
-                        size={12}
-                        color="white"
-                      />
-                    )}
+                    <View className="size-4 items-center justify-center">
+                      {isExampleLoading ? (
+                        <LoadingIndicator
+                          size="small"
+                          tone="inverse"
+                          style={{ transform: [{ scale: 0.7 }] }}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={isExamplePlaying ? "pause" : "play"}
+                          size={12}
+                          color="white"
+                        />
+                      )}
+                    </View>
                     <Text className="text-label font-medium text-white">
                       예시 대화 듣기
                     </Text>

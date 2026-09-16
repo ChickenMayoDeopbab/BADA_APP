@@ -26,10 +26,11 @@ export default function CategorySelect({
         accessibilityRole="button"
         accessibilityState={{ expanded: isOpen }}
         onPress={onToggle}
-        className="flex-row items-center justify-between rounded-component bg-fill-normal px-4 py-[14px] active:bg-fill-pressed"
+        className="h-[52px] flex-row items-center justify-between rounded-component bg-fill-normal px-4 active:bg-fill-pressed"
       >
         <Text
-          className={`text-body font-medium ${
+          numberOfLines={1}
+          className={`min-w-0 flex-1 text-body font-medium ${
             selected ? "text-label-normal" : "text-line-normal"
           }`}
         >
