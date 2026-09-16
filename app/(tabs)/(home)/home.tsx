@@ -5,6 +5,7 @@ import FireIllustration from "@/assets/home-fire.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import StyledImage from "@/components/common/StyledImage";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
+import { ELEVATED_CARD_SHADOW } from "@/design-system/effects";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import { useNotifications } from "@/hooks/useNotifications";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
@@ -18,7 +19,6 @@ import {
 } from "react";
 import {
   Pressable,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,17 +38,6 @@ const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const calendarLayoutTransition = LinearTransition.duration(220).easing(
   Easing.inOut(Easing.quad),
 );
-
-const homeCardShadow = Platform.select({
-  ios: {
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 5.3,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  android: { elevation: 3 },
-  web: { boxShadow: "0px 2px 5.3px 0px rgba(0,0,0,0.12)" },
-});
 
 const formatDate = (date: Date) => {
   const year = date.getFullYear();
@@ -210,8 +199,8 @@ export default function Home() {
 
         <Animated.View
           layout={calendarLayoutTransition}
-          className="gap-4 px-7 py-4 mt-4 bg-white rounded-component"
-          style={homeCardShadow}
+          className="gap-4 px-3 py-4 mt-4 bg-background-normal rounded-component"
+          style={ELEVATED_CARD_SHADOW}
         >
         <View className="flex-row items-center justify-between">
           <Text className="font-bold text-body text-label-normal">이번 주 훈련</Text>
@@ -332,7 +321,7 @@ export default function Home() {
           disabled={!recommendedScenario}
           onPress={() => recommendedScenario && openScenarioDetail(recommendedScenario)}
           className="h-[148px] w-[59%] rounded-component"
-          style={homeCardShadow}
+          style={ELEVATED_CARD_SHADOW}
         >
             <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8645", "#FFD8BF"]} descending />
@@ -357,7 +346,7 @@ export default function Home() {
         <Pressable
           onPress={() => router.push("/(tabs)/(train)/warmup")}
           className="h-[148px] flex-1 rounded-component"
-          style={homeCardShadow}
+          style={ELEVATED_CARD_SHADOW}
         >
             <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#DCE6FF] px-3 py-3.5">
               <CardGradient id="warmupGradient" colors={["#4992FF", "#DCE6FF"]} />

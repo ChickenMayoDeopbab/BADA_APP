@@ -12,19 +12,25 @@ const TAB_LABELS: Record<string, string> = {
 };
 
 function TabIcon({ routeName, color }: { routeName: string; color: string }) {
-  if (routeName === "(home)") return <Octicons name="home-fill" size={26} color={color} />;
-  if (routeName === "(train)") return <Ionicons name="call" size={26} color={color} />;
-  if (routeName === "(record)") return <Octicons name="history" size={27} color={color} />;
-  if (routeName === "(community)") return <CommunityIcon width={27} height={27} color={color} />;
-  return <Ionicons name="person" size={27} color={color} />;
+  const icon = routeName === "(home)"
+    ? <Octicons name="home-fill" size={26} color={color} />
+    : routeName === "(train)"
+      ? <Ionicons name="call" size={26} color={color} />
+      : routeName === "(record)"
+        ? <Octicons name="history" size={27} color={color} />
+        : routeName === "(community)"
+          ? <CommunityIcon width={27} height={27} color={color} />
+          : <Ionicons name="person" size={27} color={color} />;
+
+  return <View className="size-[34px] items-center justify-center">{icon}</View>;
 }
 
 export default function BottomNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
     <View
-      className="flex-row items-start justify-between border-t border-line-alternative bg-background-normal px-[25px]"
-      style={{ paddingBottom: insets.bottom, height: 88 + insets.bottom }}
+      className="flex-row items-center justify-between border-t border-line-alternative bg-background-normal px-8"
+      style={{ paddingBottom: insets.bottom, height: 72 + insets.bottom }}
     >
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
@@ -40,7 +46,7 @@ export default function BottomNav({ state, descriptors, navigation }: BottomTabB
             accessibilityState={isFocused ? { selected: true } : {}}
             accessibilityLabel={descriptors[route.key].options.tabBarAccessibilityLabel}
             onPress={onPress}
-            className="w-[52px] items-center justify-center gap-1.5 pt-3"
+            className="h-[72px] w-[42px] items-center justify-center gap-1"
           >
             <TabIcon routeName={route.name} color={color} />
             <Text className="text-caption font-medium" style={{ color }}>

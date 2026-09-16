@@ -3,6 +3,7 @@ import Top from "@/components/common/Top";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -42,14 +43,6 @@ const PERIOD_TABS: { key: Period; label: string }[] = [
   { key: "weekly", label: "주별" },
   { key: "monthly", label: "월별" },
 ];
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.04,
-  shadowRadius: 5.3,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 1,
-};
 
 const toValidDate = (value: string): Date | null => {
   const date = new Date(value);
@@ -185,7 +178,7 @@ function SummaryCard({
   return (
     <View
       className="h-[123px] px-[22px] py-[14px] bg-background-normal rounded-component"
-      style={cardShadow}
+      style={SURFACE_CARD_SHADOW}
     >
       <TouchableOpacity
         className="flex-row items-center self-start"
@@ -224,7 +217,7 @@ function RecordCard({ item }: { item: TrainingRecordItem }) {
   return (
     <TouchableOpacity
       className="flex-row items-center h-[82px] px-[22px] bg-background-normal rounded-component"
-      style={cardShadow}
+      style={SURFACE_CARD_SHADOW}
       activeOpacity={0.75}
       onPress={() =>
         router.push({

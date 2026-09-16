@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { postLogin } from "@/api/authApi";
 import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
@@ -144,7 +145,7 @@ export default function LoginScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-background-normal">
         <View
           className="flex-1 px-8"
           style={{
@@ -157,7 +158,7 @@ export default function LoginScreen() {
         >
           <View>
             <BadaLogo width={70} height={32} />
-            <Text className="text-3xl font-bold text-[#0D0D0E]">
+            <Text className="text-title1 font-bold text-label-strong">
               아이디로 로그인
             </Text>
           </View>
@@ -221,7 +222,7 @@ export default function LoginScreen() {
                         <Ionicons
                           name={isPasswordVisible ? "eye-off-sharp" : "eye"}
                           size={20}
-                          color="#BDBEBE"
+                          color={SEMANTIC_COLORS.line.normal}
                         />
                       </TouchableOpacity>
                     }
@@ -243,12 +244,12 @@ export default function LoginScreen() {
                   }
                   size={24}
                   style={{ width: 24, height: 24 }}
-                  color={isChecked ? "#0AE365" : "#BDBEBE"}
+                  color={isChecked ? SEMANTIC_COLORS.primary.normal : SEMANTIC_COLORS.line.normal}
                 />
               </View>
               <Text
-                className={`text-base ${
-                  isChecked ? "text-[#0D0D0E]" : "text-[#BDBEBE]"
+                className={`text-body ${
+                  isChecked ? "text-label-normal" : "text-line-normal"
                 }`}
               >
                 로그인 상태 유지
@@ -258,27 +259,25 @@ export default function LoginScreen() {
             <View className="gap-y-3">
               <CustomButton
                 label={isLoggingIn ? "로그인 중" : "로그인"}
-                color="#F6F6F6"
-                backgroundColor="#0AE365"
+                tone="primary"
                 disabled={isLoggingIn}
                 onPress={handleLogin}
               />
               <CustomButton
                 label="회원가입"
-                color="#0D0D0E"
-                backgroundColor="#F8F8F8"
+                tone="neutral"
                 onPress={() => router.replace("/auth/signup")}
               />
             </View>
 
             <View className="flex-row mt-3 gap-x-4">
               <TouchableOpacity onPress={() => router.push("/auth/find-id")}>
-                <Text className="text-sm text-[#5C5E5E]">아이디 찾기</Text>
+                <Text className="text-label text-label-alternative">아이디 찾기</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push("/auth/reset-password")}
               >
-                <Text className="text-sm text-[#5C5E5E]">비밀번호 찾기</Text>
+                <Text className="text-label text-label-alternative">비밀번호 찾기</Text>
               </TouchableOpacity>
             </View>
           </View>

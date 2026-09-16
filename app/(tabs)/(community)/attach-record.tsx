@@ -6,6 +6,7 @@ import CommunityHeader from "@/components/community/CommunityHeader";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import { useCommunityPostDraft } from "@/context/CommunityPostDraftContext";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { format } from "date-fns";
@@ -19,14 +20,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.08,
-  shadowRadius: 3.4,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 2,
-};
 
 const toValidDate = (value: string) => {
   const date = new Date(value);
@@ -170,7 +163,7 @@ export default function AttachTrainingRecordScreen() {
               accessibilityState={{ selected }}
               onPress={() => setSelectedRecordId(item.recordId)}
               className="h-[82px] flex-row items-center rounded-component bg-background-normal px-[22px] active:opacity-80"
-              style={cardShadow}
+              style={SURFACE_CARD_SHADOW}
             >
               <View
                 className="size-[46px] items-center justify-center rounded-component"

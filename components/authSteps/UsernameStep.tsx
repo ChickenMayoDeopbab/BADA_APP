@@ -149,7 +149,7 @@ export default function UsernameStep({
             <CustomButton
               label="중복 확인"
               variant="lg"
-              backgroundColor="#0AE365"
+              tone="primary"
               disabled={isLoading}
               onPress={handleUsernameCheck}
             />
@@ -162,13 +162,12 @@ export default function UsernameStep({
       <View className="gap-y-3">
         <CustomButton
           label={isSubmitting ? "가입 중" : "회원가입"}
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
+          tone="primary"
           disabled={isLoading || isSubmitting}
           onPress={handleNext}
         />
         {submitError ? (
-          <Text className="text-xs text-center text-[#FF0000]">
+          <Text className="text-caption text-center text-status-error">
             {submitError}
           </Text>
         ) : null}
@@ -176,7 +175,7 @@ export default function UsernameStep({
 
       <View className="flex-row mt-3 gap-x-4">
         <TouchableOpacity onPress={onPrev}>
-          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
+          <Text className="text-label text-label-alternative">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>

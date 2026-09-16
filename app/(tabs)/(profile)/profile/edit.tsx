@@ -53,7 +53,7 @@ function ProfileField({
         {label}
       </Text>
       <View
-        className={`h-12 justify-center rounded-component bg-neutral-95 px-3 ${error ? "border border-status-error" : ""}`}
+        className={`h-12 justify-center rounded-component bg-fill-field px-3 ${error ? "border border-status-error" : ""}`}
       >
         <TextInput
           {...props}

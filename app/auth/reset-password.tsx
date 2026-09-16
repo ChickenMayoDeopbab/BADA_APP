@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import {
   patchPassword,
   postEmailCheck,
@@ -203,7 +204,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView className="flex-1 bg-white" edges={["bottom"]}>
+      <SafeAreaView className="flex-1 bg-background-normal" edges={["bottom"]}>
         <Top title="비밀번호 재설정" back onBack={handleBack} />
         <KeyboardAvoidingView
           className="flex-1"
@@ -278,7 +279,7 @@ export default function ResetPasswordScreen() {
                       <CustomButton
                         label={isSending ? "전송 중" : "인증코드 전송"}
                         variant="lg"
-                        backgroundColor="#0AE365"
+                        tone="primary"
                         disabled={isSending}
                         onPress={handleEmailSend}
                       />
@@ -310,7 +311,7 @@ export default function ResetPasswordScreen() {
                 <View className="pt-3 pb-7">
                   <CustomButton
                     label={isSubmitting ? "확인 중" : "다음으로"}
-                    backgroundColor="#0AE365"
+                    tone="primary"
                     disabled={isSubmitting}
                     onPress={handleIdentityNext}
                   />
@@ -354,7 +355,7 @@ export default function ResetPasswordScreen() {
                                   : "eye"
                               }
                               size={20}
-                              color="#BDBEBE"
+                              color={SEMANTIC_COLORS.line.normal}
                             />
                           </TouchableOpacity>
                         }
@@ -392,7 +393,7 @@ export default function ResetPasswordScreen() {
                                   : "eye"
                               }
                               size={20}
-                              color="#BDBEBE"
+                              color={SEMANTIC_COLORS.line.normal}
                             />
                           </TouchableOpacity>
                         }
@@ -432,7 +433,7 @@ export default function ResetPasswordScreen() {
                                   : "eye"
                               }
                               size={20}
-                              color="#BDBEBE"
+                              color={SEMANTIC_COLORS.line.normal}
                             />
                           </TouchableOpacity>
                         }
@@ -444,7 +445,7 @@ export default function ResetPasswordScreen() {
                 <View className="pt-3 pb-7">
                   <CustomButton
                     label={isSubmitting ? "변경 중" : "비밀번호 재설정"}
-                    backgroundColor="#0AE365"
+                    tone="primary"
                     disabled={isSubmitting}
                     onPress={handlePasswordReset}
                   />
@@ -461,14 +462,14 @@ export default function ResetPasswordScreen() {
                   }}
                 >
                   <PartyFace width={88} height={88} />
-                  <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
+                  <Text className="mt-7 text-headline1 font-bold text-center text-label-neutral">
                     비밀번호가 성공적으로{"\n"}변경되었습니다!
                   </Text>
                 </View>
 
                 <CustomButton
                   label="로그인 하러가기"
-                  backgroundColor="#0AE365"
+                  tone="primary"
                   onPress={() => router.replace("/auth/login")}
                 />
               </View>

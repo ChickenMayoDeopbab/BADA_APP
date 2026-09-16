@@ -166,8 +166,7 @@ export default function List() {
           <View className="w-[140px]">
             <CustomButton
               label={isFetching ? "불러오는 중..." : "다시 불러오기"}
-              backgroundColor="#0AE365"
-              color="white"
+              tone="primary"
               variant="md"
               disabled={isFetching}
               onPress={() => refetch()}

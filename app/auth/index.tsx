@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import {
   getAppleLogin,
   getGoogleLogin,
@@ -76,8 +77,8 @@ export default function AuthScreen() {
         <View className="w-full gap-y-2">
           <CustomButton
             label="구글로 계속할래요"
-            icon={<AntDesign name="google" size={20} color="#0D0D0E" />}
-            color="#0D0D0E"
+            icon={<AntDesign name="google" size={20} color={SEMANTIC_COLORS.label.normal} />}
+            color={SEMANTIC_COLORS.label.normal}
             backgroundColor="#F2F4F6"
             disabled={isLoggingIn}
             onPress={() => void handleOAuthLogin(getGoogleLogin)}
@@ -100,8 +101,7 @@ export default function AuthScreen() {
           />
           <CustomButton
             label="아이디로 계속할래요"
-            color="#0D0D0E"
-            backgroundColor="#F8F8F8"
+            tone="neutral"
             disabled={isLoggingIn}
             onPress={() => router.replace("/auth/login")}
           />

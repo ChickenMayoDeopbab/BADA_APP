@@ -112,7 +112,7 @@ function MeditationVideoContent({
           activeOpacity={0.8}
           style={styles.meditationSkipButton}
         >
-          <Text className="text-base font-bold text-white">건너뛰기</Text>
+          <Text className="text-body font-bold text-white">건너뛰기</Text>
         </TouchableOpacity>
       </View>
     </View>
