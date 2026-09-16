@@ -10,13 +10,14 @@ import {
 } from "@/hooks/useCommunityPosts";
 import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
 import { router } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   Text,
   useWindowDimensions,
   View,
@@ -42,7 +43,7 @@ const TABS: CommunityTabItem[] = [
   { key: "mine", label: "내 글" },
 ];
 
-const TAB_WIDTH = 64;
+const TAB_WIDTH = 80;
 const TAB_GAP = 15;
 
 function CommunityFeed({
@@ -126,10 +127,23 @@ function CommunityFeed({
 }
 
 export default function Community() {
-  const { width: pageWidth } = useWindowDimensions();
+  const { width: pageWidth, fontScale } = useWindowDimensions();
+  const tabHorizontalPadding = pageWidth < 360 ? 16 : 32;
+  const tabWidth = Math.ceil(TAB_WIDTH * Math.max(1, fontScale));
+  const menuRef = useRef<ScrollView>(null);
   const pagerRef = useRef<FlatList<CommunityTabItem>>(null);
   const pagerScrollX = useRef(new Animated.Value(0)).current;
   const [selectedTab, setSelectedTab] = useState<CommunityTab>("all");
+
+  useEffect(() => {
+    const index = TABS.findIndex((tab) => tab.key === selectedTab);
+    const tabRight =
+      tabHorizontalPadding + (index + 1) * tabWidth + index * TAB_GAP;
+    menuRef.current?.scrollTo({
+      x: index <= 0 ? 0 : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
+      animated: true,
+    });
+  }, [pageWidth, selectedTab, tabHorizontalPadding, tabWidth]);
 
   // 두 페이지를 함께 준비해 스와이프한 뒤 데이터를 기다리는 시간을 줄인다.
   const allPostsQuery = useCommunityPosts({ mode: "all" });
@@ -137,7 +151,7 @@ export default function Community() {
 
   const indicatorTranslateX = pagerScrollX.interpolate({
     inputRange: [0, pageWidth],
-    outputRange: [0, TAB_WIDTH + TAB_GAP],
+    outputRange: [0, tabWidth + TAB_GAP],
     extrapolate: "clamp",
   });
 
@@ -182,56 +196,68 @@ export default function Community() {
         }
       />
 
-      <View className="relative h-[53px] px-8">
-        <View className="flex-row gap-x-[15px]">
-          {TABS.map((tab, index) => {
-            const selected = tab.key === selectedTab;
-            const activeTextOpacity = pagerScrollX.interpolate({
-              inputRange: [
-                (index - 1) * pageWidth,
-                index * pageWidth,
-                (index + 1) * pageWidth,
-              ],
-              outputRange: [0, 1, 0],
-              extrapolate: "clamp",
-            });
+      <ScrollView
+        ref={menuRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        className="h-[53px]"
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: tabHorizontalPadding }}
+      >
+        <View className="relative h-[53px]">
+          <View className="flex-row" style={{ gap: TAB_GAP }}>
+            {TABS.map((tab, index) => {
+              const selected = tab.key === selectedTab;
+              const activeTextOpacity = pagerScrollX.interpolate({
+                inputRange: [
+                  (index - 1) * pageWidth,
+                  index * pageWidth,
+                  (index + 1) * pageWidth,
+                ],
+                outputRange: [0, 1, 0],
+                extrapolate: "clamp",
+              });
 
-            return (
-              <Pressable
-                key={tab.key}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                onPress={() => selectTab(tab.key)}
-                className="items-center"
-                style={{ width: TAB_WIDTH }}
-              >
-                <Text
-                  numberOfLines={1}
-                  className="text-headline2 font-medium text-line-normal"
+              return (
+                <Pressable
+                  key={tab.key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  onPress={() => selectTab(tab.key)}
+                  className="items-center"
+                  style={{ width: tabWidth }}
                 >
-                  {tab.label}
-                </Text>
-                <Animated.Text
-                  numberOfLines={1}
-                  pointerEvents="none"
-                  className="absolute text-headline2 font-medium text-green-40"
-                  style={{ opacity: activeTextOpacity }}
-                >
-                  {tab.label}
-                </Animated.Text>
-              </Pressable>
-            );
-          })}
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-headline2 font-medium text-line-normal"
+                    style={{ width: tabWidth }}
+                  >
+                    {tab.label}
+                  </Text>
+                  <Animated.Text
+                    numberOfLines={1}
+                    pointerEvents="none"
+                    className="absolute text-center text-headline2 font-medium text-green-40"
+                    style={{ width: tabWidth, opacity: activeTextOpacity }}
+                  >
+                    {tab.label}
+                  </Animated.Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Animated.View
+            pointerEvents="none"
+            className="absolute h-0.5 bg-green-40"
+            style={{
+              top: Math.min(45, 8 + 23.4 * fontScale),
+              width: tabWidth,
+              transform: [{ translateX: indicatorTranslateX }],
+            }}
+          />
         </View>
-        <Animated.View
-          pointerEvents="none"
-          className="absolute left-8 top-[31px] h-0.5 bg-green-40"
-          style={{
-            width: TAB_WIDTH,
-            transform: [{ translateX: indicatorTranslateX }],
-          }}
-        />
-      </View>
+      </ScrollView>
 
       <Animated.FlatList
         ref={pagerRef}

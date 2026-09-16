@@ -165,7 +165,7 @@ function ProfileScreen() {
               </Pressable>
             ) : null}
 
-            <View className="w-full items-center gap-2">
+            <View className="items-center w-full gap-2">
               <Text
                 numberOfLines={1}
                 className="max-w-[282px] text-title2 font-bold text-label-normal"

@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 
 type WarmupCreateStep = "write" | "loading" | "done" | "fail";
 
@@ -39,6 +40,7 @@ export default function Warmup() {
   });
   const [step, setStep] = useState<WarmupCreateStep>("write");
   const [form, setForm] = useState<WarmupForm>({ purpose: "", callee: "" });
+  const isKeyboardVisible = useKeyboardVisible();
   const createdScenarioIdRef = useRef<number | null>(null);
 
   useFocusEffect(
@@ -160,18 +162,21 @@ export default function Warmup() {
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-background-normal"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      /* Android adjustResize가 키보드 높이만큼 창을 줄이므로 이중 보정하지 않는다. */
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Top title="통화 전 워밍업 생성" back={true} onBack={() => router.push("/(tabs)/(home)/home")} />
       <ScrollView
         className="flex-1 px-[33px]"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 20 }}
       >
         <View className="gap-y-6 mt-2">
           <FieldBox label="전화 상대">
             <TextInput
-              className="text-body text-label-neutral"
+              className="h-6 p-0 text-body text-label-neutral"
+              multiline={false}
               placeholder="전화 상대에 대해 설명해주세요."
               placeholderTextColor={SEMANTIC_COLORS.line.normal}
               value={form.callee}
@@ -180,18 +185,18 @@ export default function Warmup() {
           </FieldBox>
           <FieldBox label="전화 목적">
             <TextInput
-              className="text-body text-label-neutral"
+              className="h-[136px] p-0 text-body text-label-neutral"
               placeholder="전화의 목적을 설명해주세요."
               placeholderTextColor={SEMANTIC_COLORS.line.normal}
               value={form.purpose}
               onChangeText={(v) => setForm((prev) => ({ ...prev, purpose: v }))}
               multiline
-              style={{ minHeight: 160, textAlignVertical: "top" }}
+              style={{ textAlignVertical: "top" }}
             />
           </FieldBox>
         </View>
       </ScrollView>
-      <View className="px-[33px] pb-10 pt-4">
+      <View className={`px-[33px] pt-4 ${isKeyboardVisible ? "pb-5" : "pb-10"}`}>
         <CustomButton
           label="워밍업 생성하기"
           tone="primary"

@@ -6,7 +6,10 @@ import GradientOverlay from "@/components/train/GradientOverlay";
 import CustomScenarioBanner from "@/components/train/CustomScenarioBanner";
 import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
-import ScenarioTabs from "@/components/train/ScenarioTabs";
+import ScenarioTabs, {
+  SCENARIO_TAB_GAP,
+  SCENARIO_TAB_WIDTH,
+} from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
 import Top from "@/components/common/Top";
 import { SCENARIO_TABS, ScenarioTabValue } from "@/constants/train";
@@ -14,12 +17,13 @@ import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useRecommendedScenario, useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  ScrollView,
   Text,
   useWindowDimensions,
   View,
@@ -47,7 +51,10 @@ const toGridRows = (scenarios: ScenarioInfo[]): ScenarioInfo[][] =>
   }, []);
 
 export default function List() {
-  const { width: pageWidth } = useWindowDimensions();
+  const { width: pageWidth, fontScale } = useWindowDimensions();
+  const tabHorizontalPadding = pageWidth < 360 ? 16 : 32;
+  const tabWidth = Math.ceil(SCENARIO_TAB_WIDTH * Math.max(1, fontScale));
+  const menuRef = useRef<ScrollView>(null);
   const pagerRef = useRef<FlatList<(typeof SCENARIO_TABS)[number]>>(null);
   const pagerScrollX = useRef(new Animated.Value(0)).current;
   // 스크롤을 내렸을 때만 상단 페이드를 보여준다
@@ -60,6 +67,16 @@ export default function List() {
   const [selectedTab, setSelectedTab] = useState<ScenarioTabValue>("basic");
   const [selectedCategory, setSelectedCategory] =
     useState<ScenarioCategory | null>(null);
+
+  useEffect(() => {
+    const index = SCENARIO_TABS.findIndex((tab) => tab.value === selectedTab);
+    const tabRight =
+      tabHorizontalPadding + (index + 1) * tabWidth + index * SCENARIO_TAB_GAP;
+    menuRef.current?.scrollTo({
+      x: index <= 0 ? 0 : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
+      animated: true,
+    });
+  }, [pageWidth, selectedTab, tabHorizontalPadding, tabWidth]);
 
   // 전체 목록은 커스텀·공유 탭 분류와 추천 카드에 사용한다.
   const {
@@ -140,14 +157,24 @@ export default function List() {
         }
       />
 
-      <View className="h-[53px] px-8">
+      <ScrollView
+        ref={menuRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        className="h-[53px]"
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: tabHorizontalPadding }}
+      >
         <ScenarioTabs
           value={selectedTab}
           onChange={selectTab}
           pageWidth={pageWidth}
+          tabWidth={tabWidth}
+          fontScale={fontScale}
           scrollX={pagerScrollX}
         />
-      </View>
+      </ScrollView>
 
       {/* 목록 로딩 중 */}
       {isPending && (
