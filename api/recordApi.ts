@@ -1,4 +1,5 @@
 import apiClient from "./client";
+import { getCompletedCallDuration } from "@/utils/completedCallDuration";
 import { isAxiosError } from "axios";
 import {
   ApiResponseAnxietyScoreResponse,
@@ -19,7 +20,20 @@ export const getTrainingRecords = async (
     "/api/v1/training-records",
     { params: { page, size } },
   );
-  return response.data;
+  const records = response.data.data.content;
+  const completedDurations = await Promise.all(
+    records.map((record) => getCompletedCallDuration(record.sessionId)),
+  );
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      content: records.map((record, index) => ({
+        ...record,
+        durationSeconds: completedDurations[index] ?? record.durationSeconds,
+      })),
+    },
+  };
 };
 
 export const getTrainingRecord = async (
@@ -35,7 +49,18 @@ export const getTrainingRecord = async (
       anxietyScore: response.data.data.anxietyScore,
     });
   }
-  return response.data;
+  const completedDuration = await getCompletedCallDuration(
+    response.data.data.sessionId,
+  );
+  return completedDuration === null
+    ? response.data
+    : {
+        ...response.data,
+        data: {
+          ...response.data.data,
+          durationSeconds: completedDuration,
+        },
+      };
 };
 
 export const deleteTrainingRecord = async (

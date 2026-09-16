@@ -10,6 +10,7 @@ import Top from "@/components/common/Top";
 import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { getCompletedCallDuration } from "@/utils/completedCallDuration";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -18,7 +19,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   TextStyle,
   View,
 } from "react-native";
@@ -43,6 +43,8 @@ import {
 
 type ReportParams = {
   scenarioId?: string;
+  sessionId?: string;
+  callDurationSeconds?: string;
   mode?: "scenario" | "warmUp";
 };
 
@@ -125,6 +127,13 @@ const formatTrainingTime = (trainingTime: FeedbackResponse["trainingTime"]) => {
   if (Number(minutes) > 0) parts.push(`${Number(minutes)}분`);
   parts.push(`${Number(seconds)}초`);
   return parts.join(" ");
+};
+
+const trainingTimeFromSeconds = (totalSeconds: number) => {
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
 };
 
 const formatTimelineTime = (seconds: number) => {
@@ -234,6 +243,7 @@ function SummaryBackground() {
  * dismissTo는 스택을 list까지 되감고, list가 없으면 replace로 폴백한다.
  */
 const goToList = () => router.dismissTo("/(tabs)/(train)/list");
+const goToHome = () => router.dismissTo("/(tabs)/(home)/home");
 
 function BottomFade() {
   return (
@@ -269,7 +279,12 @@ function BottomFade() {
 
 export default function Report() {
 
-  const { scenarioId, mode = "scenario" } = useLocalSearchParams<ReportParams>();
+  const {
+    scenarioId,
+    sessionId,
+    callDurationSeconds,
+    mode = "scenario",
+  } = useLocalSearchParams<ReportParams>();
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -301,14 +316,25 @@ export default function Report() {
         getFeedback({ scenarioId: parsedScenarioId }),
         wait(MINIMUM_LOADING_TIME),
       ]);
-      setFeedback(result);
+      const routeDuration = Number(callDurationSeconds);
+      const completedDuration =
+        callDurationSeconds !== undefined &&
+        Number.isSafeInteger(routeDuration) &&
+        routeDuration >= 0
+          ? routeDuration
+          : await getCompletedCallDuration(sessionId);
+      setFeedback(
+        completedDuration === null
+          ? result
+          : { ...result, trainingTime: trainingTimeFromSeconds(completedDuration) },
+      );
       try { await checkAttendance(); } catch {}
     } catch {
       setError("훈련 결과를 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, [scenarioId]);
+  }, [callDurationSeconds, scenarioId, sessionId]);
 
   useEffect(() => {
     fetchFeedback();
@@ -344,12 +370,10 @@ export default function Report() {
             <Text className="text-body text-label-neutral" style={reportTextStyles.medium}>
               {error ?? "훈련 결과 데이터가 비어 있습니다."}
             </Text>
-            <TouchableOpacity
-              className="px-6 py-2 mt-2 bg-primary-normal rounded-control"
-              onPress={fetchFeedback}
-            >
-              <Text className="text-label text-common-0" style={reportTextStyles.bold}>재시도</Text>
-            </TouchableOpacity>
+            <View className="mt-2 w-[140px] gap-y-2">
+              <CustomButton label="재시도" tone="primary" variant="md" onPress={fetchFeedback} />
+              <CustomButton label="홈으로 돌아가기" tone="neutral" variant="md" onPress={goToHome} />
+            </View>
           </View>
             ) : (
           <View className="relative flex-1">
