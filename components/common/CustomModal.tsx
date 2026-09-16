@@ -1,7 +1,8 @@
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { ReactNode } from "react";
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 
 type CustomModalActionTone = "primary" | "neutral" | "danger";
 
@@ -51,7 +52,7 @@ function ModalActionButton({ action }: { action: CustomModalAction }) {
         disabled={isDisabled}
         icon={
           action.loading ? (
-            <ActivityIndicator
+            <LoadingIndicator
               size="small"
               color={SEMANTIC_COLORS.line.normal}
             />

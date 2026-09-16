@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import "@/global.css";
 import "@/design-system/setupDefaultFont";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -76,7 +77,7 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: "#FEFEFE" },
+              contentStyle: { backgroundColor: SEMANTIC_COLORS.background.normal },
             }}
           />
         </PendingCallProvider>

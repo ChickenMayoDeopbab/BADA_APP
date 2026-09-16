@@ -46,7 +46,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     setIsSending(true);
     try {
       const email = getValues("email").trim();
-      await postEmailSend({ email });
+      await postEmailSend({ email, type: "SIGNUP" });
       clearErrors("email");
       setIsSent(true);
       verificationRef.current?.focus();
@@ -79,7 +79,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     try {
       const email = getValues("email").trim();
       const authNum = getValues("authNum").trim();
-      await postEmailCheck({ email, authNum });
+      await postEmailCheck({ email, authNum, type: "SIGNUP" });
       clearErrors(["email", "authNum"]);
       onNext();
     } catch (error) {
@@ -133,7 +133,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
             <CustomButton
               label={isSending ? "전송 중" : "인증코드 전송"}
               variant="lg"
-              backgroundColor="#0AE365"
+              tone="primary"
               disabled={isSending || isChecking}
               onPress={handleEmailSend}
             />
@@ -168,8 +168,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
       <View className="gap-y-3">
         <CustomButton
           label={isChecking ? "확인 중" : "인증하기"}
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
+          tone="primary"
           disabled={isSending || isChecking}
           onPress={handleEmailCheck}
         />
@@ -177,7 +176,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
 
       <View className="flex-row mt-3 gap-x-4">
         <TouchableOpacity onPress={() => router.replace("/auth")}>
-          <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
+          <Text className="text-label text-label-alternative">이미 계정이 있어요</Text>
         </TouchableOpacity>
       </View>
     </View>

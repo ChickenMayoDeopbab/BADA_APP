@@ -64,10 +64,10 @@ export default function Loading({
           <Animated.View style={animatedStyle}>
             <SandClock />
           </Animated.View>
-          <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
+          <Text className="text-title2 font-bold mb-[10px] mt-[30px]">
             {loadingText}
           </Text>
-          <Text className="color-[#5C5E5E] font-medium text-base">
+          <Text className="text-label-alternative font-medium text-body">
             {loadingSubText}
           </Text>
         </>
@@ -78,10 +78,10 @@ export default function Loading({
       return (
         <>
           <AnimatedCheck />
-          <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
+          <Text className="text-title2 font-bold mb-[10px] mt-[30px]">
             {doneText}
           </Text>
-          <Text className="color-[#5C5E5E] font-medium text-base">
+          <Text className="text-label-alternative font-medium text-body">
             {doneSubText}
           </Text>
         </>
@@ -92,10 +92,10 @@ export default function Loading({
       return (
         <>
           <Image source={require("@/assets/sadFace.gif")} style={{ width: 90, height: 90 }} />
-          <Text className="text-2xl font-bold mb-[10px] mt-[30px]">
+          <Text className="text-title2 font-bold mb-[10px] mt-[30px]">
             {errorText}
           </Text>
-          <Text className="color-[#5C5E5E] font-medium text-base">
+          <Text className="text-label-alternative font-medium text-body">
             {errorSubText}
           </Text>
         </>
@@ -104,7 +104,7 @@ export default function Loading({
   };
 
   return (
-    <View className="flex-1 px-10 bg-white">
+    <View className="flex-1 px-[33px] bg-background-normal">
       <Top title={title} />
       <View className="flex-col items-center justify-center flex-1 mb-[105px]">
         {renderContent()}

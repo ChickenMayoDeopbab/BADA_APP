@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import StepSlider from "@/components/train/StepSlider";
@@ -51,13 +52,13 @@ export default function WarmupStart() {
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-background-normal">
       <Top title="워밍업 설정" back onBack={() => router.back()} />
       <View className="flex-1 px-8 pt-4">
         <View className="mb-10">
           <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-xl font-bold text-[#3B3D3E]">난이도</Text>
-            <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
+            <Text className="text-headline1 font-bold text-label-neutral">난이도</Text>
+            <Ionicons name="help-circle-outline" size={20} color={SEMANTIC_COLORS.line.normal} />
           </View>
           <StepSlider
             steps={DIFFICULTY_LABELS}
@@ -68,8 +69,8 @@ export default function WarmupStart() {
 
         <View>
           <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-xl font-bold text-[#3B3D3E]">상대의 태도</Text>
-            <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
+            <Text className="text-headline1 font-bold text-label-neutral">상대의 태도</Text>
+            <Ionicons name="help-circle-outline" size={20} color={SEMANTIC_COLORS.line.normal} />
           </View>
           <StepSlider
             steps={ATTITUDE_LABELS}
@@ -82,8 +83,7 @@ export default function WarmupStart() {
       <View className="px-8 pb-10 pt-4">
         <CustomButton
           label={isCreatingSession ? "처리 중..." : "워밍업 시작하기"}
-          backgroundColor="#0AE365"
-          color="white"
+          tone="primary"
           disabled={isCreatingSession}
           onPress={handleComplete}
         />

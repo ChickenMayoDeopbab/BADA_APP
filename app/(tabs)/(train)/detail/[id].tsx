@@ -1,5 +1,8 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+import Top from "@/components/common/Top";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
@@ -13,7 +16,6 @@ import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -281,7 +283,7 @@ export default function Detail() {
         }}
       >
         <View
-          className="mx-[11px] gap-y-4 overflow-hidden rounded-dialog bg-background-normal px-[22px] pt-2 pb-[22px]"
+          className="mx-[11px] gap-y-2 overflow-hidden rounded-dialog bg-background-normal px-[22px] pt-2 pb-[22px]"
           style={{
             shadowColor: "#000",
             shadowOpacity: 0.25,
@@ -293,11 +295,12 @@ export default function Detail() {
         <View className="h-3 items-center justify-center">
           <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
         </View>
+        <Top title="훈련 자세히 보기" back onBack={handleDismiss} safeArea={false} />
 
         {/* 시나리오 정보를 아직 못 받았을 때 */}
         {isPending ? (
           <View className="h-[163px] items-center justify-center">
-            <ActivityIndicator color="#0AE365" />
+            <LoadingIndicator />
           </View>
         ) : isError ? (
           /* 목록 조회 자체가 실패한 경우 — 재시도를 제공한다 */
@@ -307,8 +310,7 @@ export default function Detail() {
             </Text>
             <CustomButton
               label="다시 시도"
-              backgroundColor="#0AE365"
-              color="white"
+              tone="primary"
               variant="md"
               onPress={() => refetch()}
             />
@@ -337,15 +339,21 @@ export default function Detail() {
                 {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
                 <View className="flex-1 items-end justify-end p-3">
                   <GlassChip onPress={handleExamplePress}>
-                    {isExampleLoading ? (
-                      <ActivityIndicator size="small" color="white" />
-                    ) : (
-                      <Ionicons
-                        name={isExamplePlaying ? "pause" : "play"}
-                        size={12}
-                        color="white"
-                      />
-                    )}
+                    <View className="size-4 items-center justify-center">
+                      {isExampleLoading ? (
+                        <LoadingIndicator
+                          size="small"
+                          tone="inverse"
+                          style={{ transform: [{ scale: 0.7 }] }}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={isExamplePlaying ? "pause" : "play"}
+                          size={12}
+                          color="white"
+                        />
+                      )}
+                    </View>
                     <Text className="text-label font-medium text-white">
                       예시 대화 듣기
                     </Text>
@@ -368,7 +376,7 @@ export default function Detail() {
                   <TrainingCountLabel
                     count={scenario.practice_count ?? 0}
                     size="md"
-                    color="#5C5E5E"
+                    color={SEMANTIC_COLORS.label.alternative}
                   />
                 </View>
                 <Text className="text-label font-medium text-label-neutral">
@@ -379,7 +387,7 @@ export default function Detail() {
 
             <CustomButton
               label="훈련 시작하기"
-              backgroundColor="#0AE365"
+              tone="primary"
               onPress={handleStart}
             />
             </>

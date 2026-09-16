@@ -5,6 +5,7 @@ import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -112,7 +113,7 @@ function MeditationVideoContent({
           activeOpacity={0.8}
           style={styles.meditationSkipButton}
         >
-          <Text className="text-base font-bold text-white">건너뛰기</Text>
+          <Text className="text-body font-bold text-white">건너뛰기</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -185,6 +186,9 @@ export default function Train() {
   const [calleeName, setCalleeName] = useState<string | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callStartedAtRef = useRef<number | null>(null);
+  const completedCallDurationRef = useRef<number | null>(null);
+  const endHandledRef = useRef(false);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
@@ -261,12 +265,20 @@ export default function Train() {
   }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
 
   useEffect(() => {
-    if (step !== "training") return;
-    timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    if (step !== "training" || !isConnected || !isAudioReady || endHandledRef.current) return;
+    if (callStartedAtRef.current === null) callStartedAtRef.current = Date.now();
+    const startedAt = callStartedAtRef.current;
+    const updateElapsed = () =>
+      setSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    updateElapsed();
+    timerRef.current = setInterval(updateElapsed, 250);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [step]);
+  }, [isAudioReady, isConnected, step]);
 
   /**
    * 통화 종료 화면을 잠시 보여준 뒤 다음 화면으로 넘긴다.
@@ -278,6 +290,7 @@ export default function Train() {
     const nextParams = {
       sessionId,
       scenarioId,
+      callDurationSeconds: String(completedCallDurationRef.current ?? 0),
       mode: isWarmupSession ? "warmUp" : "scenario",
       title,
       content,
@@ -320,7 +333,13 @@ export default function Train() {
       setCalleeName(null);
       setIsMuted(false);
       setIsAudioReady(false);
-      if (timerRef.current) clearInterval(timerRef.current);
+      callStartedAtRef.current = null;
+      completedCallDurationRef.current = null;
+      endHandledRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       stopSendingAudio();
       resetStream();
     }, [stopSendingAudio, resetStream])
@@ -377,10 +396,21 @@ export default function Train() {
   };
   /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
   const handleEndCall = () => {
+    if (endHandledRef.current) return;
+    endHandledRef.current = true;
+    const callDurationSeconds = callStartedAtRef.current === null
+      ? 0
+      : Math.max(0, Math.floor((Date.now() - callStartedAtRef.current) / 1000));
+    completedCallDurationRef.current = callDurationSeconds;
+    setSeconds(callDurationSeconds);
+    if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
     void stopSendingAudio().catch((error) => console.warn("녹음 종료 실패", error));
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     setStep("end");
   };
 

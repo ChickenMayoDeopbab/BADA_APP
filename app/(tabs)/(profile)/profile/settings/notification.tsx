@@ -1,5 +1,6 @@
 import { NotificationSettingResponse } from "@/api/types";
 import ProfileSettingsScreen from "@/components/profile/ProfileSettingsScreen";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import {
   SettingCard,
   SettingRow,
@@ -11,7 +12,7 @@ import {
 } from "@/hooks/useNotifications";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 
 export default function NotificationSettingsScreen() {
   const settingsQuery = useNotificationSettings();
@@ -67,7 +68,7 @@ export default function NotificationSettingsScreen() {
     >
       {settingsQuery.isPending ? (
         <View className="items-center justify-center py-16">
-          <ActivityIndicator />
+          <LoadingIndicator />
         </View>
       ) : settingsQuery.isError || !settings ? (
         <View className="items-center justify-center gap-3 py-16">

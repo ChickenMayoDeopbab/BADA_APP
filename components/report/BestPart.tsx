@@ -22,12 +22,12 @@ export default function BestPart({
   url,
 }: BestPartProps) {
   return (
-    <View className="flex-row items-center justify-between p-3 bg-white rounded-xl">
+    <View className="flex-row items-center justify-between p-3 bg-background-normal rounded-component">
       <View className="flex-1 ml-[10px] mr-3">
-        <Text className="text-base font-medium text-[#3B3D3E]" numberOfLines={2}>
+        <Text className="text-body font-medium text-label-neutral" numberOfLines={2}>
           {summary}
         </Text>
-        <Text className="text-[#BDBEBE] font-medium text-sm mt-1">
+        <Text className="text-line-normal font-medium text-label mt-1">
           {formatTime(startTime)} ~ {formatTime(endTime)}
         </Text>
       </View>

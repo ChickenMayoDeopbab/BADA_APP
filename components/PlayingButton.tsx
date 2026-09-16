@@ -1,7 +1,9 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { Ionicons } from "@expo/vector-icons";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { useAudioPlaybackGroup } from "./audio/AudioPlaybackGroup";
 
 type AudioUrlState = {
@@ -134,12 +136,12 @@ function PlayingButton({ audioUrl }: { audioUrl?: string | null }) {
           <Ionicons
             name={status?.playing ? "pause-circle" : "play-circle-sharp"}
             size={40}
-            color={disabled ? "#BDBEBE" : "#0AE365"}
+            color={disabled ? SEMANTIC_COLORS.line.normal : SEMANTIC_COLORS.primary.normal}
           />
         </TouchableOpacity>
         {loading && (
           <View className="absolute inset-0 items-center justify-center">
-            <ActivityIndicator size={18} color="#0AE365" />
+            <LoadingIndicator size="small" />
           </View>
         )}
       </View>

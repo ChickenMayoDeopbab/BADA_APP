@@ -11,6 +11,7 @@ import type {
   CommunityReactionKind,
 } from "@/api/types";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { communityQueryKeys } from "@/hooks/useCommunityPosts";
 import {
   formatCommunityTimestamp,
@@ -32,14 +33,6 @@ interface CommunityPostCardProps {
   onPress: () => void;
   reactionsInteractive?: boolean;
 }
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.08,
-  shadowRadius: 3.4,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 2,
-};
 
 const REACTION_COUNT_KEYS: Record<
   CommunityReactionKind,
@@ -211,7 +204,7 @@ export default function CommunityPostCard({
     <Pressable
       onPress={onPress}
       className="min-h-[145px] justify-center rounded-component bg-background-normal px-[22px] py-3 active:opacity-90"
-      style={cardShadow}
+      style={SURFACE_CARD_SHADOW}
     >
       <View className="gap-y-1.5">
         <View className="flex-row items-center gap-x-1.5">
@@ -228,26 +221,14 @@ export default function CommunityPostCard({
         </Text>
       </View>
 
-      <View className="relative mt-1.5 h-10 overflow-hidden">
+      <View className="mt-1.5 h-10 overflow-hidden">
         <Text
           numberOfLines={2}
-          ellipsizeMode="clip"
+          ellipsizeMode="tail"
           className="text-label leading-5 text-label-alternative"
         >
           {post.content_preview}
         </Text>
-        <View
-          pointerEvents="none"
-          className="absolute bottom-0 right-0 h-5 w-[45%] flex-row"
-        >
-          {[0.15, 0.35, 0.6, 0.82, 1].map((opacity) => (
-            <View
-              key={opacity}
-              className="flex-1"
-              style={{ backgroundColor: `rgba(254, 254, 254, ${opacity})` }}
-            />
-          ))}
-        </View>
       </View>
 
       <View className="mt-2 flex-row items-center justify-between">

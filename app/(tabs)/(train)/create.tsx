@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { createCustomScenario } from "@/api/trainApi";
 import AnimatedCheck from "@/components/common/AnimatedCheck";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -224,9 +225,10 @@ export default function Create() {
           <View className="gap-y-6 mt-8">
             <FieldBox label="시나리오 제목">
               <TextInput
-                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                className="h-[52px] rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                multiline={false}
                 placeholder="시나리오를 나타낼 제목을 입력해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.title}
                 maxLength={50}
                 returnKeyType="next"
@@ -255,9 +257,10 @@ export default function Create() {
             <FieldBox label="전화 상대">
               <TextInput
                 ref={calleeInputRef}
-                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                className="h-[52px] rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                multiline={false}
                 placeholder="전화 상대에 대해 설명해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.callee}
                 maxLength={100}
                 returnKeyType="next"
@@ -271,9 +274,9 @@ export default function Create() {
             <FieldBox label="전화 목적">
               <TextInput
                 ref={purposeInputRef}
-                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                className="h-[168px] rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="전화의 목적을 설명해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.purpose}
                 maxLength={200}
                 returnKeyType="done"
@@ -285,7 +288,7 @@ export default function Create() {
                   if (isDetailSubmittable) setStep("loading");
                 }}
                 multiline
-                style={{ minHeight: 168, textAlignVertical: "top" }}
+                style={{ textAlignVertical: "top" }}
               />
             </FieldBox>
           </View>

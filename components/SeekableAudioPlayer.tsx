@@ -1,8 +1,9 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { Ionicons } from "@expo/vector-icons";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   PanResponder,
   Text,
   TouchableOpacity,
@@ -141,11 +142,11 @@ export default function SeekableAudioPlayer({
             <Ionicons
               name={status.playing ? "pause-circle" : "play-circle-sharp"}
               size={44}
-              color={canPlay ? "#0AE365" : "#BDBEBE"}
+              color={canPlay ? SEMANTIC_COLORS.primary.normal : SEMANTIC_COLORS.line.normal}
             />
           ) : (
             <View className="items-center justify-center w-11 h-11">
-              <ActivityIndicator color="#0AE365" />
+              <LoadingIndicator size="small" />
             </View>
           )}
         </TouchableOpacity>
@@ -165,20 +166,20 @@ export default function SeekableAudioPlayer({
           >
             <View className="h-1 bg-[#D9D9D9] rounded-full overflow-hidden">
               <View
-                className="h-full bg-[#0AE365] rounded-full"
+                className="h-full bg-primary-normal rounded-full"
                 style={{ width: `${progress * 100}%` }}
               />
             </View>
             <View
-              className="absolute w-4 h-4 bg-[#0AE365] rounded-full"
+              className="absolute w-4 h-4 bg-primary-normal rounded-full"
               style={{ left: `${progress * 100}%`, transform: [{ translateX: -8 }] }}
             />
           </View>
           <View className="flex-row justify-between mt-1">
-            <Text className="text-xs text-[#8C8E8E]">
+            <Text className="text-caption text-[#8C8E8E]">
               {formatTime(displayedTime)}
             </Text>
-            <Text className="text-xs text-[#8C8E8E]">
+            <Text className="text-caption text-[#8C8E8E]">
               {formatTime(duration)}
             </Text>
           </View>
@@ -186,12 +187,12 @@ export default function SeekableAudioPlayer({
       </View>
 
       {!normalizedUrl && (
-        <Text className="mt-1 text-xs text-[#F65C5C]">
+        <Text className="mt-1 text-caption text-[#F65C5C]">
           재생할 녹음 파일이 없습니다.
         </Text>
       )}
       {errorMessage && (
-        <Text className="mt-1 text-xs text-[#F65C5C]">{errorMessage}</Text>
+        <Text className="mt-1 text-caption text-[#F65C5C]">{errorMessage}</Text>
       )}
     </View>
   );
