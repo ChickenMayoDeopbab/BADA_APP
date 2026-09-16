@@ -27,6 +27,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type AnxietyParams = {
   sessionId?: string;
+  callDurationSeconds?: string;
   scenarioId?: string;
   mode?: "scenario" | "warmUp";
   title?: string;

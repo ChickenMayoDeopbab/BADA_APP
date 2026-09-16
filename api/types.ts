@@ -311,6 +311,7 @@ export interface TrainingRecordResponse {
   scenarioName: string;
   sessionType: SpringSessionType;
   durationSeconds: number;
+  categoryIconUrl?: string | null;
 }
 
 export type TrainingRecordItem = TrainingRecordResponse;

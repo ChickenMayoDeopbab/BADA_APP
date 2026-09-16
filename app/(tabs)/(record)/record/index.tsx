@@ -2,6 +2,7 @@ import { TrainingRecordItem } from "@/api/types";
 import Top from "@/components/common/Top";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
+import RecordCategoryIcon from "@/components/record/RecordCategoryIcon";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
@@ -88,14 +89,6 @@ const formatDuration = (totalSeconds: number) => {
 
 const getSectionTitle = (date: Date) =>
   isToday(date) ? "오늘" : format(date, "M월 d일");
-
-const getRecordIcon = (
-  sessionType: TrainingRecordItem["sessionType"],
-): keyof typeof Ionicons.glyphMap => {
-  if (sessionType === "WARMUP") return "flame";
-  if (sessionType === "CUSTOM") return "create";
-  return "chatbubbles";
-};
 
 function PeriodTabs({
   selected,
@@ -226,16 +219,7 @@ function RecordCard({ item }: { item: TrainingRecordItem }) {
         })
       }
     >
-      <View
-        className="items-center justify-center w-[46px] h-[46px] rounded-component"
-        style={{ backgroundColor: SEMANTIC_COLORS.record.iconBackground }}
-      >
-        <Ionicons
-          name={getRecordIcon(item.sessionType)}
-          size={26}
-          color={SEMANTIC_COLORS.status.info}
-        />
-      </View>
+      <RecordCategoryIcon categoryIconUrl={item.categoryIconUrl} />
 
       <View className="flex-1 ml-[10px]">
         <View className="flex-row items-center justify-between">
