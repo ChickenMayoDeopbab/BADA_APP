@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { createCustomScenario } from "@/api/trainApi";
 import AnimatedCheck from "@/components/common/AnimatedCheck";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -226,7 +227,7 @@ export default function Create() {
               <TextInput
                 className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="시나리오를 나타낼 제목을 입력해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.title}
                 maxLength={50}
                 returnKeyType="next"
@@ -257,7 +258,7 @@ export default function Create() {
                 ref={calleeInputRef}
                 className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="전화 상대에 대해 설명해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.callee}
                 maxLength={100}
                 returnKeyType="next"
@@ -273,7 +274,7 @@ export default function Create() {
                 ref={purposeInputRef}
                 className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="전화의 목적을 설명해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.purpose}
                 maxLength={200}
                 returnKeyType="done"

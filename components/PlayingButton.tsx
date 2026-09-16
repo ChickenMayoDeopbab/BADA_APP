@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { Ionicons } from "@expo/vector-icons";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -135,7 +136,7 @@ function PlayingButton({ audioUrl }: { audioUrl?: string | null }) {
           <Ionicons
             name={status?.playing ? "pause-circle" : "play-circle-sharp"}
             size={40}
-            color={disabled ? "#BDBEBE" : "#0AE365"}
+            color={disabled ? SEMANTIC_COLORS.line.normal : SEMANTIC_COLORS.primary.normal}
           />
         </TouchableOpacity>
         {loading && (

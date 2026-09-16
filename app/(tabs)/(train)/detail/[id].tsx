@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
@@ -309,8 +310,7 @@ export default function Detail() {
             </Text>
             <CustomButton
               label="다시 시도"
-              backgroundColor="#0AE365"
-              color="white"
+              tone="primary"
               variant="md"
               onPress={() => refetch()}
             />
@@ -370,7 +370,7 @@ export default function Detail() {
                   <TrainingCountLabel
                     count={scenario.practice_count ?? 0}
                     size="md"
-                    color="#5C5E5E"
+                    color={SEMANTIC_COLORS.label.alternative}
                   />
                 </View>
                 <Text className="text-label font-medium text-label-neutral">
@@ -381,7 +381,7 @@ export default function Detail() {
 
             <CustomButton
               label="훈련 시작하기"
-              backgroundColor="#0AE365"
+              tone="primary"
               onPress={handleStart}
             />
             </>

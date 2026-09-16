@@ -8,6 +8,7 @@ import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGrou
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
+import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -43,14 +44,6 @@ import {
 type ReportParams = {
   scenarioId?: string;
   mode?: "scenario" | "warmUp";
-};
-
-const cardShadow = {
-  shadowColor: PALETTE.common[100],
-  shadowOpacity: 0.04,
-  shadowRadius: 5.3,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 1,
 };
 
 const reportTextStyles = StyleSheet.create({
@@ -460,7 +453,7 @@ export default function Report() {
                             <Text className="h-7 text-headline2 text-label-neutral" style={reportTextStyles.medium}>
                               {formatTimelineTime(segment.start)}
                             </Text>
-                            <View className="rounded-component" style={cardShadow}>
+                            <View className="rounded-component" style={SUBTLE_CARD_SHADOW}>
                               <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                 <Pressable
                                   className="flex-row items-start justify-between"

@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import BadaLogo from "@/assets/badaLogo2.svg";
+import { SEMANTIC_COLORS } from "@/design-system";
 import { ReactNode } from "react";
 
 interface TopProps {
@@ -61,11 +62,14 @@ export default function Top({
     >
       {back ? (
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="뒤로 가기"
           onPress={handleBack}
           className="absolute left-[30px]"
           style={{ top: actionTop }}
+          hitSlop={8}
         >
-          <Ionicons name="chevron-back-sharp" size={BACK_ICON_SIZE} color="black" />
+          <Ionicons name="chevron-back-sharp" size={BACK_ICON_SIZE} color={SEMANTIC_COLORS.label.normal} />
         </TouchableOpacity>
       ) : null}
 

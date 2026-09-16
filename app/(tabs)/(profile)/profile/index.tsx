@@ -6,7 +6,8 @@ import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
-import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
@@ -25,10 +26,6 @@ interface MenuRowProps {
 
 const menuRowClassName =
   "h-[55px] w-full flex-row items-center justify-between px-[22px]";
-const profileCardShadow = {
-  boxShadow: `0px 0px 3.4px 0px ${PALETTE.common[100]}14`,
-} as const;
-
 function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
   const content = (
     <>
@@ -127,7 +124,7 @@ function ProfileScreen() {
       >
         <View
           className="w-full items-center gap-6 rounded-component bg-background-normal px-[22px] py-[14px]"
-          style={profileCardShadow}
+          style={SURFACE_CARD_SHADOW}
         >
           <View className="items-center gap-4">
             <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
@@ -257,7 +254,7 @@ function ProfileScreen() {
           </Text>
           <View
             className="w-full rounded-component bg-background-normal"
-            style={profileCardShadow}
+            style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
               <MenuRow
@@ -290,7 +287,7 @@ function ProfileScreen() {
           </Text>
           <View
             className="w-full rounded-component bg-background-normal"
-            style={profileCardShadow}
+            style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
               <MenuRow label="로그아웃" destructive onPress={handleSignOut} />

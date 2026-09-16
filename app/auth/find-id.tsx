@@ -147,7 +147,7 @@ export default function FindIdScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView className="flex-1 bg-white" edges={["bottom"]}>
+      <SafeAreaView className="flex-1 bg-background-normal" edges={["bottom"]}>
         <Top title="아이디 찾기" back onBack={handleBack} />
         <KeyboardAvoidingView
           className="flex-1"
@@ -201,7 +201,7 @@ export default function FindIdScreen() {
                       <CustomButton
                         label={isSending ? "전송 중" : "인증코드 전송"}
                         variant="lg"
-                        backgroundColor="#0AE365"
+                        tone="primary"
                         disabled={isSending}
                         onPress={handleEmailSend}
                       />
@@ -233,7 +233,7 @@ export default function FindIdScreen() {
                 <View className="pt-3 pb-7">
                   <CustomButton
                     label={isSubmitting ? "확인 중" : "아이디 찾기"}
-                    backgroundColor="#0AE365"
+                    tone="primary"
                     disabled={isSubmitting}
                     onPress={handleFindId}
                   />
@@ -254,9 +254,9 @@ export default function FindIdScreen() {
                         size={82}
                         color="#9FAAB2"
                       />
-                      <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
+                      <Text className="mt-7 text-headline1 font-bold text-center text-label-neutral">
                         이메일 정보와 일치하는 아이디는{"\n"}
-                        <Text className="text-[#00C95A]">{username}</Text>
+                        <Text className="text-green-40">{username}</Text>
                         입니다.
                       </Text>
                     </>
@@ -267,7 +267,7 @@ export default function FindIdScreen() {
                         style={{ width: 88, height: 88 }}
                         contentFit="contain"
                       />
-                      <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
+                      <Text className="mt-7 text-headline1 font-bold text-center text-label-neutral">
                         이메일 정보와 일치하는 아이디를{"\n"}찾을 수 없습니다.
                       </Text>
                     </>
@@ -279,13 +279,12 @@ export default function FindIdScreen() {
                     <>
                       <CustomButton
                         label="로그인 하러가기"
-                        backgroundColor="#0AE365"
+                        tone="primary"
                         onPress={() => router.replace("/auth/login")}
                       />
                       <CustomButton
                         label="비밀번호 재설정"
-                        color="#0D0D0E"
-                        backgroundColor="#F8F8F8"
+                        tone="neutral"
                         onPress={() =>
                           router.push({
                             pathname: "/auth/reset-password",
@@ -301,13 +300,12 @@ export default function FindIdScreen() {
                     <>
                       <CustomButton
                         label="다시 시도하기"
-                        backgroundColor="#0AE365"
+                        tone="primary"
                         onPress={handleRetry}
                       />
                       <CustomButton
                         label="로그인 하러가기"
-                        color="#0D0D0E"
-                        backgroundColor="#F8F8F8"
+                        tone="neutral"
                         onPress={() => router.replace("/auth/login")}
                       />
                     </>

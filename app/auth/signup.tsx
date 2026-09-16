@@ -118,7 +118,7 @@ export default function SignupScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-background-normal">
         <View
           className="flex-1 px-8"
           style={{
@@ -130,7 +130,7 @@ export default function SignupScreen() {
         >
           <View>
             <BadaLogo width={70} height={32} />
-            <Text className="text-3xl font-bold text-[#0D0D0E]">
+            <Text className="text-title1 font-bold text-label-strong">
               회원가입
             </Text>
           </View>

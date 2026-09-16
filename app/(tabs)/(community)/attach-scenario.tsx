@@ -8,6 +8,7 @@ import { CARD_TEXT_SHADOW } from "@/components/train/cardTextShadow";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import { useCommunityPostDraft } from "@/context/CommunityPostDraftContext";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useScenarios } from "@/hooks/useScenarios";
 import { getScenarioThumbnail } from "@/utils/scenarioImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -36,14 +37,6 @@ const CARD_SCRIM = [
   { color: "#000000", opacity: 0.26, offset: "62%" },
   { color: "#000000", opacity: 0.08, offset: "100%" },
 ];
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.08,
-  shadowRadius: 3.4,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 2,
-};
 
 export default function AttachScenarioScreen() {
   const { selectedScenario, selectScenario } = useCommunityPostDraft();
@@ -110,7 +103,7 @@ export default function AttachScenarioScreen() {
           {filterVisible && (
             <View
               className="absolute right-0 top-[52px] z-40 w-[135px] overflow-hidden rounded-component bg-background-normal"
-              style={cardShadow}
+              style={SURFACE_CARD_SHADOW}
             >
               {FILTERS.map((filter) => (
                 <Pressable
@@ -193,7 +186,7 @@ export default function AttachScenarioScreen() {
                 accessibilityState={{ selected }}
                 onPress={() => setSelectedScenarioId(scenario.scenario_id)}
                 className="h-[72px] w-full overflow-hidden rounded-component bg-background-normal active:opacity-90"
-                style={cardShadow}
+                style={SURFACE_CARD_SHADOW}
               >
                 <StyledImage
                   source={getScenarioThumbnail(

@@ -96,7 +96,7 @@ export default function AudioSegmentButton({
 
   return (
     <View
-      className="flex-row items-center w-full h-[72px] px-3 rounded-[12px]"
+      className="flex-row items-center w-full h-[72px] px-3 rounded-component"
       style={{ backgroundColor: "#E6F7ED" }}
     >
       <TouchableOpacity

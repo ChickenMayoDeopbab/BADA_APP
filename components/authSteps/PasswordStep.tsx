@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import {
@@ -74,7 +75,7 @@ export default function PasswordStep({
                   <Ionicons
                     name={isPasswordVisible ? "eye-off-sharp" : "eye"}
                     size={20}
-                    color="#BDBEBE"
+                    color={SEMANTIC_COLORS.line.normal}
                   />
                 </TouchableOpacity>
               }
@@ -108,7 +109,7 @@ export default function PasswordStep({
                   <Ionicons
                     name={isConfirmPasswordVisible ? "eye-off-sharp" : "eye"}
                     size={20}
-                    color="#BDBEBE"
+                    color={SEMANTIC_COLORS.line.normal}
                   />
                 </TouchableOpacity>
               }
@@ -122,15 +123,14 @@ export default function PasswordStep({
       <View className="gap-y-3">
         <CustomButton
           label="다음으로"
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
+          tone="primary"
           onPress={handleNext}
         />
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
         <TouchableOpacity onPress={onPrev}>
-          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
+          <Text className="text-label text-label-alternative">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>

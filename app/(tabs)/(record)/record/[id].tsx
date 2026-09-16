@@ -5,6 +5,7 @@ import Top from "@/components/common/Top";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import DeleteTrainingRecordModal from "@/components/record/DeleteTrainingRecordModal";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useTrainingRecordDetail } from "@/hooks/useTrainingRecordDetail";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,14 +31,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 type DetailParams = { id: string };
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.04,
-  shadowRadius: 5.3,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 1,
-};
 
 const feedbackLayoutTransition = LinearTransition.duration(220).easing(
   Easing.inOut(Easing.quad),
@@ -231,7 +224,7 @@ export default function RecordDetailScreen() {
           <View className="flex-1">
             <View
               className="h-[124px] mx-4 mt-[15px] rounded-component"
-              style={cardShadow}
+              style={SUBTLE_CARD_SHADOW}
             >
               <View className="relative flex-1 overflow-hidden rounded-component">
                 <SummaryBackground />
@@ -358,7 +351,7 @@ export default function RecordDetailScreen() {
                             <Animated.View
                               layout={feedbackLayoutTransition}
                               className="rounded-component"
-                              style={cardShadow}
+                              style={SUBTLE_CARD_SHADOW}
                             >
                               <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                 <Pressable
