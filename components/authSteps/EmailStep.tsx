@@ -24,7 +24,7 @@ type EmailProps = {
 
 export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
   const { width } = useWindowDimensions();
-  const codeButtonWidth = Math.min(Math.max(width * 0.27, 96), 112);
+  const codeButtonWidth = Math.min(Math.max(width * 0.31, 116), 128);
 
   const {
     control,
