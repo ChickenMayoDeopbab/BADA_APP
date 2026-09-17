@@ -9,7 +9,7 @@ import ScenarioTabs from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
 import { SCENARIO_TABS, ScenarioTabValue } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
-import { useScenarios } from "@/hooks/useScenarios";
+import { useRecommendedScenario, useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -71,6 +71,7 @@ export default function List() {
   // 카테고리를 고르면 API의 category 쿼리로 다시 조회한다.
   // 전체 목록 쿼리는 커스텀·공유 탭과 추천 카드에서 계속 사용한다.
   const categoryScenariosQuery = useScenarios(selectedCategory);
+  const { data: recommendedScenario } = useRecommendedScenario();
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -101,8 +102,6 @@ export default function List() {
     );
   }, [basicScenarios, categoryScenariosQuery.data, selectedCategory]);
 
-  const recommendedScenario = basicScenarios[0];
-
   const selectTab = (tab: ScenarioTabValue) => {
     const tabIndex = SCENARIO_TABS.findIndex((item) => item.value === tab);
     if (tabIndex < 0) return;
@@ -127,7 +126,6 @@ export default function List() {
     if (tab === "shared") return sharedScenarios;
     return categorizedBasicScenarios;
   };
-
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
       <View className="h-[60px] flex-row items-center justify-between px-8">
