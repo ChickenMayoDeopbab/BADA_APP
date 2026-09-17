@@ -7,7 +7,6 @@ import { RegisterFormValues } from "@/types/auth";
 import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Animated,
   Text,
   TouchableOpacity,
   View,
@@ -15,8 +14,6 @@ import {
 } from "react-native";
 
 type UsernameProps = {
-  inputTranslateY: Animated.Value;
-  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => boolean | Promise<boolean>;
   isSubmitting?: boolean;
@@ -25,7 +22,6 @@ type UsernameProps = {
 };
 
 export default function UsernameStep({
-  inputTranslateY,
   onPrev,
   onNext,
   isSubmitting = false,
@@ -94,10 +90,7 @@ export default function UsernameStep({
 
   return (
     <View>
-      <Animated.View
-        className="mb-5"
-        style={{ transform: [{ translateY: inputTranslateY }] }}
-      >
+      <View className="mb-5">
         <Controller
           control={control}
           name="name"
@@ -155,7 +148,7 @@ export default function UsernameStep({
             />
           </View>
         </View>
-      </Animated.View>
+      </View>
 
       <View style={{ height: 24 }} className="mb-6" />
 

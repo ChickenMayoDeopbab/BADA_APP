@@ -8,14 +8,13 @@ import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { RegisterFormValues } from "@/types/auth";
 import { markDiagnosisRequired } from "@/utils/diagnosisFlow";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import {
-  Animated,
-  Keyboard,
+  KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Text,
-  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -33,15 +32,9 @@ export default function SignupScreen() {
   const inputTop = Math.min(Math.max(height * 0.4, 260), 380);
   const headerHeight = 74;
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const inputAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
   const [step, setStep] = useState(1);
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [signupError, setSignupError] = useState("");
-  const inputTranslateY = useRef(new Animated.Value(0)).current;
 
   const methods = useForm<RegisterFormValues>({
     defaultValues: {
@@ -88,45 +81,25 @@ export default function SignupScreen() {
     }
   };
 
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      Animated.timing(inputTranslateY, {
-        toValue: -80,
-        duration: Platform.OS === "ios" ? event.duration : 200,
-        useNativeDriver: true,
-      }).start();
-    });
-
-    const hideSub = Keyboard.addListener(hideEvent, (event) => {
-      Animated.timing(inputTranslateY, {
-        toValue: 0,
-        duration: Platform.OS === "ios" ? event.duration : 200,
-        useNativeDriver: true,
-      }).start();
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [inputTranslateY]);
-
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView className="flex-1 bg-background-normal">
-        <View
-          className="flex-1 px-8"
-          style={{
+    <SafeAreaView className="flex-1 bg-background-normal">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
             paddingTop: topPadding,
+            paddingBottom: 32,
+            paddingHorizontal: 32,
             width: "100%",
             maxWidth: isTablet ? 430 : undefined,
             alignSelf: "center",
           }}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View>
             <BadaLogo width={70} height={32} />
@@ -139,23 +112,17 @@ export default function SignupScreen() {
             <FormProvider {...methods}>
               {step === 1 && (
                 <EmailStep
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
                   onNext={() => setStep(2)}
                 />
               )}
               {step === 2 && (
                 <PasswordStep
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
                   onPrev={() => setStep(1)}
                   onNext={() => setStep(3)}
                 />
               )}
               {step === 3 && (
                 <UsernameStep
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
                   onPrev={() => {
                     setSignupError("");
                     setStep(2);
@@ -168,8 +135,8 @@ export default function SignupScreen() {
               )}
             </FormProvider>
           </View>
-        </View>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

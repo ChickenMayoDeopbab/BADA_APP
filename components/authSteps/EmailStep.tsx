@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,12 +16,10 @@ import {
 } from "react-native";
 
 type EmailProps = {
-  inputTranslateY: Animated.Value;
-  inputAreaHeight: number;
   onNext: () => void;
 };
 
-export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
+export default function EmailStep({ onNext }: EmailProps) {
   const { width } = useWindowDimensions();
   const codeButtonWidth = Math.min(Math.max(width * 0.31, 116), 128);
 
@@ -97,10 +94,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
 
   return (
     <View>
-      <Animated.View
-        className="mb-5"
-        style={{ transform: [{ translateY: inputTranslateY }] }}
-      >
+      <View className="mb-5">
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <Controller
@@ -161,7 +155,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
             />
           )}
         />
-      </Animated.View>
+      </View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
