@@ -4,6 +4,7 @@ import "@/design-system/setupDefaultFont";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PendingCallProvider } from "@/context/PendingCallContext";
+import { AppAlertProvider } from "@/context/AppAlertContext";
 import { setAudioModeAsync } from "expo-audio";
 import * as SplashScreen from "expo-splash-screen";
 import {
@@ -111,15 +112,17 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <PendingCallProvider>
-          <PushNotificationManager />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: SEMANTIC_COLORS.background.normal },
-            }}
-          />
-        </PendingCallProvider>
+        <AppAlertProvider>
+          <PendingCallProvider>
+            <PushNotificationManager />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: SEMANTIC_COLORS.background.normal },
+              }}
+            />
+          </PendingCallProvider>
+        </AppAlertProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
   );

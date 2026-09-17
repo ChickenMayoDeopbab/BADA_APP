@@ -3,6 +3,7 @@ import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
+import { useAppAlert } from "@/context/AppAlertContext";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
@@ -16,7 +17,6 @@ import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Image,
   PanResponder,
@@ -27,6 +27,7 @@ import {
 } from "react-native";
 
 export default function Detail() {
+  const { showAlert } = useAppAlert();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: scenario, isPending, isError, refetch } = useScenario(id);
 
@@ -172,7 +173,10 @@ export default function Detail() {
 
     const scenarioId = id?.trim();
     if (!scenarioId) {
-      Alert.alert("오류", "올바르지 않은 시나리오입니다.");
+      showAlert({
+        title: "오류",
+        description: "올바르지 않은 시나리오입니다.",
+      });
       return;
     }
 
@@ -214,12 +218,13 @@ export default function Detail() {
     } catch (error) {
       if (requestController.signal.aborted || isCancel(error)) return;
 
-      Alert.alert(
-        "재생 실패",
-        error instanceof Error
-          ? error.message
-          : "예시 대화를 불러오지 못했습니다.",
-      );
+      showAlert({
+        title: "재생 실패",
+        description:
+          error instanceof Error
+            ? error.message
+            : "예시 대화를 불러오지 못했습니다.",
+      });
     } finally {
       if (exampleRequestControllerRef.current === requestController) {
         exampleRequestControllerRef.current = null;
