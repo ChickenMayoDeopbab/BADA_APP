@@ -479,17 +479,17 @@ export default function CommunityPostAttachments({
   return (
     <>
       <View className="mt-5 gap-y-2.5">
-        {trainingRecordAttachment && (
-          <TrainingRecordCard attachment={trainingRecordAttachment} />
-        )}
-        {scenarioAttachment && (
-          <ScenarioCard postId={postId} attachment={scenarioAttachment} />
-        )}
         {imageUrl && (
           <ImageAttachmentCard
             imageUrl={imageUrl}
             onOpen={() => setViewerImageUrl(imageUrl)}
           />
+        )}
+        {trainingRecordAttachment && (
+          <TrainingRecordCard attachment={trainingRecordAttachment} />
+        )}
+        {scenarioAttachment && (
+          <ScenarioCard postId={postId} attachment={scenarioAttachment} />
         )}
       </View>
       <ImageViewer

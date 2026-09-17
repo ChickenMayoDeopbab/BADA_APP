@@ -395,7 +395,7 @@ export interface CommunityAuthorInfo {
   profile_image_url?: string | null;
 }
 
-export type CommunityAttachmentKind = "SCENARIO" | "TRAINING_RECORD";
+export type CommunityAttachmentKind = "FILE" | "SCENARIO" | "TRAINING_RECORD";
 
 export interface CommunityAttachmentRequest {
   kind: CommunityAttachmentKind;
@@ -421,11 +421,18 @@ export interface CommunityAttachedTrainingRecord {
   is_available?: boolean;
 }
 
+export interface CommunityAttachedFile {
+  title?: string | null;
+  url?: string | null;
+  is_available?: boolean;
+}
+
 export interface CommunityPostAttachment {
   kind: CommunityAttachmentKind;
   ref_id: number;
   scenario?: CommunityAttachedScenario | null;
   training_record?: CommunityAttachedTrainingRecord | null;
+  file?: CommunityAttachedFile | null;
 }
 
 export interface CommunityScenarioCopyResponse {
