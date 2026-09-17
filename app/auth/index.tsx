@@ -7,16 +7,18 @@ import {
 import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
 import CustomButton from "@/components/common/CustomButton";
+import { useAppAlert } from "@/context/AppAlertContext";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
-import { Alert, useWindowDimensions, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 
 export default function AuthScreen() {
   useDoubleBackExit();
+  const { showAlert } = useAppAlert();
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const bottomPadding = Math.min(Math.max(height * 0.1, 64), 96);
@@ -49,10 +51,11 @@ export default function AuthScreen() {
         });
       }
     } catch {
-      Alert.alert(
-        "로그인 오류",
-        "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
-      );
+      showAlert({
+        title: "로그인 오류",
+        description:
+          "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      });
     } finally {
       loginInProgress.current = false;
       setIsLoggingIn(false);

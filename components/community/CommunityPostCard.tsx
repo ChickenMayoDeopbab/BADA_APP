@@ -10,6 +10,7 @@ import type {
   CommunityReactionCounts,
   CommunityReactionKind,
 } from "@/api/types";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { communityQueryKeys } from "@/hooks/useCommunityPosts";
@@ -24,7 +25,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import CommunityAvatar from "./CommunityAvatar";
 import ReactionPill from "./ReactionPill";
 
@@ -84,6 +85,7 @@ export default function CommunityPostCard({
   onPress,
   reactionsInteractive = true,
 }: CommunityPostCardProps) {
+  const { showAlert } = useAppAlert();
   const queryClient = useQueryClient();
 
   const setCachedReactionState = ({
@@ -185,10 +187,13 @@ export default function CommunityPostCard({
         communityQueryKeys.post(post.post_id),
         context?.previousDetail,
       );
-      Alert.alert(
-        "공감 반영 실패",
-        getApiErrorMessage(error, "공감 상태를 변경하지 못했어요."),
-      );
+      showAlert({
+        title: "공감 반영 실패",
+        description: getApiErrorMessage(
+          error,
+          "공감 상태를 변경하지 못했어요.",
+        ),
+      });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({

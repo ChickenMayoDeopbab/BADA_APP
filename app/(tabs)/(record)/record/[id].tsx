@@ -4,6 +4,7 @@ import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGrou
 import Top from "@/components/common/Top";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import DeleteTrainingRecordModal from "@/components/record/DeleteTrainingRecordModal";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
@@ -13,7 +14,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -79,6 +79,7 @@ function SummaryBackground() {
 }
 
 export default function RecordDetailScreen() {
+  const { showAlert } = useAppAlert();
   const { id } = useLocalSearchParams<DetailParams>();
   const recordId = Number(id);
   const queryClient = useQueryClient();
@@ -114,7 +115,10 @@ export default function RecordDetailScreen() {
     },
     onError: () => {
       setIsDeleteModalVisible(false);
-      Alert.alert("삭제 실패", "기록을 삭제하지 못했습니다. 다시 시도해 주세요.");
+      showAlert({
+        title: "삭제 실패",
+        description: "기록을 삭제하지 못했습니다. 다시 시도해 주세요.",
+      });
     },
   });
 
@@ -122,7 +126,10 @@ export default function RecordDetailScreen() {
     setIsMenuVisible(false);
 
     if (!Number.isSafeInteger(recordId) || recordId <= 0) {
-      Alert.alert("삭제 실패", "올바르지 않은 기록입니다.");
+      showAlert({
+        title: "삭제 실패",
+        description: "올바르지 않은 기록입니다.",
+      });
       return;
     }
 
