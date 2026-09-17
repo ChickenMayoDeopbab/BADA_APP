@@ -1,4 +1,5 @@
 import CallBackground from "@/components/train/CallBackground";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
@@ -6,11 +7,11 @@ import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
+import { setMediaVolumeControlEnabled } from "@/utils/mediaVolumeControl";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   BackHandler,
   Modal,
   ScrollView,
@@ -160,6 +161,7 @@ function ScenarioLabel({ title }: { title?: string }) {
 }
 
 export default function Train() {
+  const { showAlert } = useAppAlert();
   const { sessionId, wsUrl, isWarmup, scenarioId, title, content, isCustom, scenarioImage, category } = useLocalSearchParams<{
     sessionId: string;
     wsUrl: string;
@@ -249,6 +251,15 @@ export default function Train() {
     if (displayName) setCalleeName(displayName);
   }, [displayName]);
   const roleName = calleeName ?? "연결 중...";
+
+  useEffect(() => {
+    const isInCall = step === "training";
+    setMediaVolumeControlEnabled(isInCall);
+
+    return () => {
+      if (isInCall) setMediaVolumeControlEnabled(false);
+    };
+  }, [step]);
 
   // WS 연결과 오디오 준비가 모두 끝난 뒤 마이크 스트리밍 시작.
   // 둘 중 어느 쪽이 먼저 끝나도 state 변경으로 이 effect가 다시 실행된다.
@@ -362,15 +373,16 @@ export default function Train() {
 
     const granted = await requestPermission();
     if (!granted) {
-      Alert.alert(
-        "마이크를 사용할 수 없어요",
-        "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
-      );
+      showAlert({
+        title: "마이크를 사용할 수 없어요",
+        description:
+          "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
+      });
       setStep("receive");
       return;
     }
     setIsAudioReady(true);
-  }, [requestPermission]);
+  }, [requestPermission, showAlert]);
 
   /** 명상 건너뛰기: 다이얼로그 닫고 훈련 시작 */
   const handleMeditationSkip = () => {
