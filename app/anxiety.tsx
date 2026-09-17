@@ -27,6 +27,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type AnxietyParams = {
   sessionId?: string;
+  callDurationSeconds?: string;
   scenarioId?: string;
   mode?: "scenario" | "warmUp";
   title?: string;
@@ -131,11 +132,6 @@ export default function Anxiety() {
       } catch {
         // 점수 기록 실패는 리포트 열람을 막을 이유가 아니라 조용히 넘어간다
       }
-    } else if (__DEV__) {
-      console.warn("[AnxietyScore][SaveSkipped]", {
-        reason: "missing-session-id",
-        score,
-      });
     }
 
     router.replace({ pathname: "/report", params });

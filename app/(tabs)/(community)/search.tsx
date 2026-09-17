@@ -1,15 +1,14 @@
 import CommunityPostCard from "@/components/community/CommunityPostCard";
 import SearchBox from "@/components/common/SearchBox";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+import Top from "@/components/common/Top";
 import RecentSearchChips from "@/components/train/RecentSearchChips";
 import { getApiErrorMessage } from "@/api/error";
-import { SEMANTIC_COLORS } from "@/design-system";
 import { useCommunityPosts } from "@/hooks/useCommunityPosts";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   Text,
@@ -66,18 +65,9 @@ export default function CommunitySearchScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-[60px] flex-row items-center px-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-16 w-16 items-center justify-center active:opacity-60"
-        >
-          <Ionicons
-            name="chevron-back"
-            size={32}
-            color={SEMANTIC_COLORS.label.alternative}
-          />
-        </Pressable>
-        <View className="mr-6 flex-1 flex-row">
+      <Top title="게시물 검색" back onBack={() => router.back()} safeArea={false} />
+      <View className="h-[60px] flex-row items-center px-8">
+        <View className="flex-1 flex-row">
           <SearchBox
             autoFocus
             placeholder="제목 또는 설명으로 검색"
@@ -113,7 +103,7 @@ export default function CommunitySearchScreen() {
           )}
           ListEmptyComponent={
             searchQuery.isPending ? (
-              <ActivityIndicator className="py-16" />
+              <LoadingIndicator className="py-16" />
             ) : searchQuery.isError ? (
               <View className="items-center px-8 py-16">
                 <Text className="text-center text-body text-label-alternative">
@@ -139,7 +129,7 @@ export default function CommunitySearchScreen() {
           }
           ListFooterComponent={
             searchQuery.isFetchingNextPage ? (
-              <ActivityIndicator className="py-5" />
+              <LoadingIndicator size="small" className="py-5" />
             ) : null
           }
           onEndReachedThreshold={0.4}

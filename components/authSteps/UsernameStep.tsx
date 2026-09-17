@@ -7,7 +7,6 @@ import { RegisterFormValues } from "@/types/auth";
 import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Animated,
   Text,
   TouchableOpacity,
   View,
@@ -15,8 +14,6 @@ import {
 } from "react-native";
 
 type UsernameProps = {
-  inputTranslateY: Animated.Value;
-  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => boolean | Promise<boolean>;
   isSubmitting?: boolean;
@@ -25,7 +22,6 @@ type UsernameProps = {
 };
 
 export default function UsernameStep({
-  inputTranslateY,
   onPrev,
   onNext,
   isSubmitting = false,
@@ -94,10 +90,7 @@ export default function UsernameStep({
 
   return (
     <View>
-      <Animated.View
-        className="mb-5"
-        style={{ transform: [{ translateY: inputTranslateY }] }}
-      >
+      <View className="mb-5">
         <Controller
           control={control}
           name="name"
@@ -149,26 +142,25 @@ export default function UsernameStep({
             <CustomButton
               label="중복 확인"
               variant="lg"
-              backgroundColor="#0AE365"
+              tone="primary"
               disabled={isLoading}
               onPress={handleUsernameCheck}
             />
           </View>
         </View>
-      </Animated.View>
+      </View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
           label={isSubmitting ? "가입 중" : "회원가입"}
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
+          tone="primary"
           disabled={isLoading || isSubmitting}
           onPress={handleNext}
         />
         {submitError ? (
-          <Text className="text-xs text-center text-[#FF0000]">
+          <Text className="text-caption text-center text-status-error">
             {submitError}
           </Text>
         ) : null}
@@ -176,7 +168,7 @@ export default function UsernameStep({
 
       <View className="flex-row mt-3 gap-x-4">
         <TouchableOpacity onPress={onPrev}>
-          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
+          <Text className="text-label text-label-alternative">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,4 +1,5 @@
 import LightBulb from "@/assets/lightBulb.svg";
+import { ELEVATED_CARD_SHADOW } from "@/design-system/effects";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, Text, View } from "react-native";
 import GradientOverlay from "./GradientOverlay";
@@ -18,36 +19,31 @@ export default function CustomScenarioBanner({
   onPress,
 }: CustomScenarioBannerProps) {
   return (
-    <Pressable
-      onPress={onPress}
-      className="flex-row items-center justify-between overflow-hidden rounded-component p-4 active:opacity-90"
-      style={{
-        shadowColor: "#000",
-        shadowOpacity: 0.12,
-        shadowRadius: 5.3,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
-      }}
-    >
-      <GradientOverlay direction="diagonal" stops={BANNER_GRADIENT_STOPS} />
+    <View className="rounded-component" style={ELEVATED_CARD_SHADOW}>
+      <Pressable
+        onPress={onPress}
+        className="flex-row items-center justify-between overflow-hidden rounded-component p-4 active:opacity-90"
+      >
+        <GradientOverlay direction="diagonal" stops={BANNER_GRADIENT_STOPS} />
 
-      <View className="gap-y-3">
-        <LightBulb width={40} height={40} />
-        <View className="gap-y-[2px]">
-          <Text className="text-headline1 font-bold text-white">
-            나만의 시나리오 만들기
-          </Text>
-          <Text className="text-caption font-medium text-white opacity-80">
-            내가 원하는 상황에서 전화를 훈련해 보세요!
-          </Text>
+        <View className="gap-y-3">
+          <LightBulb width={40} height={40} />
+          <View className="gap-y-[2px]">
+            <Text className="text-headline1 font-bold text-white">
+              나만의 시나리오 만들기
+            </Text>
+            <Text className="text-caption font-medium text-white opacity-80">
+              내가 원하는 상황에서 전화를 훈련해 보세요!
+            </Text>
+          </View>
         </View>
-      </View>
-      <Ionicons
-        name="chevron-forward"
-        size={32}
-        color="white"
-        style={{ opacity: 0.6 }}
-      />
-    </Pressable>
+        <Ionicons
+          name="chevron-forward"
+          size={32}
+          color="white"
+          style={{ opacity: 0.6 }}
+        />
+      </Pressable>
+    </View>
   );
 }

@@ -1,4 +1,5 @@
 import { ScenarioInfo } from "@/api/types";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { getScenarioThumbnail } from "@/utils/scenarioImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -24,17 +25,11 @@ export default function ScenarioRowCard({
   onPress,
 }: ScenarioRowCardProps) {
   return (
-    <Pressable
-      onPress={() => onPress(scenario)}
-      className="w-full h-[72px] overflow-hidden rounded-component bg-background-normal active:opacity-90"
-      style={{
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 3.4,
-        shadowOffset: { width: 0, height: 0 },
-        elevation: 2,
-      }}
-    >
+    <View className="w-full rounded-component" style={SURFACE_CARD_SHADOW}>
+      <Pressable
+        onPress={() => onPress(scenario)}
+        className="h-[72px] overflow-hidden rounded-component bg-background-normal active:opacity-90"
+      >
       <Image
         source={getScenarioThumbnail(scenario.scenario_image, scenario.category)}
         // require() 에셋은 원본 크기가 인라인 스타일로 새어 컨테이너를 벗어난다.
@@ -66,6 +61,7 @@ export default function ScenarioRowCard({
           <Ionicons name="chevron-forward" size={16} color="white" />
         </GlassChip>
       </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }

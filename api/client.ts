@@ -85,9 +85,7 @@ apiClient.interceptors.response.use(
         // 직접 폐기해 이전 계정의 알림이 이 기기로 계속 오지 않게 합니다.
         const deletePushToken = import('@/services/pushNotifications')
           .then(({ deleteLocalPushToken }) => deleteLocalPushToken())
-          .catch((pushError) => {
-            console.warn('[Push] 인증 만료 후 FCM 토큰 삭제 실패', pushError);
-          });
+          .catch(() => {});
 
         await Promise.all([
           deletePushToken,

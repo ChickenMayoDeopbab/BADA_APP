@@ -5,6 +5,7 @@ import FireIllustration from "@/assets/home-fire.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import StyledImage from "@/components/common/StyledImage";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
+import { ELEVATED_CARD_SHADOW } from "@/design-system/effects";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 import { useNotifications } from "@/hooks/useNotifications";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
@@ -82,6 +83,12 @@ export default function Home() {
   const recommendedScenario = recommendationQuery.data?.scenario;
   const recommendationImageUrl =
     recommendedScenario?.scenario_image ?? recommendationQuery.data?.category_icon_url;
+  const [failedRecommendationImageUrl, setFailedRecommendationImageUrl] =
+    useState<string | null>(null);
+  const showRecommendationImage = Boolean(
+    recommendationImageUrl &&
+      failedRecommendationImageUrl !== recommendationImageUrl,
+  );
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -198,7 +205,8 @@ export default function Home() {
 
         <Animated.View
           layout={calendarLayoutTransition}
-          className="gap-4 px-7 py-4 mt-4 bg-white shadow-md rounded-component"
+          className="gap-4 px-3 py-4 mt-4 bg-background-normal rounded-component"
+          style={ELEVATED_CARD_SHADOW}
         >
         <View className="flex-row items-center justify-between">
           <Text className="font-bold text-body text-label-normal">이번 주 훈련</Text>
@@ -318,7 +326,8 @@ export default function Home() {
         <Pressable
           disabled={!recommendedScenario}
           onPress={() => recommendedScenario && openScenarioDetail(recommendedScenario)}
-          className="h-[148px] w-[59%] rounded-component shadow-md"
+          className="h-[148px] w-[59%] rounded-component"
+          style={ELEVATED_CARD_SHADOW}
         >
             <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
               <CardGradient id="scenarioGradient" colors={["#FF8645", "#FFD8BF"]} descending />
@@ -330,19 +339,32 @@ export default function Home() {
                 <Ionicons name="call" size={14} color={PALETTE.common[0]} />
                 <Text className="font-medium text-white text-label">훈련 하러가기</Text>
               </View>
-              {recommendationImageUrl && (
+              {showRecommendationImage ? (
                 <StyledImage
                   source={recommendationImageUrl}
                   className="absolute -bottom-1.5 -right-4 h-[90px] w-[90px]"
                   contentFit="contain"
                   cachePolicy="memory-disk"
+                  onError={() =>
+                    setFailedRecommendationImageUrl(
+                      recommendationImageUrl ?? null,
+                    )
+                  }
+                />
+              ) : (
+                <Ionicons
+                  name="call-outline"
+                  size={58}
+                  color="rgba(255, 255, 255, 0.5)"
+                  style={{ position: "absolute", right: 12, bottom: 12 }}
                 />
               )}
             </View>
         </Pressable>
         <Pressable
           onPress={() => router.push("/(tabs)/(train)/warmup")}
-          className="h-[148px] flex-1 rounded-component shadow-md"
+          className="h-[148px] flex-1 rounded-component"
+          style={ELEVATED_CARD_SHADOW}
         >
             <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#DCE6FF] px-3 py-3.5">
               <CardGradient id="warmupGradient" colors={["#4992FF", "#DCE6FF"]} />

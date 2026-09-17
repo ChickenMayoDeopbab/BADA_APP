@@ -2,8 +2,11 @@ import { deleteTrainingRecord } from "@/api/recordApi";
 import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
 import Top from "@/components/common/Top";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import DeleteTrainingRecordModal from "@/components/record/DeleteTrainingRecordModal";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useTrainingRecordDetail } from "@/hooks/useTrainingRecordDetail";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,8 +14,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -30,14 +31,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 type DetailParams = { id: string };
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.04,
-  shadowRadius: 5.3,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 1,
-};
 
 const feedbackLayoutTransition = LinearTransition.duration(220).easing(
   Easing.inOut(Easing.quad),
@@ -86,6 +79,7 @@ function SummaryBackground() {
 }
 
 export default function RecordDetailScreen() {
+  const { showAlert } = useAppAlert();
   const { id } = useLocalSearchParams<DetailParams>();
   const recordId = Number(id);
   const queryClient = useQueryClient();
@@ -121,7 +115,10 @@ export default function RecordDetailScreen() {
     },
     onError: () => {
       setIsDeleteModalVisible(false);
-      Alert.alert("삭제 실패", "기록을 삭제하지 못했습니다. 다시 시도해 주세요.");
+      showAlert({
+        title: "삭제 실패",
+        description: "기록을 삭제하지 못했습니다. 다시 시도해 주세요.",
+      });
     },
   });
 
@@ -129,7 +126,10 @@ export default function RecordDetailScreen() {
     setIsMenuVisible(false);
 
     if (!Number.isSafeInteger(recordId) || recordId <= 0) {
-      Alert.alert("삭제 실패", "올바르지 않은 기록입니다.");
+      showAlert({
+        title: "삭제 실패",
+        description: "올바르지 않은 기록입니다.",
+      });
       return;
     }
 
@@ -206,7 +206,7 @@ export default function RecordDetailScreen() {
 
         {isLoading ? (
           <View className="items-center justify-center flex-1">
-            <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+            <LoadingIndicator />
           </View>
         ) : isError || !data ? (
           <View className="items-center justify-center flex-1 px-8">
@@ -231,7 +231,7 @@ export default function RecordDetailScreen() {
           <View className="flex-1">
             <View
               className="h-[124px] mx-4 mt-[15px] rounded-component"
-              style={cardShadow}
+              style={SUBTLE_CARD_SHADOW}
             >
               <View className="relative flex-1 overflow-hidden rounded-component">
                 <SummaryBackground />
@@ -358,7 +358,7 @@ export default function RecordDetailScreen() {
                             <Animated.View
                               layout={feedbackLayoutTransition}
                               className="rounded-component"
-                              style={cardShadow}
+                              style={SUBTLE_CARD_SHADOW}
                             >
                               <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                 <Pressable
