@@ -33,9 +33,7 @@ export const useDiagnosisQuestion = () => {
       try {
         const data = await getQuestion();
         setQuestionsList(data.data);
-      } catch {
-        console.log("질문 리스트 가져오기 실패");
-      }
+      } catch {}
     };
 
     getQuestionList();
@@ -77,7 +75,6 @@ export const useDiagnosisQuestion = () => {
       await completeRequiredDiagnosis();
       setStatus("done");
     } catch {
-      console.log("레벨 계산 실패");
       setStatus("error");
     }
   }, [answers]);

@@ -24,7 +24,6 @@ type FirebaseMessagingModule =
   typeof import("@react-native-firebase/messaging");
 
 let firebaseMessagingModule: FirebaseMessagingModule | null = null;
-let didWarnAboutUnavailableFirebase = false;
 const pendingRegistrations = new Map<string, Promise<boolean>>();
 
 function getFirebaseMessagingModule(): FirebaseMessagingModule | null {
@@ -36,12 +35,6 @@ function getFirebaseMessagingModule(): FirebaseMessagingModule | null {
     TurboModuleRegistry.get("NativeRNFBTurboMessaging") !== null;
 
   if (!hasFirebaseNativeModules) {
-    if (!didWarnAboutUnavailableFirebase) {
-      didWarnAboutUnavailableFirebase = true;
-      console.info(
-        "[Push] 현재 앱 빌드에 Firebase 네이티브 모듈이 없어 푸시 알림을 비활성화합니다.",
-      );
-    }
     return null;
   }
 
@@ -50,14 +43,7 @@ function getFirebaseMessagingModule(): FirebaseMessagingModule | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     firebaseMessagingModule = require("@react-native-firebase/messaging");
     return firebaseMessagingModule;
-  } catch (error) {
-    if (!didWarnAboutUnavailableFirebase) {
-      didWarnAboutUnavailableFirebase = true;
-      console.info(
-        "[Push] Firebase 네이티브 설정이 없어 푸시 알림을 비활성화합니다.",
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+  } catch {
     return null;
   }
 }
@@ -152,9 +138,6 @@ async function performPushRegistration(
       await firebaseMessaging.registerDeviceForRemoteMessages(messaging);
     }
     const token = await firebaseMessaging.getToken(messaging);
-    if (__DEV__) {
-      console.info("[Push][FCM_TOKEN]", token);
-    }
     return await sendTokenToServer(token, accessToken);
   } catch (error) {
     const errorCode =
@@ -165,13 +148,9 @@ async function performPushRegistration(
       Platform.OS === "ios" &&
       errorCode === "messaging/registration-timeout"
     ) {
-      console.info(
-        "[Push] APNs 기기 등록이 응답하지 않았습니다. ARM64 iOS 시뮬레이터에서는 FCM 토큰이 발급되지 않으므로 실제 iPhone에서 테스트해 주세요.",
-      );
       return false;
     }
 
-    console.warn("[Push] FCM 토큰 등록 실패", error);
     return false;
   }
 }
@@ -217,8 +196,7 @@ export async function deleteLocalPushToken(): Promise<boolean> {
     try {
       await AsyncStorage.removeItem(LAST_BACKGROUND_MESSAGE_KEY);
       return true;
-    } catch (error) {
-      console.warn("[Push] 백그라운드 알림 정보 삭제 실패", error);
+    } catch {
       return false;
     }
   }
@@ -228,16 +206,14 @@ export async function deleteLocalPushToken(): Promise<boolean> {
 
   try {
     await firebaseMessaging.setAutoInitEnabled(messaging, false);
-  } catch (error) {
+  } catch {
     succeeded = false;
-    console.warn("[Push] FCM 자동 초기화 비활성화 실패", error);
   }
 
   try {
     await firebaseMessaging.deleteToken(messaging);
-  } catch (error) {
+  } catch {
     succeeded = false;
-    console.warn("[Push] 로컬 FCM 토큰 삭제 실패", error);
   }
 
   if (
@@ -246,17 +222,15 @@ export async function deleteLocalPushToken(): Promise<boolean> {
   ) {
     try {
       await firebaseMessaging.unregisterDeviceForRemoteMessages(messaging);
-    } catch (error) {
+    } catch {
       succeeded = false;
-      console.warn("[Push] APNs 기기 등록 해제 실패", error);
     }
   }
 
   try {
     await AsyncStorage.removeItem(LAST_BACKGROUND_MESSAGE_KEY);
-  } catch (error) {
+  } catch {
     succeeded = false;
-    console.warn("[Push] 백그라운드 알림 정보 삭제 실패", error);
   }
 
   return succeeded;
@@ -278,9 +252,8 @@ export async function unregisterForPushNotifications(): Promise<boolean> {
     if (installationId && accessToken) {
       await unregisterPushDevice(installationId);
     }
-  } catch (error) {
+  } catch {
     serverSucceeded = false;
-    console.warn("[Push] 서버 기기 등록 해제 실패", error);
   }
 
   const localSucceeded = await deleteLocalPushToken();
@@ -307,12 +280,7 @@ export function listenForPushNotifications({
     const unsubscribeTokenRefresh = firebaseMessaging.onTokenRefresh(
       messaging,
       (token) => {
-        if (__DEV__) {
-          console.info("[Push][FCM_TOKEN_REFRESHED]", token);
-        }
-        void sendTokenToServer(token).catch((error) => {
-          console.warn("[Push] 갱신된 FCM 토큰 등록 실패", error);
-        });
+        void sendTokenToServer(token).catch(() => {});
       },
     );
 
@@ -321,8 +289,7 @@ export function listenForPushNotifications({
       unsubscribeOpened();
       unsubscribeTokenRefresh();
     };
-  } catch (error) {
-    console.warn("[Push] FCM 리스너 초기화 실패", error);
+  } catch {
     return () => {};
   }
 }
@@ -335,8 +302,7 @@ export async function getInitialPushNotification(): Promise<PushMessage | null> 
     return await firebaseMessaging.getInitialNotification(
       firebaseMessaging.getMessaging(),
     );
-  } catch (error) {
-    console.warn("[Push] 최초 알림 확인 실패", error);
+  } catch {
     return null;
   }
 }
@@ -358,9 +324,7 @@ function registerBackgroundMessageHandler() {
         );
       },
     );
-  } catch (error) {
-    console.warn("[Push] 백그라운드 FCM 핸들러 초기화 실패", error);
-  }
+  } catch {}
 }
 
 registerBackgroundMessageHandler();

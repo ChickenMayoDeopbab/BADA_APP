@@ -100,8 +100,7 @@ export default function SeekableAudioPlayer({
           try {
             await playerRef.current.seekTo(nextTime);
             setErrorMessage(null);
-          } catch (error) {
-            console.error("[SeekableAudioPlayer] seek 실패", error);
+          } catch {
             setErrorMessage("재생 위치를 변경하지 못했습니다.");
           }
         },
@@ -124,8 +123,7 @@ export default function SeekableAudioPlayer({
         player.play();
       }
       setErrorMessage(null);
-    } catch (error) {
-      console.error("[SeekableAudioPlayer] 재생 실패", error);
+    } catch {
       setErrorMessage("오디오를 재생하지 못했습니다.");
     }
   };

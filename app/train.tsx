@@ -239,10 +239,7 @@ export default function Train() {
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
-    onError: (code) => {
-      console.warn("WS error:", code);
-      handleEndCall();
-    },
+    onError: () => handleEndCall(),
   });
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
@@ -257,10 +254,7 @@ export default function Train() {
   // 둘 중 어느 쪽이 먼저 끝나도 state 변경으로 이 effect가 다시 실행된다.
   useEffect(() => {
     if (isConnected && step === "training" && isAudioReady) {
-      console.info("[Train] 웹소켓·오디오 준비 완료, 마이크 시작");
-      void startSendingAudio(sendBinary).catch((error) => {
-        console.warn("[Train] 마이크 시작 실패", error);
-      });
+      void startSendingAudio(sendBinary).catch(() => {});
     }
   }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
 
@@ -375,7 +369,6 @@ export default function Train() {
       setStep("receive");
       return;
     }
-    console.info("[Train] 오디오 준비 완료");
     setIsAudioReady(true);
   }, [requestPermission]);
 
@@ -406,7 +399,7 @@ export default function Train() {
     if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
-    void stopSendingAudio().catch((error) => console.warn("녹음 종료 실패", error));
+    void stopSendingAudio().catch(() => {});
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;

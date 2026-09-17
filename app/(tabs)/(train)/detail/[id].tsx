@@ -214,7 +214,6 @@ export default function Detail() {
     } catch (error) {
       if (requestController.signal.aborted || isCancel(error)) return;
 
-      console.error("[ScenarioExample] 예시 대화 조회 실패", error);
       Alert.alert(
         "재생 실패",
         error instanceof Error

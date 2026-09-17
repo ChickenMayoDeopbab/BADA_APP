@@ -130,9 +130,7 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
         }
         player.play();
       }
-    } catch (error) {
-      console.error("[CommunityTrainingRecord] 재생 실패", error);
-    }
+    } catch {}
   };
 
   if (!record) return null;
