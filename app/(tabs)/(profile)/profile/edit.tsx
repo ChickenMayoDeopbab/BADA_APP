@@ -335,7 +335,7 @@ export default function ProfileEditScreen() {
     Boolean(imageUri && loadedImageUri !== imageUri);
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
+    <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-background-normal">
       <Top title="프로필 수정" back onBack={cancelChanges} safeArea={false} />
 
       <KeyboardAvoidingView

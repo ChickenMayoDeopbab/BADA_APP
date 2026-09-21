@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type WarmupCreateStep = "write" | "loading" | "done" | "fail";
 
@@ -34,6 +35,7 @@ const FieldBox = ({ label, children }: { label: string; children: ReactNode }) =
 );
 
 export default function Warmup() {
+  const insets = useSafeAreaInsets();
   useAndroidBackHandler(() => {
     BackHandler.exitApp();
     return true;
@@ -98,7 +100,7 @@ export default function Warmup() {
             생성 시 입력한 내용을 다시 확인해주세요.
           </Text>
         </View>
-        <View className="px-[33px] pb-10 gap-y-3">
+        <View className="px-[33px] gap-y-3" style={{ paddingBottom: insets.bottom + 40 }}>
           <CustomButton
             label="다시 시도하기"
             tone="primary"
@@ -138,7 +140,7 @@ export default function Warmup() {
             워밍업으로 실전에 대비해볼까요?
           </Text>
         </View>
-        <View className="px-[33px] pb-10 gap-y-3">
+        <View className="px-[33px] gap-y-3" style={{ paddingBottom: insets.bottom + 40 }}>
           <CustomButton
             label="워밍업 시작하기"
             tone="primary"
@@ -196,7 +198,7 @@ export default function Warmup() {
           </FieldBox>
         </View>
       </ScrollView>
-      <View className={`px-[33px] pt-4 ${isKeyboardVisible ? "pb-5" : "pb-10"}`}>
+      <View className="px-[33px] pt-4" style={{ paddingBottom: isKeyboardVisible ? 20 : insets.bottom + 40 }}>
         <CustomButton
           label="워밍업 생성하기"
           tone="primary"

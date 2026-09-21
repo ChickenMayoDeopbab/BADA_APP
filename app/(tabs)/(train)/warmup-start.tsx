@@ -8,8 +8,10 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function WarmupStart() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
@@ -80,7 +82,7 @@ export default function WarmupStart() {
         </View>
       </View>
 
-      <View className="px-8 pb-10 pt-4">
+      <View className="px-8 pt-4" style={{ paddingBottom: insets.bottom + 40 }}>
         <CustomButton
           label={isCreatingSession ? "처리 중..." : "워밍업 시작하기"}
           tone="primary"

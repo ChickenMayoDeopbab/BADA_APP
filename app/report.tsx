@@ -353,7 +353,7 @@ export default function Report() {
     <AudioPlaybackGroupProvider>
       <SafeAreaView
         className="flex-1 bg-background-alternative"
-        edges={["top"]}
+        edges={["top", "bottom"]}
       >
         {isLoading ? (
           <ReportLoading />
