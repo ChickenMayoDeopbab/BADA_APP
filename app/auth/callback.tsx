@@ -1,14 +1,16 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { postOAuthToken } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { setAuthTokens } from "@/utils/authTokenStorage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type CallbackStatus = "loading" | "error";
@@ -89,33 +91,33 @@ export default function OAuthCallbackScreen() {
   }, [code, oauthError, oauthErrorMessage]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background-normal">
       <View className="items-center justify-center flex-1 px-8">
         <BadaLogo width={110} height={52} />
 
         {status === "loading" ? (
           <View className="items-center mt-12">
-            <ActivityIndicator size="large" color="#0AE365" />
-            <Text className="mt-6 text-2xl font-bold text-[#0D0D0E]">
+            <LoadingIndicator />
+            <Text className="mt-6 text-title2 font-bold text-label-normal">
               로그인 확인 중
             </Text>
-            <Text className="mt-2 text-base text-center text-[#5C5E5E]">
+            <Text className="mt-2 text-body text-center text-label-alternative">
               잠시만 기다려 주세요.
             </Text>
           </View>
         ) : (
           <View className="items-center w-full mt-12">
             <Ionicons name="alert-circle-outline" size={72} color="#F65C5C" />
-            <Text className="mt-6 text-2xl font-bold text-[#0D0D0E]">
+            <Text className="mt-6 text-title2 font-bold text-label-normal">
               로그인 실패
             </Text>
-            <Text className="mt-3 text-base leading-6 text-center text-[#5C5E5E]">
+            <Text className="mt-3 text-body leading-6 text-center text-label-alternative">
               {errorMessage}
             </Text>
             <View className="w-full mt-10">
               <CustomButton
                 label="로그인 화면으로 돌아가기"
-                backgroundColor="#0AE365"
+                backgroundColor={SEMANTIC_COLORS.primary.normal}
                 color="#FFFFFF"
                 onPress={() => router.replace("/auth")}
               />

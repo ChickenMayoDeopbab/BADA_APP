@@ -57,7 +57,6 @@ export function useTrainPlayback(options: TrainPlaybackOptions) {
         ...stats, platform: Platform.OS, os: String(Platform.Version), route: "unknown",
       }),
       onError: (error) => {
-        console.warn("[Audio] PCM 재생 실패", error);
         callbacks.current.onPlaybackError?.(error);
       },
       driver: {
