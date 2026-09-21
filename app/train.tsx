@@ -226,6 +226,9 @@ export default function Train() {
   } = useAudio({
     onPlaybackBlocked: (blocked) => setPlaybackBlocked(blocked),
     onPlaybackStats: (stats) => { sendJson(stats); },
+    onPlaybackComplete: (turnId) => {
+      sendJson({ type: "playback_done", turn_id: turnId });
+    },
     onPlaybackError: () => handleEndCall(),
   });
 

@@ -22,6 +22,7 @@ export interface PlaybackDriver {
 }
 interface Turn {
   id: number;
+  completionTurnId: number | null;
   chunks: number;
   chunkEnds: number[];
   receivedBytes: number;
@@ -38,6 +39,7 @@ interface Options {
   driver: PlaybackDriver;
   onBlocked: (blocked: boolean) => void;
   onStats: (stats: PlaybackStats) => void;
+  onComplete?: (turnId: number) => void;
   onError: (error: unknown) => void;
   setTimer?: (callback: () => void, ms: number) => ReturnType<typeof setTimeout>;
   clearTimer?: (timer: ReturnType<typeof setTimeout>) => void;
@@ -69,7 +71,8 @@ export class TrainPlayback {
     // Multiple emotion messages within an unfinished turn are metadata updates.
     if (this.current && !this.current.ended) return;
     this.current = {
-      id: this.nextTurn++, chunks: 0, chunkEnds: [], receivedBytes: 0,
+      id: this.nextTurn++, completionTurnId: null,
+      chunks: 0, chunkEnds: [], receivedBytes: 0,
       completedFrames: 0, pending: [], pendingFrames: 0, outstanding: 0,
       started: false, ended: false, leftover: null, invalidBytes: 0,
     };
@@ -108,9 +111,10 @@ export class TrainPlayback {
     if (turn.started || turn.pendingFrames >= PREBUFFER_FRAMES) this.flush(turn);
   }
 
-  end() {
+  end(completionTurnId?: number) {
     const turn = this.current;
     if (!turn || turn.ended) return;
+    if (completionTurnId !== undefined) turn.completionTurnId = completionTurnId;
     turn.ended = true;
     // A partial sample must never leak into the following turn.
     if (turn.leftover !== null) turn.invalidBytes++;
@@ -163,6 +167,9 @@ export class TrainPlayback {
     this.turns.delete(turn);
     this.watch();
     this.options.onStats(this.stats(turn, "completed"));
+    if (turn.completionTurnId !== null) {
+      this.options.onComplete?.(turn.completionTurnId);
+    }
     this.release();
   }
 

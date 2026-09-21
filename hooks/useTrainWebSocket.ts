@@ -26,7 +26,7 @@ interface UseTrainWebSocketProps {
   wsUrl: string | null; // Spring이 반환한 WS URL (토큰 미포함)
   enabled: boolean; // training 단계에서만 true
   onEmotion?: (emotion: string) => void;
-  onSpeakingEnd?: () => void;
+  onSpeakingEnd?: (turnId?: number) => void;
   onInterrupt?: () => void; // barge-in: 재생 버퍼 비우기
   onEnd?: (reason: WsEndReason) => void;
   onError?: (code: string) => void;
@@ -111,6 +111,7 @@ export function useTrainWebSocket({
 
     ws.onopen = () => {
       setIsConnected(true);
+      ws.send(JSON.stringify({ type: "playback_capabilities", completion_ack: true }));
       // keep-alive ping 30초마다
       pingIntervalRef.current = setInterval(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -136,7 +137,9 @@ export function useTrainWebSocket({
               break;
             case "speaking_end":
               // Output completion + tail guard owns the microphone gate.
-              onSpeakingEndRef.current?.();
+              onSpeakingEndRef.current?.(
+                typeof msg.turn_id === "number" ? msg.turn_id : undefined,
+              );
               break;
             case "interrupt":
               onInterruptRef.current?.();
