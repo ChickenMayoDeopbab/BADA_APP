@@ -25,6 +25,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -220,12 +221,17 @@ export default function ResetPasswordScreen() {
           >
             {step === "identity" && (
               <>
-                <View
+                <ScrollView
                   className="flex-1"
-                  style={{
+                  contentContainerStyle={{
                     paddingTop: Math.min(Math.max(height * 0.08, 44), 78),
                     paddingBottom: 16,
                   }}
+                  keyboardDismissMode={
+                    Platform.OS === "ios" ? "interactive" : "on-drag"
+                  }
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
                 >
                   <Controller
                     control={control}
@@ -306,7 +312,7 @@ export default function ResetPasswordScreen() {
                       />
                     )}
                   />
-                </View>
+                </ScrollView>
 
                 <View className="pt-3 pb-7">
                   <CustomButton
@@ -321,12 +327,17 @@ export default function ResetPasswordScreen() {
 
             {step === "password" && (
               <>
-                <View
+                <ScrollView
                   className="flex-1"
-                  style={{
+                  contentContainerStyle={{
                     paddingTop: Math.min(Math.max(height * 0.08, 44), 78),
                     paddingBottom: 16,
                   }}
+                  keyboardDismissMode={
+                    Platform.OS === "ios" ? "interactive" : "on-drag"
+                  }
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
                 >
                   <Controller
                     control={control}
@@ -440,7 +451,7 @@ export default function ResetPasswordScreen() {
                       />
                     )}
                   />
-                </View>
+                </ScrollView>
 
                 <View className="pt-3 pb-7">
                   <CustomButton

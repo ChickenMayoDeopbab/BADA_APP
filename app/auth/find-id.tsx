@@ -17,6 +17,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableWithoutFeedback,
@@ -163,12 +164,17 @@ export default function FindIdScreen() {
           >
             {view === "form" ? (
               <>
-                <View
+                <ScrollView
                   className="flex-1"
-                  style={{
+                  contentContainerStyle={{
                     paddingTop: Math.min(Math.max(height * 0.12, 72), 112),
                     paddingBottom: 16,
                   }}
+                  keyboardDismissMode={
+                    Platform.OS === "ios" ? "interactive" : "on-drag"
+                  }
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
                 >
                   <View className="flex-row items-start gap-x-3">
                     <View className="flex-1">
@@ -228,7 +234,7 @@ export default function FindIdScreen() {
                       />
                     )}
                   />
-                </View>
+                </ScrollView>
 
                 <View className="pt-3 pb-7">
                   <CustomButton
