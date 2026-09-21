@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { TextInput, TextInputProps, View } from "react-native";
 import SearchIconButton from "./SearchIconButton";
 
@@ -12,7 +13,7 @@ export default function SearchBox({ onSearch, ...props }: SearchBoxProps) {
     <View className="h-12 flex-1 flex-row items-center justify-between rounded-component bg-fill-neutral px-[10px]">
       <TextInput
         className="flex-1 text-headline2 font-medium text-label-normal"
-        placeholderTextColor="#BDBEBE"
+        placeholderTextColor={SEMANTIC_COLORS.line.normal}
         returnKeyType="search"
         {...props}
       />

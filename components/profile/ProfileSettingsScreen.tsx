@@ -27,8 +27,10 @@ export default function ProfileSettingsScreen({
   const cancel = onCancel ?? (() => router.back());
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
-      <Top title={title} back onBack={cancel} right={headerAction} safeArea={false} />
+    <SafeAreaView edges={["bottom"]} className="flex-1 bg-background-alternative">
+      <View className="bg-background-normal">
+        <Top title={title} back onBack={cancel} right={headerAction} />
+      </View>
 
       <ScrollView
         className="flex-1 bg-background-alternative"

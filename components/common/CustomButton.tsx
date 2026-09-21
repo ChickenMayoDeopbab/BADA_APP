@@ -28,13 +28,13 @@ const variantStyle = {
     height: "min-h-[38px]",
     text: "text-label",
     padding: "p-[10px]",
-    radius: "rounded-[8px]",
+    radius: "rounded-control",
   },
   sm: {
     height: "min-h-[28px]",
     text: "text-caption",
     padding: "p-[6px]",
-    radius: "rounded-[8px]",
+    radius: "rounded-control",
   },
 };
 

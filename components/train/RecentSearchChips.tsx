@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, Text, View } from "react-native";
 
@@ -51,7 +52,7 @@ export default function RecentSearchChips({
                 hitSlop={8}
                 className="active:opacity-60"
               >
-                <Ionicons name="close" size={12} color="#5C5E5E" />
+                <Ionicons name="close" size={12} color={SEMANTIC_COLORS.label.alternative} />
               </Pressable>
             </Pressable>
           ))}

@@ -71,9 +71,16 @@ export interface EmailRequest {
   email: string;
 }
 
+export type EmailVerificationType = "SIGNUP" | "FIND_ID" | "RESET_PASSWORD";
+
+export interface EmailSendRequest extends EmailRequest {
+  type: EmailVerificationType;
+}
+
 export interface EmailVerificationRequest {
   email: string;
   authNum: string;
+  type: EmailVerificationType;
 }
 
 export interface FindIdRequest {
@@ -304,6 +311,7 @@ export interface TrainingRecordResponse {
   scenarioName: string;
   sessionType: SpringSessionType;
   durationSeconds: number;
+  categoryIconUrl?: string | null;
 }
 
 export type TrainingRecordItem = TrainingRecordResponse;
@@ -387,7 +395,7 @@ export interface CommunityAuthorInfo {
   profile_image_url?: string | null;
 }
 
-export type CommunityAttachmentKind = "SCENARIO" | "TRAINING_RECORD";
+export type CommunityAttachmentKind = "FILE" | "SCENARIO" | "TRAINING_RECORD";
 
 export interface CommunityAttachmentRequest {
   kind: CommunityAttachmentKind;
@@ -413,11 +421,18 @@ export interface CommunityAttachedTrainingRecord {
   is_available?: boolean;
 }
 
+export interface CommunityAttachedFile {
+  title?: string | null;
+  url?: string | null;
+  is_available?: boolean;
+}
+
 export interface CommunityPostAttachment {
   kind: CommunityAttachmentKind;
   ref_id: number;
   scenario?: CommunityAttachedScenario | null;
   training_record?: CommunityAttachedTrainingRecord | null;
+  file?: CommunityAttachedFile | null;
 }
 
 export interface CommunityScenarioCopyResponse {
