@@ -125,9 +125,7 @@ export default function EmailStep({
                   label="이메일"
                   autoCapitalize="none"
                   autoComplete="off"
-                  error={
-                    error?.message ?? errors.email?.message ?? submitError
-                  }
+                  error={error?.message ?? errors.email?.message}
                   success={isSent ? "인증코드가 전송됐습니다." : ""}
                   returnKeyType="next"
                   onSubmitEditing={() => verificationRef.current?.focus()}
@@ -181,6 +179,9 @@ export default function EmailStep({
           disabled={isChecking || isSubmitting}
           onPress={handleEmailCheck}
         />
+        {submitError ? (
+          <Text className="text-label text-status-error">{submitError}</Text>
+        ) : null}
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
