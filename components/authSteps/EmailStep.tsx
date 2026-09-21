@@ -17,6 +17,8 @@ import {
 type EmailProps = {
   onPrev: () => void;
   onNext: () => boolean | Promise<boolean>;
+  isSent: boolean;
+  onSentChange: (isSent: boolean) => void;
   isSubmitting?: boolean;
   submitError?: string;
   onFormChange?: () => void;
@@ -25,6 +27,8 @@ type EmailProps = {
 export default function EmailStep({
   onPrev,
   onNext,
+  isSent,
+  onSentChange,
   isSubmitting = false,
   submitError = "",
   onFormChange,
@@ -40,7 +44,6 @@ export default function EmailStep({
     clearErrors,
     formState: { errors },
   } = useFormContext<RegisterFormValues>();
-  const [isSent, setIsSent] = useState<boolean>(false);
   const [isSending, setIsSending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const verificationRef = useRef<TextInput>(null);
@@ -54,10 +57,10 @@ export default function EmailStep({
       const email = getValues("email").trim();
       await postEmailSend({ email, type: "SIGNUP" });
       clearErrors("email");
-      setIsSent(true);
+      onSentChange(true);
       verificationRef.current?.focus();
     } catch (error) {
-      setIsSent(false);
+      onSentChange(false);
       setError("email", {
         type: "server",
         message: getApiErrorMessage(
@@ -118,7 +121,7 @@ export default function EmailStep({
                   value={value}
                   onChangeText={(text) => {
                     onChange(text);
-                    setIsSent(false);
+                    onSentChange(false);
                     clearErrors("email");
                     onFormChange?.();
                   }}
