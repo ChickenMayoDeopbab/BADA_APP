@@ -17,6 +17,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type FlowStep = "difficulty" | "time";
 
@@ -41,6 +42,7 @@ function SectionTitle({ title }: SectionTitleProps) {
 }
 
 export default function Start() {
+  const insets = useSafeAreaInsets();
   const { id, isCustom, title, content, scenarioImage, category } =
     useLocalSearchParams<{
       id?: string;
@@ -185,7 +187,7 @@ export default function Start() {
         </View>
       )}
 
-      <View className="px-[33px] pb-10 pt-4 gap-y-3">
+      <View className="px-[33px] pt-4 gap-y-3" style={{ paddingBottom: insets.bottom + 40 }}>
         {/* 발신 설정 단계에서만 언제 훈련이 시작되는지 미리 알려준다 */}
         {flowStep === "time" && (
           <Text
