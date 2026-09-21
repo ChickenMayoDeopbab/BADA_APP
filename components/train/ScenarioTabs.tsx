@@ -1,15 +1,15 @@
 import { SCENARIO_TABS, ScenarioTabValue } from "@/constants/train";
 import { Animated, Pressable, Text, View } from "react-native";
 
-// 전체 길이는 222px로 짧게 유지하면서 모든 한글 라벨이 온전히 보이는 폭이다.
-// 고정 폭을 써야 커뮤니티와 동일한 native-driver translateX 애니메이션이 동작한다.
-const TAB_WIDTH = 72;
-const TAB_GAP = 3;
+export const SCENARIO_TAB_WIDTH = 92;
+export const SCENARIO_TAB_GAP = 3;
 
 interface ScenarioTabsProps {
   value: ScenarioTabValue;
   onChange: (value: ScenarioTabValue) => void;
   pageWidth: number;
+  tabWidth: number;
+  fontScale: number;
   scrollX: Animated.Value;
 }
 
@@ -18,19 +18,21 @@ export default function ScenarioTabs({
   value,
   onChange,
   pageWidth,
+  tabWidth,
+  fontScale,
   scrollX,
 }: ScenarioTabsProps) {
   const indicatorTranslateX = scrollX.interpolate({
     inputRange: SCENARIO_TABS.map((_, index) => index * pageWidth),
     outputRange: SCENARIO_TABS.map(
-      (_, index) => index * (TAB_WIDTH + TAB_GAP),
+      (_, index) => index * (tabWidth + SCENARIO_TAB_GAP),
     ),
     extrapolate: "clamp",
   });
 
   return (
-    <View className="relative">
-      <View className="flex-row" style={{ gap: TAB_GAP }}>
+    <View className="relative h-[53px]">
+      <View className="flex-row" style={{ gap: SCENARIO_TAB_GAP }}>
         {SCENARIO_TABS.map((tab, index) => {
           const isSelected = tab.value === value;
           const activeTextOpacity = scrollX.interpolate({
@@ -50,11 +52,12 @@ export default function ScenarioTabs({
               accessibilityState={{ selected: isSelected }}
               onPress={() => onChange(tab.value)}
               className="items-center"
-              style={{ width: TAB_WIDTH }}
+              style={{ width: tabWidth }}
             >
               <Text
                 numberOfLines={1}
                 className="text-center text-headline2 font-medium text-line-normal"
+                style={{ width: tabWidth }}
               >
                 {tab.label}
               </Text>
@@ -62,7 +65,7 @@ export default function ScenarioTabs({
                 numberOfLines={1}
                 pointerEvents="none"
                 className="absolute text-center text-headline2 font-medium text-green-40"
-                style={{ opacity: activeTextOpacity }}
+                style={{ width: tabWidth, opacity: activeTextOpacity }}
               >
                 {tab.label}
               </Animated.Text>
@@ -72,9 +75,10 @@ export default function ScenarioTabs({
       </View>
       <Animated.View
         pointerEvents="none"
-        className="absolute top-[31px] h-0.5 rounded-pill bg-green-40"
+        className="absolute h-0.5 rounded-pill bg-green-40"
         style={{
-          width: TAB_WIDTH,
+          top: Math.min(45, 8 + 23.4 * fontScale),
+          width: tabWidth,
           transform: [{ translateX: indicatorTranslateX }],
         }}
       />

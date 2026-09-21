@@ -6,7 +6,6 @@ import {
 import { useCallback, useEffect, useRef } from "react";
 import {
   AppState,
-  NativeModules,
   PermissionsAndroid,
   Platform,
 } from "react-native";
@@ -22,8 +21,6 @@ const AUDIO_RECORD_OPTIONS = {
   audioSource: 6, // Android: VOICE_RECOGNITION; AEC availability is device-dependent
   wavFile: "bada_rec.wav",
 };
-
-const { RNAudioRecord } = NativeModules;
 
 function base64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -80,7 +77,6 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
         return false;
       }
     }
-    console.info("[Audio] 마이크 권한 확인 시작");
     let granted: boolean;
     if (Platform.OS === "android") {
       const permission = PermissionsAndroid.PERMISSIONS.RECORD_AUDIO;
@@ -93,11 +89,9 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
     } else {
       ({ granted } = await requestRecordingPermissionsAsync());
     }
-    console.info("[Audio] 마이크 권한 확인 완료", { granted });
     if (!granted || AppState.currentState !== "active") return false;
 
     try {
-      console.info("[Audio] 오디오 모드 설정 시작");
       await setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
@@ -106,9 +100,7 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
         interruptionMode: "duckOthers",
         shouldRouteThroughEarpiece: false,
       });
-      console.info("[Audio] 오디오 모드 설정 완료");
-    } catch (error) {
-      console.warn("[Audio] 오디오 모드 설정 실패:", error);
+    } catch {
       return false;
     }
     return true;
@@ -154,8 +146,7 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
           workletNode.connect(ctx.destination);
           processorRef.current = workletNode;
           isSendingRef.current = true;
-        } catch (e) {
-          console.warn("[Audio] 마이크 스트리밍 시작 실패:", e);
+        } catch {
           isSendingRef.current = false;
           if (processorRef.current) {
             try {
@@ -175,18 +166,11 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const AudioRecord = require("react-native-audio-record").default;
-      console.info("[Audio] 네이티브 마이크 스트리밍 시작 요청", {
-        hasNativeModule: Boolean(RNAudioRecord),
-      });
 
       AudioRecord.init(AUDIO_RECORD_OPTIONS);
 
-      let dataEventCount = 0;
-
       recordingSubscriptionRef.current?.remove();
       recordingSubscriptionRef.current = AudioRecord.on("data", (b64: string) => {
-        dataEventCount++;
-
         if (!isSendingRef.current || AppState.currentState !== "active") return;
 
         // muted(AI 응답 재생 중)일 때만 차단. 평상시(false)에는 전송되어야 함.
@@ -196,14 +180,7 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
 
         const bytes = base64ToBytes(b64);
         if (bytes.length === 0) {
-          console.warn("[Audio][STEP3-WARN] PCM 길이 0");
           return;
-        }
-
-        if (dataEventCount === 1) {
-          console.info("[Audio] 첫 PCM 프레임 수신", {
-            byteLength: bytes.length,
-          });
         }
 
         const buf = bytes.buffer.slice(
@@ -215,10 +192,8 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
       try {
         AudioRecord.start();
         isSendingRef.current = true;
-        console.info("[Audio] 네이티브 마이크 스트리밍 시작 완료");
       } catch (error) {
         isSendingRef.current = false;
-        console.warn("[Audio] 네이티브 마이크 스트리밍 시작 실패", error);
         throw error;
       }
     },
@@ -256,7 +231,7 @@ export function useAudio(options: TrainPlaybackOptions = {}): UseAudioReturn {
   }, []);
 
   useEffect(() => () => {
-    void stopSendingAudio().catch((error) => console.warn("[Audio] 녹음 종료 실패", error));
+    void stopSendingAudio().catch(() => {});
   }, [stopSendingAudio]);
 
   return {

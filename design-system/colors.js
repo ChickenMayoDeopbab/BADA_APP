@@ -98,6 +98,7 @@ const SEMANTIC_COLORS = {
   },
   fill: {
     normal: "#F8F8F8",
+    field: "#F3F3F3",
     neutral: "#EBEBEC",
     alternative: "#E1E2E3",
     pressed: "#F2F2F2",
@@ -148,6 +149,7 @@ const DARK_SEMANTIC_COLORS = {
   },
   fill: {
     normal: "#0E0D0D",
+    field: "#141415",
     neutral: "#141415",
     alternative: "#1B1C1D",
     pressed: "#303031",

@@ -7,7 +7,6 @@ import { RegisterFormValues } from "@/types/auth";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,8 +15,6 @@ import {
 } from "react-native";
 
 type EmailProps = {
-  inputTranslateY: Animated.Value;
-  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => boolean | Promise<boolean>;
   isSubmitting?: boolean;
@@ -26,7 +23,6 @@ type EmailProps = {
 };
 
 export default function EmailStep({
-  inputTranslateY,
   onPrev,
   onNext,
   isSubmitting = false,
@@ -56,7 +52,7 @@ export default function EmailStep({
     setIsSending(true);
     try {
       const email = getValues("email").trim();
-      await postEmailSend({ email });
+      await postEmailSend({ email, type: "SIGNUP" });
       clearErrors("email");
       setIsSent(true);
       verificationRef.current?.focus();
@@ -89,7 +85,7 @@ export default function EmailStep({
     try {
       const email = getValues("email").trim();
       const authNum = getValues("authNum").trim();
-      await postEmailCheck({ email, authNum });
+      await postEmailCheck({ email, authNum, type: "SIGNUP" });
       clearErrors(["email", "authNum"]);
       await onNext();
     } catch (error) {
@@ -107,10 +103,7 @@ export default function EmailStep({
 
   return (
     <View>
-      <Animated.View
-        className="mb-5"
-        style={{ transform: [{ translateY: inputTranslateY }] }}
-      >
+      <View className="mb-5">
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <Controller
@@ -146,7 +139,7 @@ export default function EmailStep({
             <CustomButton
               label={isSending ? "전송 중" : "인증코드 전송"}
               variant="lg"
-              backgroundColor="#0AE365"
+              tone="primary"
               disabled={isSending || isChecking}
               onPress={handleEmailSend}
             />
@@ -175,7 +168,7 @@ export default function EmailStep({
             />
           )}
         />
-      </Animated.View>
+      </View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
@@ -184,8 +177,7 @@ export default function EmailStep({
           label={
             isSubmitting ? "가입 중" : isChecking ? "확인 중" : "회원가입"
           }
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
+          tone="primary"
           disabled={isChecking || isSubmitting}
           onPress={handleEmailCheck}
         />
@@ -193,7 +185,7 @@ export default function EmailStep({
 
       <View className="flex-row mt-3 gap-x-4">
         <TouchableOpacity onPress={onPrev}>
-          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
+          <Text className="text-label text-label-alternative">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>

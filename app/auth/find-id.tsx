@@ -17,9 +17,9 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -71,7 +71,7 @@ export default function FindIdScreen() {
 
     setIsSending(true);
     try {
-      await postEmailSend({ email: getValues("email").trim() });
+      await postEmailSend({ email: getValues("email").trim(), type: "FIND_ID" });
       clearErrors("email");
       setIsEmailSent(true);
       verificationRef.current?.focus();
@@ -107,6 +107,7 @@ export default function FindIdScreen() {
       await postEmailCheck({
         email: email.trim(),
         authNum: authNum.trim(),
+        type: "FIND_ID",
       });
       clearErrors("authNum");
     } catch (error) {
@@ -145,182 +146,176 @@ export default function FindIdScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View
-          className="flex-1 px-7"
-          style={{
-            width: "100%",
-            maxWidth: isTablet ? 430 : undefined,
-            alignSelf: "center",
-          }}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView className="flex-1 bg-background-normal" edges={["bottom"]}>
+        <Top title="아이디 찾기" back onBack={handleBack} />
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <Top title="아이디 찾기" back onBack={handleBack} safeArea={false} />
+          <View
+            className="flex-1 px-7"
+            style={{
+              width: "100%",
+              maxWidth: isTablet ? 430 : undefined,
+              alignSelf: "center",
+            }}
+          >
+            {view === "form" ? (
+              <>
+                <View
+                  className="flex-1"
+                  style={{
+                    paddingTop: Math.min(Math.max(height * 0.12, 72), 112),
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View className="flex-row items-start gap-x-3">
+                    <View className="flex-1">
+                      <Controller
+                        control={control}
+                        name="email"
+                        rules={emailRules}
+                        render={({ field: { value, onChange } }) => (
+                          <CustomInput
+                            value={value}
+                            onChangeText={(text) => {
+                              onChange(text);
+                              setIsEmailSent(false);
+                              clearErrors("email");
+                            }}
+                            label="이메일"
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            returnKeyType="next"
+                            onSubmitEditing={handleEmailSend}
+                            error={errors.email?.message}
+                            success={
+                              isEmailSent ? "인증코드가 전송됐습니다." : ""
+                            }
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={{ marginTop: 18, width: codeButtonWidth }}>
+                      <CustomButton
+                        label={isSending ? "전송 중" : "인증코드 전송"}
+                        variant="lg"
+                        tone="primary"
+                        disabled={isSending}
+                        onPress={handleEmailSend}
+                      />
+                    </View>
+                  </View>
 
-          {view === "form" ? (
-            <>
-              <ScrollView
-                className="flex-1"
-                contentContainerStyle={{
-                  paddingTop: Math.min(Math.max(height * 0.12, 72), 112),
-                  paddingBottom: 16,
-                }}
-                keyboardDismissMode={
-                  Platform.OS === "ios" ? "interactive" : "on-drag"
-                }
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <View className="flex-row items-start gap-x-3">
-                  <View className="flex-1">
-                    <Controller
-                      control={control}
-                      name="email"
-                      rules={emailRules}
-                      render={({ field: { value, onChange } }) => (
-                        <CustomInput
-                          value={value}
-                          onChangeText={(text) => {
-                            onChange(text);
-                            setIsEmailSent(false);
-                            clearErrors("email");
-                          }}
-                          label="이메일"
-                          autoCapitalize="none"
-                          keyboardType="email-address"
-                          returnKeyType="next"
-                          onSubmitEditing={handleEmailSend}
-                          error={errors.email?.message}
-                          success={
-                            isEmailSent ? "인증코드가 전송됐습니다." : ""
-                          }
-                        />
-                      )}
-                    />
-                  </View>
-                  <View style={{ marginTop: 18, width: codeButtonWidth }}>
-                    <CustomButton
-                      label={isSending ? "전송 중" : "인증코드 전송"}
-                      variant="lg"
-                      backgroundColor="#0AE365"
-                      disabled={isSending}
-                      onPress={handleEmailSend}
-                    />
-                  </View>
+                  <Controller
+                    control={control}
+                    name="authNum"
+                    rules={authCodeRules}
+                    render={({ field: { value, onChange } }) => (
+                      <CustomInput
+                        ref={verificationRef}
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          clearErrors("authNum");
+                        }}
+                        label="인증코드"
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        onSubmitEditing={handleFindId}
+                        error={errors.authNum?.message}
+                      />
+                    )}
+                  />
                 </View>
 
-                <Controller
-                  control={control}
-                  name="authNum"
-                  rules={authCodeRules}
-                  render={({ field: { value, onChange } }) => (
-                    <CustomInput
-                      ref={verificationRef}
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        clearErrors("authNum");
-                      }}
-                      label="인증코드"
-                      keyboardType="number-pad"
-                      returnKeyType="done"
-                      onSubmitEditing={handleFindId}
-                      error={errors.authNum?.message}
-                    />
+                <View className="pt-3 pb-7">
+                  <CustomButton
+                    label={isSubmitting ? "확인 중" : "아이디 찾기"}
+                    tone="primary"
+                    disabled={isSubmitting}
+                    onPress={handleFindId}
+                  />
+                </View>
+              </>
+            ) : (
+              <View className="justify-between flex-1 pb-7">
+                <View
+                  className="items-center px-4"
+                  style={{
+                    marginTop: Math.min(Math.max(height * 0.15, 104), 150),
+                  }}
+                >
+                  {view === "success" ? (
+                    <>
+                      <Ionicons
+                        name="search-outline"
+                        size={82}
+                        color="#9FAAB2"
+                      />
+                      <Text className="mt-7 text-headline1 font-bold text-center text-label-neutral">
+                        이메일 정보와 일치하는 아이디는{"\n"}
+                        <Text className="text-green-40">{username}</Text>
+                        입니다.
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Image
+                        source={require("../../assets/sadFace.gif")}
+                        style={{ width: 88, height: 88 }}
+                        contentFit="contain"
+                      />
+                      <Text className="mt-7 text-headline1 font-bold text-center text-label-neutral">
+                        이메일 정보와 일치하는 아이디를{"\n"}찾을 수 없습니다.
+                      </Text>
+                    </>
                   )}
-                />
-              </ScrollView>
+                </View>
 
-              <View className="pt-3 pb-7">
-                <CustomButton
-                  label={isSubmitting ? "확인 중" : "아이디 찾기"}
-                  backgroundColor="#0AE365"
-                  disabled={isSubmitting}
-                  onPress={handleFindId}
-                />
+                <View className="gap-y-3">
+                  {view === "success" ? (
+                    <>
+                      <CustomButton
+                        label="로그인 하러가기"
+                        tone="primary"
+                        onPress={() => router.replace("/auth/login")}
+                      />
+                      <CustomButton
+                        label="비밀번호 재설정"
+                        tone="neutral"
+                        onPress={() =>
+                          router.push({
+                            pathname: "/auth/reset-password",
+                            params: {
+                              username,
+                              email: getValues("email").trim(),
+                            },
+                          })
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <CustomButton
+                        label="다시 시도하기"
+                        tone="primary"
+                        onPress={handleRetry}
+                      />
+                      <CustomButton
+                        label="로그인 하러가기"
+                        tone="neutral"
+                        onPress={() => router.replace("/auth/login")}
+                      />
+                    </>
+                  )}
+                </View>
               </View>
-            </>
-          ) : (
-            <View className="justify-between flex-1 pb-7">
-              <View
-                className="items-center px-4"
-                style={{
-                  marginTop: Math.min(Math.max(height * 0.15, 104), 150),
-                }}
-              >
-                {view === "success" ? (
-                  <>
-                    <Ionicons
-                      name="search-outline"
-                      size={82}
-                      color="#9FAAB2"
-                    />
-                    <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
-                      이메일 정보와 일치하는 아이디는{"\n"}
-                      <Text className="text-[#00C95A]">{username}</Text>
-                      입니다.
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Image
-                      source={require("../../assets/sadFace.gif")}
-                      style={{ width: 88, height: 88 }}
-                      contentFit="contain"
-                    />
-                    <Text className="mt-7 text-lg font-bold leading-7 text-center text-[#333535]">
-                      이메일 정보와 일치하는 아이디를{"\n"}찾을 수 없습니다.
-                    </Text>
-                  </>
-                )}
-              </View>
-
-              <View className="gap-y-3">
-                {view === "success" ? (
-                  <>
-                    <CustomButton
-                      label="로그인 하러가기"
-                      backgroundColor="#0AE365"
-                      onPress={() => router.replace("/auth/login")}
-                    />
-                    <CustomButton
-                      label="비밀번호 재설정"
-                      color="#0D0D0E"
-                      backgroundColor="#F8F8F8"
-                      onPress={() =>
-                        router.push({
-                          pathname: "/auth/reset-password",
-                          params: {
-                            username,
-                            email: getValues("email").trim(),
-                          },
-                        })
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <CustomButton
-                      label="다시 시도하기"
-                      backgroundColor="#0AE365"
-                      onPress={handleRetry}
-                    />
-                    <CustomButton
-                      label="로그인 하러가기"
-                      color="#0D0D0E"
-                      backgroundColor="#F8F8F8"
-                      onPress={() => router.replace("/auth/login")}
-                    />
-                  </>
-                )}
-              </View>
-            </View>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }

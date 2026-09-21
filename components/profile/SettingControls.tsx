@@ -1,10 +1,7 @@
-import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { ReactNode, useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
-
-const settingCardShadow = {
-  boxShadow: `0px 0px 3.4px 0px ${PALETTE.common[100]}14`,
-} as const;
 
 export function SettingSectionLabel({ children }: { children: string }) {
   return (
@@ -18,7 +15,7 @@ export function SettingCard({ children }: { children: ReactNode }) {
   return (
     <View
       className="w-full rounded-component bg-background-normal"
-      style={settingCardShadow}
+      style={SURFACE_CARD_SHADOW}
     >
       <View className="w-full overflow-hidden rounded-component">
         {children}

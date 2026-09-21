@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import AnimatedCheck from "@/components/common/AnimatedCheck";
 import CustomButton from "@/components/common/CustomButton";
 import Loading from "@/components/common/Loading";
@@ -16,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 
 type WarmupCreateStep = "write" | "loading" | "done" | "fail";
 
@@ -26,8 +28,8 @@ type WarmupForm = {
 
 const FieldBox = ({ label, children }: { label: string; children: ReactNode }) => (
   <View className="gap-y-2">
-    <Text className="text-sm font-medium text-[#3B3D3E]">{label}</Text>
-    <View className="bg-[#F5F5F5] rounded-xl px-4 py-3">{children}</View>
+    <Text className="text-label font-medium text-label-neutral">{label}</Text>
+    <View className="bg-fill-field rounded-component px-3 py-3">{children}</View>
   </View>
 );
 
@@ -38,6 +40,7 @@ export default function Warmup() {
   });
   const [step, setStep] = useState<WarmupCreateStep>("write");
   const [form, setForm] = useState<WarmupForm>({ purpose: "", callee: "" });
+  const isKeyboardVisible = useKeyboardVisible();
   const createdScenarioIdRef = useRef<number | null>(null);
 
   useFocusEffect(
@@ -77,34 +80,33 @@ export default function Warmup() {
 
     run();
     return () => { cancelled = true; };
-  }, [step]);
+  }, [step, form.callee, form.purpose]);
 
   if (step === "fail") {
     return (
-      <View className="flex-1 bg-white">
-        <Top title="실전 워밍업" />
+      <View className="flex-1 bg-background-normal">
+        <Top title="통화 전 워밍업 생성" />
         <View className="flex-1 items-center justify-center px-10">
           <Image
             source={require("@/assets/sadFace.gif")}
             style={{ width: 90, height: 90 }}
           />
-          <Text className="text-2xl font-bold mt-8 mb-2 text-center">
-            워밍업 생성에 실패했어요.
+          <Text className="text-title2 font-bold mt-8 mb-2 text-center">
+            통화 전 워밍업 생성에 실패했어요.
           </Text>
-          <Text className="text-base font-medium text-[#5C5E5E] text-center">
-            다시 시도해 주세요.
+          <Text className="text-body font-medium text-label-alternative text-center">
+            생성 시 입력한 내용을 다시 확인해주세요.
           </Text>
         </View>
-        <View className="px-10 pb-10 gap-y-3">
+        <View className="px-[33px] pb-10 gap-y-3">
           <CustomButton
             label="다시 시도하기"
-            backgroundColor="#0AE365"
-            color="white"
+            tone="primary"
             onPress={() => setStep("write")}
           />
           <CustomButton
             label="홈으로 돌아가기"
-            color="#3B3D3E"
+            color={SEMANTIC_COLORS.label.neutral}
             onPress={() => router.push("/(tabs)/(home)/home")}
           />
         </View>
@@ -116,8 +118,8 @@ export default function Warmup() {
     return (
       <Loading
         status="loading"
-        title="실전 워밍업"
-        loadingText="AI가 워밍업 시나리오를 생성하고 있어요."
+        title="통화 전 워밍업 생성"
+        loadingText="나만을 위한 워밍업이 만들어지고 있어요!"
         loadingSubText="잠시만 기다려 주세요."
       />
     );
@@ -125,22 +127,21 @@ export default function Warmup() {
 
   if (step === "done") {
     return (
-      <View className="flex-1 bg-white">
-        <Top title="실전 워밍업" />
+      <View className="flex-1 bg-background-normal">
+        <Top title="통화 전 워밍업 생성" />
         <View className="flex-1 items-center justify-center px-10">
           <AnimatedCheck />
-          <Text className="text-2xl font-bold mt-8 mb-2 text-center">
-            워밍업 준비가 됐어요.
+          <Text className="text-title2 font-bold mt-8 mb-2 text-center">
+            통화 전 워밍업이 완성됐어요.
           </Text>
-          <Text className="text-base font-medium text-[#5C5E5E] text-center">
-            실전 워밍업을 시작해볼까요?
+          <Text className="text-body font-medium text-label-alternative text-center">
+            워밍업으로 실전에 대비해볼까요?
           </Text>
         </View>
-        <View className="px-10 pb-10 gap-y-3">
+        <View className="px-[33px] pb-10 gap-y-3">
           <CustomButton
             label="워밍업 시작하기"
-            backgroundColor="#0AE365"
-            color="white"
+            tone="primary"
             onPress={() =>
               router.push({
                 pathname: "/(tabs)/(train)/warmup-start",
@@ -149,8 +150,8 @@ export default function Warmup() {
             }
           />
           <CustomButton
-            label="홈으로 돌아가기"
-            color="#3B3D3E"
+            label="취소하기"
+            color={SEMANTIC_COLORS.label.neutral}
             onPress={() => router.push("/(tabs)/(home)/home")}
           />
         </View>
@@ -160,43 +161,45 @@ export default function Warmup() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background-normal"
+      /* Android adjustResize가 키보드 높이만큼 창을 줄이므로 이중 보정하지 않는다. */
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Top title="실전 워밍업" back={true} onBack={() => router.push("/(tabs)/(home)/home")} />
+      <Top title="통화 전 워밍업 생성" back={true} onBack={() => router.push("/(tabs)/(home)/home")} />
       <ScrollView
-        className="flex-1 px-10"
+        className="flex-1 px-[33px]"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 20 }}
       >
         <View className="gap-y-6 mt-2">
-          <FieldBox label="전화 목적">
-            <TextInput
-              className="text-base text-[#3B3D3E]"
-              placeholder="전화의 목적을 설명해주세요."
-              placeholderTextColor="#BDBEBE"
-              value={form.purpose}
-              onChangeText={(v) => setForm((prev) => ({ ...prev, purpose: v }))}
-              multiline
-              style={{ minHeight: 120, textAlignVertical: "top" }}
-            />
-          </FieldBox>
           <FieldBox label="전화 상대">
             <TextInput
-              className="text-base text-[#3B3D3E]"
+              className="h-6 p-0 text-body text-label-neutral"
+              multiline={false}
               placeholder="전화 상대에 대해 설명해주세요."
-              placeholderTextColor="#BDBEBE"
+              placeholderTextColor={SEMANTIC_COLORS.line.normal}
               value={form.callee}
               onChangeText={(v) => setForm((prev) => ({ ...prev, callee: v }))}
             />
           </FieldBox>
+          <FieldBox label="전화 목적">
+            <TextInput
+              className="h-[136px] p-0 text-body text-label-neutral"
+              placeholder="전화의 목적을 설명해주세요."
+              placeholderTextColor={SEMANTIC_COLORS.line.normal}
+              value={form.purpose}
+              onChangeText={(v) => setForm((prev) => ({ ...prev, purpose: v }))}
+              multiline
+              style={{ textAlignVertical: "top" }}
+            />
+          </FieldBox>
         </View>
       </ScrollView>
-      <View className="px-10 pb-10 pt-4">
+      <View className={`px-[33px] pt-4 ${isKeyboardVisible ? "pb-5" : "pb-10"}`}>
         <CustomButton
-          label="다음으로"
-          backgroundColor="#0AE365"
-          color="white"
+          label="워밍업 생성하기"
+          tone="primary"
           disabled={!isSubmittable}
           onPress={() => setStep("loading")}
         />
