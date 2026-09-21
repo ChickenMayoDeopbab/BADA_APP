@@ -45,6 +45,9 @@ export function useProfileImage(s3Key?: string | null) {
   return {
     uri: state.key === requestKey ? state.uri : "",
     error: state.key === requestKey ? state.error : "",
+    isLoading:
+      Boolean(s3Key) &&
+      (state.key !== requestKey || (!state.uri && !state.error)),
     retry: () => {
       if (s3Key) invalidateProfileImageUrl(s3Key);
       setRevision((value) => value + 1);

@@ -15,8 +15,9 @@ import type {
   CommunityReactionKind,
 } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+import Top from "@/components/common/Top";
 import CommunityAvatar from "@/components/community/CommunityAvatar";
-import CommunityHeader from "@/components/community/CommunityHeader";
 import DeleteCommunityCommentModal from "@/components/community/DeleteCommunityCommentModal";
 import DeleteCommunityPostModal from "@/components/community/DeleteCommunityPostModal";
 import CommunityPostAttachments from "@/components/community/CommunityPostAttachments";
@@ -38,7 +39,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Keyboard,
@@ -813,7 +813,7 @@ export default function CommunityPostDetailScreen() {
   if (!Number.isSafeInteger(postId) || postId <= 0) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-        <CommunityHeader title="게시물" onBack={handleBack} />
+        <Top title="게시물" back onBack={handleBack} safeArea={false} />
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-body text-label-alternative">
             올바르지 않은 게시물 주소예요.
@@ -826,12 +826,9 @@ export default function CommunityPostDetailScreen() {
   if (postQuery.isPending) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-        <CommunityHeader title="게시물" onBack={handleBack} />
+        <Top title="게시물" back onBack={handleBack} safeArea={false} />
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
-          <Text className="mt-3 self-stretch px-8 text-center text-body text-label-alternative">
-            게시글 로딩 중...
-          </Text>
+          <LoadingIndicator />
         </View>
       </SafeAreaView>
     );
@@ -841,7 +838,7 @@ export default function CommunityPostDetailScreen() {
     const notFound = getApiErrorStatus(postQuery.error) === 404;
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-        <CommunityHeader title="게시물" onBack={handleBack} />
+        <Top title="게시물" back onBack={handleBack} safeArea={false} />
         <View className="flex-1 items-center justify-center px-8">
           <Text className="self-stretch text-center text-body text-label-alternative">
             {notFound
@@ -939,8 +936,9 @@ export default function CommunityPostDetailScreen() {
         )}
 
         <View className="relative z-30">
-          <CommunityHeader
+          <Top
             title="게시물"
+            back
             onBack={handleBack}
             right={
               isPostAuthor && !editingPost ? (
@@ -962,6 +960,7 @@ export default function CommunityPostDetailScreen() {
                 </Pressable>
               ) : null
             }
+            safeArea={false}
           />
 
           {isPostAuthor && isPostMenuVisible && !editingPost && (
@@ -1237,7 +1236,7 @@ export default function CommunityPostDetailScreen() {
           </View>
 
           {commentsQuery.isPending ? (
-            <ActivityIndicator className="py-10" />
+            <LoadingIndicator className="py-10" />
           ) : commentsQuery.isError ? (
             <View className="items-center py-10">
               <Text className="self-stretch text-center text-body text-label-alternative">
@@ -1548,7 +1547,7 @@ export default function CommunityPostDetailScreen() {
               className="h-10 w-10 items-center justify-center"
             >
               {commentMutation.isPending ? (
-                <ActivityIndicator size="small" />
+                <LoadingIndicator size="small" />
               ) : (
                 <Ionicons
                   name="send"

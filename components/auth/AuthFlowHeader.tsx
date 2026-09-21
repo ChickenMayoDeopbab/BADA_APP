@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, Text, View } from "react-native";
 
@@ -19,9 +20,9 @@ export default function AuthFlowHeader({
         hitSlop={8}
         onPress={onBack}
       >
-        <Ionicons name="chevron-back" size={28} color="#5C5E5E" />
+        <Ionicons name="chevron-back" size={28} color={SEMANTIC_COLORS.label.alternative} />
       </Pressable>
-      <Text className="text-lg font-bold text-[#333535]">{title}</Text>
+      <Text className="text-headline1 font-bold text-label-neutral">{title}</Text>
     </View>
   );
 }

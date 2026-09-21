@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
@@ -40,13 +41,13 @@ export default function AnimatedCheck() {
       circleAnim.removeAllListeners();
       checkAnim.removeAllListeners();
     };
-  }, []);
+  }, [circleAnim, checkAnim]);
 
   return (
     <Svg width={100} height={100} viewBox="0 0 100 100">
       <Circle
         cx="50" cy="50" r={CIRCLE_RADIUS}
-        stroke="#0AE365"
+        stroke={SEMANTIC_COLORS.primary.normal}
         strokeWidth="6"
         fill="none"
         strokeDasharray={CIRCLE_CIRCUMFERENCE}
@@ -58,7 +59,7 @@ export default function AnimatedCheck() {
       {checkOffset < CHECK_LENGTH && (
         <Polyline
           points="32,52 44,64 68,40"
-          stroke="#0AE365"
+          stroke={SEMANTIC_COLORS.primary.normal}
           strokeWidth="6"
           fill="none"
           strokeLinecap="round"

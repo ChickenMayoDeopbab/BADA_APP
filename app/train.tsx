@@ -1,15 +1,17 @@
 import CallBackground from "@/components/train/CallBackground";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
 import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
+import { setMediaVolumeControlEnabled } from "@/utils/mediaVolumeControl";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   BackHandler,
   Modal,
   ScrollView,
@@ -112,7 +114,7 @@ function MeditationVideoContent({
           activeOpacity={0.8}
           style={styles.meditationSkipButton}
         >
-          <Text className="text-base font-bold text-white">건너뛰기</Text>
+          <Text className="text-body font-bold text-white">건너뛰기</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -159,6 +161,7 @@ function ScenarioLabel({ title }: { title?: string }) {
 }
 
 export default function Train() {
+  const { showAlert } = useAppAlert();
   const { sessionId, wsUrl, isWarmup, scenarioId, title, content, isCustom, scenarioImage, category } = useLocalSearchParams<{
     sessionId: string;
     wsUrl: string;
@@ -185,6 +188,9 @@ export default function Train() {
   const [calleeName, setCalleeName] = useState<string | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callStartedAtRef = useRef<number | null>(null);
+  const completedCallDurationRef = useRef<number | null>(null);
+  const endHandledRef = useRef(false);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
@@ -235,10 +241,7 @@ export default function Train() {
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
-    onError: (code) => {
-      console.warn("WS error:", code);
-      handleEndCall();
-    },
+    onError: () => handleEndCall(),
   });
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
@@ -249,24 +252,38 @@ export default function Train() {
   }, [displayName]);
   const roleName = calleeName ?? "연결 중...";
 
+  useEffect(() => {
+    const isInCall = step === "training";
+    setMediaVolumeControlEnabled(isInCall);
+
+    return () => {
+      if (isInCall) setMediaVolumeControlEnabled(false);
+    };
+  }, [step]);
+
   // WS 연결과 오디오 준비가 모두 끝난 뒤 마이크 스트리밍 시작.
   // 둘 중 어느 쪽이 먼저 끝나도 state 변경으로 이 effect가 다시 실행된다.
   useEffect(() => {
     if (isConnected && step === "training" && isAudioReady) {
-      console.info("[Train] 웹소켓·오디오 준비 완료, 마이크 시작");
-      void startSendingAudio(sendBinary).catch((error) => {
-        console.warn("[Train] 마이크 시작 실패", error);
-      });
+      void startSendingAudio(sendBinary).catch(() => {});
     }
   }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
 
   useEffect(() => {
-    if (step !== "training") return;
-    timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    if (step !== "training" || !isConnected || !isAudioReady || endHandledRef.current) return;
+    if (callStartedAtRef.current === null) callStartedAtRef.current = Date.now();
+    const startedAt = callStartedAtRef.current;
+    const updateElapsed = () =>
+      setSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    updateElapsed();
+    timerRef.current = setInterval(updateElapsed, 250);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [step]);
+  }, [isAudioReady, isConnected, step]);
 
   /**
    * 통화 종료 화면을 잠시 보여준 뒤 다음 화면으로 넘긴다.
@@ -278,6 +295,7 @@ export default function Train() {
     const nextParams = {
       sessionId,
       scenarioId,
+      callDurationSeconds: String(completedCallDurationRef.current ?? 0),
       mode: isWarmupSession ? "warmUp" : "scenario",
       title,
       content,
@@ -320,7 +338,13 @@ export default function Train() {
       setCalleeName(null);
       setIsMuted(false);
       setIsAudioReady(false);
-      if (timerRef.current) clearInterval(timerRef.current);
+      callStartedAtRef.current = null;
+      completedCallDurationRef.current = null;
+      endHandledRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       stopSendingAudio();
       resetStream();
     }, [stopSendingAudio, resetStream])
@@ -349,16 +373,16 @@ export default function Train() {
 
     const granted = await requestPermission();
     if (!granted) {
-      Alert.alert(
-        "마이크를 사용할 수 없어요",
-        "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
-      );
+      showAlert({
+        title: "마이크를 사용할 수 없어요",
+        description:
+          "훈련을 시작하려면 마이크 권한을 허용하고 앱을 화면에 열어 주세요.",
+      });
       setStep("receive");
       return;
     }
-    console.info("[Train] 오디오 준비 완료");
     setIsAudioReady(true);
-  }, [requestPermission]);
+  }, [requestPermission, showAlert]);
 
   /** 명상 건너뛰기: 다이얼로그 닫고 훈련 시작 */
   const handleMeditationSkip = () => {
@@ -377,10 +401,21 @@ export default function Train() {
   };
   /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
   const handleEndCall = () => {
+    if (endHandledRef.current) return;
+    endHandledRef.current = true;
+    const callDurationSeconds = callStartedAtRef.current === null
+      ? 0
+      : Math.max(0, Math.floor((Date.now() - callStartedAtRef.current) / 1000));
+    completedCallDurationRef.current = callDurationSeconds;
+    setSeconds(callDurationSeconds);
+    if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
-    void stopSendingAudio().catch((error) => console.warn("녹음 종료 실패", error));
-    if (timerRef.current) clearInterval(timerRef.current);
+    void stopSendingAudio().catch(() => {});
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     setStep("end");
   };
 
