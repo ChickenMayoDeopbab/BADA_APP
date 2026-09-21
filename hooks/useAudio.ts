@@ -38,7 +38,7 @@ export interface UseAudioReturn {
   /** AI 음성 PCM chunk를 수신 즉시 스트리밍 재생 */
   streamPcmChunk: (data: ArrayBuffer) => void;
   beginPlayback: () => void;
-  flushPlayback: () => void;
+  flushPlayback: (turnId?: number) => void;
   /** 명시적인 interrupt/통화 종료에서만 재생을 중단한다. */
   resetStream: (reason?: string) => void;
 }
