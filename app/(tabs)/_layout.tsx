@@ -60,10 +60,24 @@ export default function TabLayout() {
   const currentRoute = segments[segments.length - 1];
   const isCommunityRoot =
     currentRoute === "(community)" || currentRoute === "community";
+  const isTrainCreation =
+    segments.some((segment) => segment === "(train)") &&
+    ["create", "warmup", "warmup-start"].some((route) =>
+      pathname.endsWith(`/${route}`),
+    );
+  const isRecordDetail =
+    segments.some((segment) => segment === "(record)") &&
+    (segments.some((segment) => segment === "[id]") || /\/record\/[^/]+$/.test(pathname));
+  const isProfileSubscreen =
+    segments.some((segment) => segment === "(profile)") &&
+    (segments.some((segment) => segment === "settings") || pathname.endsWith("/edit"));
   const hideTabBar =
     pathname.endsWith("/notifications") ||
     pathname.endsWith("/search") ||
-    (isCommunityStack && !isCommunityRoot);
+    (isCommunityStack && !isCommunityRoot) ||
+    isTrainCreation ||
+    isRecordDetail ||
+    isProfileSubscreen;
 
   return (
     <>

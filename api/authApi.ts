@@ -6,7 +6,7 @@ import {
   ApiResponse,
   ChangePasswordRequest,
   CheckUsernameRequest,
-  EmailRequest,
+  EmailSendRequest,
   EmailVerificationRequest,
   FindIdRequest,
   FindIdResponse,
@@ -102,12 +102,9 @@ export const postLogin = async (
 };
 
 export const postEmailSend = async (
-  data: EmailRequest
+  data: EmailSendRequest
 ): Promise<void> => {
-  await apiClient.post(
-    "/api/v1/auth/email/send",
-    data
-  );
+  await apiClient.post("/api/v1/auth/email/send", data);
 };
 
 export const postEmailCheck = async (

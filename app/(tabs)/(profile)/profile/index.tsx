@@ -2,10 +2,12 @@ import { deleteSignout } from "@/api/authApi";
 import { MyPageResponse } from "@/api/types";
 import { getMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
-import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
+import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
@@ -24,10 +26,6 @@ interface MenuRowProps {
 
 const menuRowClassName =
   "h-[55px] w-full flex-row items-center justify-between px-[22px]";
-const profileCardShadow = {
-  boxShadow: `0px 0px 3.4px 0px ${PALETTE.common[100]}14`,
-} as const;
-
 function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
   const content = (
     <>
@@ -63,12 +61,15 @@ function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
 
 function ProfileScreen() {
   const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [loadedImageUri, setLoadedImageUri] = useState("");
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const profileImage = useProfileImage(myPage?.s3Key);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      setIsProfileLoading(true);
 
       void (async () => {
         try {
@@ -79,6 +80,8 @@ function ProfileScreen() {
           setMyPage(profile);
         } catch {
           // 이전에 불러온 정보가 있다면 그대로 유지합니다.
+        } finally {
+          if (active) setIsProfileLoading(false);
         }
       })();
 
@@ -121,22 +124,40 @@ function ProfileScreen() {
       >
         <View
           className="w-full items-center gap-6 rounded-component bg-background-normal px-[22px] py-[14px]"
-          style={profileCardShadow}
+          style={SURFACE_CARD_SHADOW}
         >
           <View className="items-center gap-4">
             <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
               {profileImage.uri ? (
-                <StyledImage
-                  source={{ uri: profileImage.uri }}
-                  contentFit="cover"
-                  className="absolute inset-0 size-full"
-                  onError={profileImage.onError}
+                <>
+                  <StyledImage
+                    source={{ uri: profileImage.uri }}
+                    contentFit="cover"
+                    className="absolute inset-0 size-full"
+                    onLoad={() => setLoadedImageUri(profileImage.uri)}
+                    onError={profileImage.onError}
+                  />
+                  {loadedImageUri !== profileImage.uri ? (
+                    <View className="absolute inset-0 items-center justify-center bg-fill-neutral">
+                      <LoadingIndicator
+                        size="small"
+                        accessibilityLabel="프로필 사진 로딩 중"
+                      />
+                    </View>
+                  ) : null}
+                </>
+              ) : isProfileLoading || profileImage.isLoading ? (
+                <LoadingIndicator
+                  size="small"
+                  accessibilityLabel="프로필 사진 로딩 중"
                 />
-              ) : <Ionicons
-                name="person"
-                size={52}
-                color={SEMANTIC_COLORS.line.normal}
-              />}
+              ) : (
+                <Ionicons
+                  name="person"
+                  size={52}
+                  color={SEMANTIC_COLORS.line.normal}
+                />
+              )}
             </View>
             {profileImage.error ? (
               <Pressable onPress={profileImage.retry} accessibilityRole="button" accessibilityLabel="프로필 사진 다시 불러오기">
@@ -144,7 +165,7 @@ function ProfileScreen() {
               </Pressable>
             ) : null}
 
-            <View className="w-full items-center gap-2">
+            <View className="items-center w-full gap-2">
               <Text
                 numberOfLines={1}
                 className="max-w-[282px] text-title2 font-bold text-label-normal"
@@ -233,7 +254,7 @@ function ProfileScreen() {
           </Text>
           <View
             className="w-full rounded-component bg-background-normal"
-            style={profileCardShadow}
+            style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
               <MenuRow
@@ -266,7 +287,7 @@ function ProfileScreen() {
           </Text>
           <View
             className="w-full rounded-component bg-background-normal"
-            style={profileCardShadow}
+            style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
               <MenuRow label="로그아웃" destructive onPress={handleSignOut} />

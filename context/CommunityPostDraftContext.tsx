@@ -17,7 +17,8 @@ interface CommunityPostDraftContextValue {
   clearTrainingRecord: () => void;
   selectedPhotoUri: string | null;
   selectedPhotoName: string | null;
-  selectPhoto: (uri: string, fileName?: string) => void;
+  selectedPhotoFileId: number | null;
+  selectPhoto: (uri: string, fileName?: string, fileId?: number) => void;
   clearPhoto: () => void;
 }
 
@@ -33,6 +34,9 @@ export function CommunityPostDraftProvider({ children }: PropsWithChildren) {
   const [selectedPhotoName, setSelectedPhotoName] = useState<string | null>(
     null,
   );
+  const [selectedPhotoFileId, setSelectedPhotoFileId] = useState<number | null>(
+    null,
+  );
   const selectScenario = useCallback((scenario: ScenarioInfo) => {
     setSelectedScenario(scenario);
   }, []);
@@ -45,13 +49,19 @@ export function CommunityPostDraftProvider({ children }: PropsWithChildren) {
   const clearTrainingRecord = useCallback(() => {
     setSelectedTrainingRecord(null);
   }, []);
-  const selectPhoto = useCallback((uri: string, fileName?: string) => {
+  const selectPhoto = useCallback((
+    uri: string,
+    fileName?: string,
+    fileId?: number,
+  ) => {
     setSelectedPhotoUri(uri);
     setSelectedPhotoName(fileName ?? null);
+    setSelectedPhotoFileId(fileId ?? null);
   }, []);
   const clearPhoto = useCallback(() => {
     setSelectedPhotoUri(null);
     setSelectedPhotoName(null);
+    setSelectedPhotoFileId(null);
   }, []);
   const value = useMemo(
     () => ({
@@ -63,6 +73,7 @@ export function CommunityPostDraftProvider({ children }: PropsWithChildren) {
       clearTrainingRecord,
       selectedPhotoUri,
       selectedPhotoName,
+      selectedPhotoFileId,
       selectPhoto,
       clearPhoto,
     }),
@@ -74,6 +85,7 @@ export function CommunityPostDraftProvider({ children }: PropsWithChildren) {
       selectScenario,
       selectedScenario,
       selectedPhotoName,
+      selectedPhotoFileId,
       selectedPhotoUri,
       selectedTrainingRecord,
       selectTrainingRecord,
