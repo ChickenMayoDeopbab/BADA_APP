@@ -33,6 +33,7 @@ export default function SignupScreen() {
   const headerHeight = 74;
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
   const [step, setStep] = useState(1);
+  const [isEmailSent, setIsEmailSent] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [signupError, setSignupError] = useState("");
 
@@ -128,6 +129,8 @@ export default function SignupScreen() {
                     setStep(2);
                   }}
                   onNext={handleSignup}
+                  isSent={isEmailSent}
+                  onSentChange={setIsEmailSent}
                   isSubmitting={isSigningUp}
                   submitError={signupError}
                   onFormChange={() => setSignupError("")}
