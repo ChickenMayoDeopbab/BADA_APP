@@ -1,5 +1,7 @@
 import { NotificationSettingResponse } from "@/api/types";
 import ProfileSettingsScreen from "@/components/profile/ProfileSettingsScreen";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+import { useAppAlert } from "@/context/AppAlertContext";
 import {
   SettingCard,
   SettingRow,
@@ -11,9 +13,10 @@ import {
 } from "@/hooks/useNotifications";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 export default function NotificationSettingsScreen() {
+  const { showAlert } = useAppAlert();
   const settingsQuery = useNotificationSettings();
   const updateSettingsMutation = useUpdateNotificationSettings();
   const [initialSettings, setInitialSettings] =
@@ -51,10 +54,10 @@ export default function NotificationSettingsScreen() {
         router.back();
       },
       onError: () => {
-        Alert.alert(
-          "알림 설정을 저장하지 못했어요",
-          "네트워크 상태를 확인하고 다시 시도해 주세요.",
-        );
+        showAlert({
+          title: "알림 설정을 저장하지 못했어요",
+          description: "네트워크 상태를 확인하고 다시 시도해 주세요.",
+        });
       },
     });
   };
@@ -67,7 +70,7 @@ export default function NotificationSettingsScreen() {
     >
       {settingsQuery.isPending ? (
         <View className="items-center justify-center py-16">
-          <ActivityIndicator />
+          <LoadingIndicator />
         </View>
       ) : settingsQuery.isError || !settings ? (
         <View className="items-center justify-center gap-3 py-16">

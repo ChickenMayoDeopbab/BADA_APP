@@ -7,6 +7,8 @@ export interface ProfileImageFile {
   fileName?: string;
 }
 
+type ImageFileType = "PROFILE" | "COMMUNITY_IMAGE";
+
 const imageMimeTypes: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -18,7 +20,10 @@ const imageMimeTypes: Record<string, string> = {
   avif: "image/avif",
 };
 
-export const uploadProfileImage = async ({ uri, fileName }: ProfileImageFile) => {
+const uploadImage = async (
+  { uri, fileName }: ProfileImageFile,
+  fileType: ImageFileType,
+) => {
   const name = fileName || uri.split(/[?#]/)[0].split("/").pop() || "profile.jpg";
   const extension = name.split(".").pop()?.toLowerCase() ?? "";
   const type = imageMimeTypes[extension] ?? "application/octet-stream";
@@ -37,17 +42,23 @@ export const uploadProfileImage = async ({ uri, fileName }: ProfileImageFile) =>
     "/api/v1/file/upload",
     formData,
     {
-      params: { fileType: "PROFILE" },
+      params: { fileType },
       headers: { "Content-Type": "multipart/form-data" },
       timeout: 60000,
     },
   );
   const uploaded = response.data.data;
-  if (!uploaded?.s3Key) {
+  if (!uploaded?.s3Key || !Number.isSafeInteger(uploaded.fileId)) {
     throw new Error("사진 업로드 응답에 파일 정보가 없습니다.");
   }
   return uploaded;
 };
+
+export const uploadProfileImage = (file: ProfileImageFile) =>
+  uploadImage(file, "PROFILE");
+
+export const uploadCommunityImage = (file: ProfileImageFile) =>
+  uploadImage(file, "COMMUNITY_IMAGE");
 
 export const getFileUrl = async (s3Key: string): Promise<string> => {
   const response = await apiClient.post<ApiResponse<FileUrlResponse>>(

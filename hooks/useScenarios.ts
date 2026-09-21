@@ -1,4 +1,4 @@
-import { getScenarios } from "@/api/trainApi";
+import { getScenarioRecommendation, getScenarios } from "@/api/trainApi";
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import { useQuery } from "@tanstack/react-query";
 
@@ -8,6 +8,14 @@ export const useScenarios = (category?: ScenarioCategory | null) =>
     queryKey: ["scenarios", category ?? "all"],
     queryFn: () => getScenarios(category ?? undefined),
     select: (data): ScenarioInfo[] => data.scenarios,
+  });
+
+/** 오늘의 훈련 시나리오 추천 조회 */
+export const useRecommendedScenario = () =>
+  useQuery({
+    queryKey: ["scenario-recommendation"],
+    queryFn: getScenarioRecommendation,
+    select: (data): ScenarioInfo => data.scenario,
   });
 
 /**

@@ -1,24 +1,29 @@
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import CategoryChips from "@/components/train/CategoryChips";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import CustomScenarioBanner from "@/components/train/CustomScenarioBanner";
 import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
-import ScenarioTabs from "@/components/train/ScenarioTabs";
+import ScenarioTabs, {
+  SCENARIO_TAB_GAP,
+  SCENARIO_TAB_WIDTH,
+} from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
+import Top from "@/components/common/Top";
 import { SCENARIO_TABS, ScenarioTabValue } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
-import { useScenarios } from "@/hooks/useScenarios";
+import { useRecommendedScenario, useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import { router } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  ScrollView,
   Text,
   useWindowDimensions,
   View,
@@ -46,7 +51,10 @@ const toGridRows = (scenarios: ScenarioInfo[]): ScenarioInfo[][] =>
   }, []);
 
 export default function List() {
-  const { width: pageWidth } = useWindowDimensions();
+  const { width: pageWidth, fontScale } = useWindowDimensions();
+  const tabHorizontalPadding = pageWidth < 360 ? 16 : 32;
+  const tabWidth = Math.ceil(SCENARIO_TAB_WIDTH * Math.max(1, fontScale));
+  const menuRef = useRef<ScrollView>(null);
   const pagerRef = useRef<FlatList<(typeof SCENARIO_TABS)[number]>>(null);
   const pagerScrollX = useRef(new Animated.Value(0)).current;
   // 스크롤을 내렸을 때만 상단 페이드를 보여준다
@@ -60,6 +68,16 @@ export default function List() {
   const [selectedCategory, setSelectedCategory] =
     useState<ScenarioCategory | null>(null);
 
+  useEffect(() => {
+    const index = SCENARIO_TABS.findIndex((tab) => tab.value === selectedTab);
+    const tabRight =
+      tabHorizontalPadding + (index + 1) * tabWidth + index * SCENARIO_TAB_GAP;
+    menuRef.current?.scrollTo({
+      x: index <= 0 ? 0 : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
+      animated: true,
+    });
+  }, [pageWidth, selectedTab, tabHorizontalPadding, tabWidth]);
+
   // 전체 목록은 커스텀·공유 탭 분류와 추천 카드에 사용한다.
   const {
     data: scenarios,
@@ -71,6 +89,7 @@ export default function List() {
   // 카테고리를 고르면 API의 category 쿼리로 다시 조회한다.
   // 전체 목록 쿼리는 커스텀·공유 탭과 추천 카드에서 계속 사용한다.
   const categoryScenariosQuery = useScenarios(selectedCategory);
+  const { data: recommendedScenario } = useRecommendedScenario();
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -101,8 +120,6 @@ export default function List() {
     );
   }, [basicScenarios, categoryScenariosQuery.data, selectedCategory]);
 
-  const recommendedScenario = basicScenarios[0];
-
   const selectTab = (tab: ScenarioTabValue) => {
     const tabIndex = SCENARIO_TABS.findIndex((item) => item.value === tab);
     if (tabIndex < 0) return;
@@ -127,32 +144,42 @@ export default function List() {
     if (tab === "shared") return sharedScenarios;
     return categorizedBasicScenarios;
   };
-
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-[60px] flex-row items-center justify-between px-8">
-        <Text className="text-title2 font-bold text-label-normal">
-          시나리오 훈련
-        </Text>
-        <SearchIconButton
-          onPress={() => router.push("/(tabs)/(train)/search")}
-          size={30}
-        />
-      </View>
+      <Top
+        title="시나리오 훈련"
+        safeArea={false}
+        right={
+          <SearchIconButton
+            onPress={() => router.push("/(tabs)/(train)/search")}
+            size={30}
+          />
+        }
+      />
 
-      <View className="h-[53px] px-8">
+      <ScrollView
+        ref={menuRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        className="h-[53px]"
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: tabHorizontalPadding }}
+      >
         <ScenarioTabs
           value={selectedTab}
           onChange={selectTab}
           pageWidth={pageWidth}
+          tabWidth={tabWidth}
+          fontScale={fontScale}
           scrollX={pagerScrollX}
         />
-      </View>
+      </ScrollView>
 
       {/* 목록 로딩 중 */}
       {isPending && (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#0AE365" />
+          <LoadingIndicator />
         </View>
       )}
 
@@ -166,8 +193,7 @@ export default function List() {
           <View className="w-[140px]">
             <CustomButton
               label={isFetching ? "불러오는 중..." : "다시 불러오기"}
-              backgroundColor="#0AE365"
-              color="white"
+              tone="primary"
               variant="md"
               disabled={isFetching}
               onPress={() => refetch()}
@@ -247,7 +273,7 @@ export default function List() {
                     {item.value === "basic" &&
                     selectedCategory &&
                     categoryScenariosQuery.isPending ? (
-                      <ActivityIndicator className="py-10" color="#0AE365" />
+                      <LoadingIndicator className="py-10" />
                     ) : item.value === "basic" &&
                       selectedCategory &&
                       categoryScenariosQuery.isError ? (
