@@ -1,16 +1,9 @@
 import { SEMANTIC_COLORS } from "@/design-system";
-import {
-  getAppleLogin,
-  getGoogleLogin,
-  getNaverLogin,
-} from "@/api/authApi";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
 import CustomButton from "@/components/common/CustomButton";
-import { useAppAlert } from "@/context/AppAlertContext";
 import AntDesign from "@expo/vector-icons/AntDesign";
-import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { router, type Href } from "expo-router";
 import { useWindowDimensions, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,48 +11,13 @@ import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 
 export default function AuthScreen() {
   useDoubleBackExit();
-  const { showAlert } = useAppAlert();
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const bottomPadding = Math.min(Math.max(height * 0.1, 64), 96);
-  const loginInProgress = useRef(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  const handleOAuthLogin = async (
-    login: () => Promise<string | undefined>,
+  const openAgreement = (
+    next: "login" | "google" | "naver" | "apple",
   ) => {
-    if (loginInProgress.current) return;
-    loginInProgress.current = true;
-    setIsLoggingIn(true);
-    try {
-      const callbackUrl = await login();
-      if (callbackUrl) {
-        const callback = new URL(callbackUrl);
-        const path = `${callback.hostname}${callback.pathname}`.replace(/^\/+/, "");
-        if (callback.protocol !== "bada:" || path !== "auth/callback") {
-          throw new Error("Unexpected OAuth callback");
-        }
-
-        router.replace({
-          pathname: "/auth/callback",
-          params: {
-            code: callback.searchParams.get("code") ?? "",
-            error: callback.searchParams.get("error") ?? "",
-            error_description: callback.searchParams.get("error_description") ?? "",
-            message: callback.searchParams.get("message") ?? "",
-          },
-        });
-      }
-    } catch {
-      showAlert({
-        title: "로그인 오류",
-        description:
-          "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
-      });
-    } finally {
-      loginInProgress.current = false;
-      setIsLoggingIn(false);
-    }
+    router.push(`/auth/terms?next=${next}` as Href);
   };
 
   return (
@@ -83,30 +41,26 @@ export default function AuthScreen() {
             icon={<AntDesign name="google" size={20} color={SEMANTIC_COLORS.label.normal} />}
             color={SEMANTIC_COLORS.label.normal}
             backgroundColor="#F2F4F6"
-            disabled={isLoggingIn}
-            onPress={() => void handleOAuthLogin(getGoogleLogin)}
+            onPress={() => openAgreement("google")}
           />
           <CustomButton
             label="네이버로 계속할래요"
             icon={<NaverLogo width={20} height={20} />}
             color="#F7F7F8"
             backgroundColor="#03CF5D"
-            disabled={isLoggingIn}
-            onPress={() => void handleOAuthLogin(getNaverLogin)}
+            onPress={() => openAgreement("naver")}
           />
           <CustomButton
             label="Apple로 로그인"
             icon={<AntDesign name="apple" size={20} color="#FFFFFF" />}
             color="#FFFFFF"
             backgroundColor="#000000"
-            disabled={isLoggingIn}
-            onPress={() => void handleOAuthLogin(getAppleLogin)}
+            onPress={() => openAgreement("apple")}
           />
           <CustomButton
             label="아이디로 계속할래요"
             tone="neutral"
-            disabled={isLoggingIn}
-            onPress={() => router.replace("/auth/login")}
+            onPress={() => openAgreement("login")}
           />
         </View>
       </View>
