@@ -5,23 +5,35 @@ import {
   patchCommunityComment,
   patchCommunityPost,
   postCommunityComment,
+  postCommunityCommentReport,
+  postCommunityPostReport,
+  putCommunityUserBlock,
   putCommunityReaction,
 } from "@/api/communityApi";
-import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
+import {
+  getApiErrorMessage,
+  getApiErrorStatus,
+  getCommunityContentErrorMessage,
+} from "@/api/error";
 import type {
   CommunityCommentListResponse,
   CommunityCommentResponse,
   CommunityPostDetailResponse,
+  CommunityPostListResponse,
   CommunityReactionKind,
+  CommunityReportReason,
 } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
+import BlockCommunityUserModal from "@/components/community/BlockCommunityUserModal";
 import CommunityAvatar from "@/components/community/CommunityAvatar";
 import DeleteCommunityCommentModal from "@/components/community/DeleteCommunityCommentModal";
 import DeleteCommunityPostModal from "@/components/community/DeleteCommunityPostModal";
 import CommunityPostAttachments from "@/components/community/CommunityPostAttachments";
 import ReactionPill from "@/components/community/ReactionPill";
+import ReportCommunityContentModal from "@/components/community/ReportCommunityContentModal";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system";
 import {
   communityQueryKeys,
@@ -35,7 +47,11 @@ import {
   getCommunityAuthorName,
 } from "@/utils/community";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  InfiniteData,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -86,26 +102,36 @@ const replaceCommunityComment = (
   }),
 });
 
+interface CommentMenuAction {
+  label: string;
+  disabled?: boolean;
+  destructive?: boolean;
+  onPress: () => void;
+}
+
+interface ReportTarget {
+  kind: "post" | "comment";
+  id: number;
+  label: "게시글" | "댓글" | "답글";
+}
+
+interface BlockTarget {
+  userId: number;
+  userName: string;
+}
+
 interface CommentActionMenuProps {
   visible: boolean;
-  editLabel: string;
-  deleteLabel: string;
-  editDisabled: boolean;
-  deleteDisabled: boolean;
+  accessibilityLabel: string;
+  actions: CommentMenuAction[];
   onToggle: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
 }
 
 function CommentActionMenu({
   visible,
-  editLabel,
-  deleteLabel,
-  editDisabled,
-  deleteDisabled,
+  accessibilityLabel,
+  actions,
   onToggle,
-  onEdit,
-  onDelete,
 }: CommentActionMenuProps) {
   const triggerRef = useRef<View>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
@@ -117,7 +143,7 @@ function CommentActionMenu({
     }
 
     triggerRef.current?.measureInWindow((x, y, width, height) => {
-      setMenuPosition({ left: x + width - 135, top: y + height + 4 });
+      setMenuPosition({ left: x + width - 160, top: y + height + 4 });
       onToggle();
     });
   };
@@ -127,7 +153,7 @@ function CommentActionMenu({
       <Pressable
         ref={triggerRef}
         accessibilityRole="button"
-        accessibilityLabel={`${editLabel.replace("하기", "")} 및 삭제 메뉴`}
+        accessibilityLabel={accessibilityLabel}
         accessibilityState={{ expanded: visible }}
         hitSlop={6}
         onPress={toggleMenu}
@@ -149,15 +175,16 @@ function CommentActionMenu({
         <View className="flex-1">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${editLabel.replace("하기", "")} 및 삭제 메뉴 닫기`}
+            accessibilityLabel={`${accessibilityLabel} 닫기`}
             onPress={onToggle}
             className="absolute inset-0"
           />
           <View
-            className="absolute h-[104px] w-[135px] overflow-hidden rounded-component bg-background-normal"
+            className="absolute w-40 overflow-hidden rounded-component bg-background-normal"
             style={{
               left: menuPosition.left,
               top: menuPosition.top,
+              height: actions.length * 52,
               shadowColor: "#000000",
               shadowOpacity: 0.12,
               shadowRadius: 4.3,
@@ -165,34 +192,27 @@ function CommentActionMenu({
               elevation: 5,
             }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={editLabel}
-              disabled={editDisabled}
-              onPress={onEdit}
-              className="h-[52px] justify-center px-4 active:bg-fill-neutral"
-            >
-              <Text
-                numberOfLines={1}
-                className="text-body font-medium text-label-normal"
+            {actions.map((action) => (
+              <Pressable
+                key={action.label}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                disabled={action.disabled}
+                onPress={action.onPress}
+                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
               >
-                {editLabel}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={deleteLabel}
-              disabled={deleteDisabled}
-              onPress={onDelete}
-              className="h-[52px] justify-center px-4 active:bg-fill-neutral"
-            >
-              <Text
-                numberOfLines={1}
-                className="text-body font-medium text-label-normal"
-              >
-                {deleteLabel}
-              </Text>
-            </Pressable>
+                <Text
+                  numberOfLines={1}
+                  className={`text-body font-medium ${
+                    action.destructive
+                      ? "text-status-error"
+                      : "text-label-normal"
+                  }`}
+                >
+                  {action.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
       </Modal>
@@ -293,6 +313,7 @@ function InlineEditButtons({
 
 export default function CommunityPostDetailScreen() {
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAppAlert();
   const params = useLocalSearchParams<{
     id?: string | string[];
     source?: string | string[];
@@ -350,6 +371,10 @@ export default function CommunityPostDetailScreen() {
     removedCount: number;
   } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [blockTarget, setBlockTarget] = useState<BlockTarget | null>(null);
+  const [blockError, setBlockError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [commentInputOffset, setCommentInputOffset] = useState(0);
   const commentInputRef = useRef<TextInput>(null);
@@ -549,7 +574,10 @@ export default function CommunityPostDetailScreen() {
     },
     onError: (error) => {
       setInteractionError(
-        getApiErrorMessage(error, "댓글을 등록하지 못했어요."),
+        getCommunityContentErrorMessage(
+          error,
+          "댓글을 등록하지 못했어요.",
+        ),
       );
     },
   });
@@ -571,7 +599,10 @@ export default function CommunityPostDetailScreen() {
     },
     onError: (error) => {
       setInteractionError(
-        getApiErrorMessage(error, "게시물을 수정하지 못했어요."),
+        getCommunityContentErrorMessage(
+          error,
+          "게시물을 수정하지 못했어요.",
+        ),
       );
     },
   });
@@ -621,7 +652,10 @@ export default function CommunityPostDetailScreen() {
     },
     onError: (error) => {
       setEditCommentError(
-        getApiErrorMessage(error, "댓글을 수정하지 못했어요."),
+        getCommunityContentErrorMessage(
+          error,
+          "댓글을 수정하지 못했어요.",
+        ),
       );
     },
   });
@@ -680,6 +714,163 @@ export default function CommunityPostDetailScreen() {
     onError: (error) => {
       setDeleteModalError(
         getApiErrorMessage(error, "댓글을 삭제하지 못했어요."),
+      );
+    },
+  });
+
+  const reportMutation = useMutation({
+    mutationFn: async ({
+      target,
+      reason,
+    }: {
+      target: ReportTarget;
+      reason: CommunityReportReason;
+    }) => {
+      if (target.kind === "post") {
+        await postCommunityPostReport(target.id, { reason });
+        return;
+      }
+      await postCommunityCommentReport(target.id, { reason });
+    },
+    onSuccess: () => {
+      setReportTarget(null);
+      setReportError(null);
+      showAlert({
+        title: "신고가 접수되었어요",
+        description: "운영정책에 따라 내용을 확인한 뒤 필요한 조치를 진행합니다.",
+      });
+    },
+    onError: (error) => {
+      setReportError(getApiErrorMessage(error, "신고를 접수하지 못했어요."));
+    },
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: (target: BlockTarget) =>
+      putCommunityUserBlock(target.userId),
+    onSuccess: (_, target) => {
+      const blockedUserId = target.userId;
+      const isBlockingPostAuthor = post?.author.user_id === blockedUserId;
+
+      queryClient.setQueriesData<InfiniteData<CommunityPostListResponse>>(
+        { queryKey: communityQueryKeys.postLists() },
+        (currentLists) => {
+          if (!currentLists) return currentLists;
+
+          const removedCount = currentLists.pages.reduce(
+            (count, page) =>
+              count +
+              page.posts.filter(
+                (item) => item.author.user_id === blockedUserId,
+              ).length,
+            0,
+          );
+
+          return {
+            ...currentLists,
+            pages: currentLists.pages.map((page) => ({
+              ...page,
+              posts: page.posts.filter(
+                (item) => item.author.user_id !== blockedUserId,
+              ),
+              total: Math.max(0, page.total - removedCount),
+            })),
+          };
+        },
+      );
+
+      let removedCommentCount = 0;
+      queryClient.setQueryData<CommunityCommentListResponse>(
+        communityQueryKeys.comments(postId),
+        (currentComments) => {
+          if (!currentComments) return currentComments;
+
+          return {
+            comments: currentComments.comments
+              .filter((comment) => {
+                if (comment.author.user_id !== blockedUserId) return true;
+                removedCommentCount += 1 + (comment.replies?.length ?? 0);
+                return false;
+              })
+              .map((comment) => ({
+                ...comment,
+                replies: (comment.replies ?? []).filter((reply) => {
+                  if (reply.author.user_id !== blockedUserId) return true;
+                  removedCommentCount += 1;
+                  return false;
+                }),
+              })),
+          };
+        },
+      );
+
+      if (removedCommentCount > 0 && !isBlockingPostAuthor) {
+        queryClient.setQueryData<CommunityPostDetailResponse>(
+          communityQueryKeys.post(postId),
+          (currentPost) =>
+            currentPost
+              ? {
+                  ...currentPost,
+                  comment_count: Math.max(
+                    0,
+                    (currentPost.comment_count ?? 0) - removedCommentCount,
+                  ),
+                }
+              : currentPost,
+        );
+        queryClient.setQueriesData<InfiniteData<CommunityPostListResponse>>(
+          { queryKey: communityQueryKeys.postLists() },
+          (currentLists) =>
+            currentLists
+              ? {
+                  ...currentLists,
+                  pages: currentLists.pages.map((page) => ({
+                    ...page,
+                    posts: page.posts.map((item) =>
+                      item.post_id === postId
+                        ? {
+                            ...item,
+                            comment_count: Math.max(
+                              0,
+                              item.comment_count - removedCommentCount,
+                            ),
+                          }
+                        : item,
+                    ),
+                  })),
+                }
+              : currentLists,
+        );
+      }
+
+      if (isBlockingPostAuthor) {
+        queryClient.removeQueries({
+          queryKey: communityQueryKeys.post(postId),
+        });
+      }
+
+      setReplyTarget(null);
+      setEditingCommentId(null);
+      setEditCommentContent("");
+      setCommentMenuTargetId(null);
+      setBlockTarget(null);
+      setBlockError(null);
+
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.all,
+      });
+      showAlert({
+        title: "사용자를 차단했어요",
+        description: "해당 사용자의 게시글과 댓글을 더 이상 표시하지 않습니다.",
+      });
+
+      if (isBlockingPostAuthor) {
+        router.replace("/(tabs)/(community)/community");
+      }
+    },
+    onError: (error) => {
+      setBlockError(
+        getApiErrorMessage(error, "사용자를 차단하지 못했어요."),
       );
     },
   });
@@ -941,10 +1132,10 @@ export default function CommunityPostDetailScreen() {
             back
             onBack={handleBack}
             right={
-              isPostAuthor && !editingPost ? (
+              !editingPost && currentUserId ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="게시글 설정"
+                  accessibilityLabel="게시글 작업 메뉴"
                   accessibilityState={{ expanded: isPostMenuVisible }}
                   hitSlop={8}
                   onPress={() =>
@@ -963,7 +1154,7 @@ export default function CommunityPostDetailScreen() {
             safeArea={false}
           />
 
-          {isPostAuthor && isPostMenuVisible && !editingPost && (
+          {isPostMenuVisible && !editingPost && currentUserId && (
             <View
               className="absolute right-4 top-[53px] z-30 h-[104px] max-w-48 overflow-hidden rounded-component bg-background-normal"
               style={{
@@ -974,38 +1165,80 @@ export default function CommunityPostDetailScreen() {
                 elevation: 5,
               }}
             >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="게시글 수정하기"
-                disabled={updatePostMutation.isPending}
-                onPress={startEditingPost}
-                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
-              >
-                <Text
-                  numberOfLines={1}
-                  className="text-body font-medium text-label-normal"
-                >
-                  게시글 수정하기
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="게시글 삭제하기"
-                disabled={deletePostMutation.isPending}
-                onPress={() => {
-                  setIsPostMenuVisible(false);
-                  setDeletePostError(null);
-                  setDeletePostModalVisible(true);
-                }}
-                className="h-[52px] justify-center px-4 active:bg-fill-neutral"
-              >
-                <Text
-                  numberOfLines={1}
-                  className="text-body font-medium text-label-normal"
-                >
-                  게시글 삭제하기
-                </Text>
-              </Pressable>
+              {isPostAuthor ? (
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="게시글 수정하기"
+                    disabled={updatePostMutation.isPending}
+                    onPress={startEditingPost}
+                    className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+                  >
+                    <Text
+                      numberOfLines={1}
+                      className="text-body font-medium text-label-normal"
+                    >
+                      게시글 수정하기
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="게시글 삭제하기"
+                    disabled={deletePostMutation.isPending}
+                    onPress={() => {
+                      setIsPostMenuVisible(false);
+                      setDeletePostError(null);
+                      setDeletePostModalVisible(true);
+                    }}
+                    className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+                  >
+                    <Text
+                      numberOfLines={1}
+                      className="text-body font-medium text-label-normal"
+                    >
+                      게시글 삭제하기
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="게시글 신고하기"
+                    onPress={() => {
+                      setIsPostMenuVisible(false);
+                      setReportError(null);
+                      setReportTarget({
+                        kind: "post",
+                        id: postId,
+                        label: "게시글",
+                      });
+                    }}
+                    className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+                  >
+                    <Text className="text-body font-medium text-label-normal">
+                      게시글 신고하기
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="게시글 작성자 차단하기"
+                    onPress={() => {
+                      setIsPostMenuVisible(false);
+                      setBlockError(null);
+                      setBlockTarget({
+                        userId: post.author.user_id,
+                        userName: getCommunityAuthorName(post.author.name),
+                      });
+                    }}
+                    className="h-[52px] justify-center px-4 active:bg-fill-neutral"
+                  >
+                    <Text className="text-body font-medium text-status-error">
+                      사용자 차단하기
+                    </Text>
+                  </Pressable>
+                </>
+              )}
             </View>
           )}
         </View>
@@ -1298,40 +1531,76 @@ export default function CommunityPostDetailScreen() {
                               onCancel={cancelEditingComment}
                               onSave={saveComment}
                             />
-                          ) : (
-                            canEditComment && (
-                              <CommentActionMenu
-                                visible={
-                                  commentMenuTargetId === comment.comment_id
-                                }
-                                editLabel="댓글 수정하기"
-                                deleteLabel="댓글 삭제하기"
-                                editDisabled={updateCommentMutation.isPending}
-                                deleteDisabled={
-                                  deleteCommentMutation.isPending
-                                }
-                                onToggle={() =>
-                                  setCommentMenuTargetId((currentId) =>
-                                    currentId === comment.comment_id
-                                      ? null
-                                      : comment.comment_id,
-                                  )
-                                }
-                                onEdit={() =>
-                                  startEditingComment(
-                                    comment.comment_id,
-                                    comment.content,
-                                  )
-                                }
-                                onDelete={() =>
-                                  confirmDeleteComment(
-                                    comment.comment_id,
-                                    1 + replies.length,
-                                  )
-                                }
-                              />
-                            )
-                          )}
+                          ) : currentUserId ? (
+                            <CommentActionMenu
+                              visible={
+                                commentMenuTargetId === comment.comment_id
+                              }
+                              accessibilityLabel="댓글 작업 메뉴"
+                              onToggle={() =>
+                                setCommentMenuTargetId((currentId) =>
+                                  currentId === comment.comment_id
+                                    ? null
+                                    : comment.comment_id,
+                                )
+                              }
+                              actions={
+                                canEditComment
+                                  ? [
+                                      {
+                                        label: "댓글 수정하기",
+                                        disabled:
+                                          updateCommentMutation.isPending,
+                                        onPress: () =>
+                                          startEditingComment(
+                                            comment.comment_id,
+                                            comment.content,
+                                          ),
+                                      },
+                                      {
+                                        label: "댓글 삭제하기",
+                                        disabled:
+                                          deleteCommentMutation.isPending,
+                                        onPress: () =>
+                                          confirmDeleteComment(
+                                            comment.comment_id,
+                                            1 + replies.length,
+                                          ),
+                                      },
+                                    ]
+                                  : [
+                                      {
+                                        label: "댓글 신고하기",
+                                        disabled: reportMutation.isPending,
+                                        onPress: () => {
+                                          setCommentMenuTargetId(null);
+                                          setReportError(null);
+                                          setReportTarget({
+                                            kind: "comment",
+                                            id: comment.comment_id,
+                                            label: "댓글",
+                                          });
+                                        },
+                                      },
+                                      {
+                                        label: "사용자 차단하기",
+                                        destructive: true,
+                                        disabled: blockMutation.isPending,
+                                        onPress: () => {
+                                          setCommentMenuTargetId(null);
+                                          setBlockError(null);
+                                          setBlockTarget({
+                                            userId: comment.author.user_id,
+                                            userName: getCommunityAuthorName(
+                                              comment.author.name,
+                                            ),
+                                          });
+                                        },
+                                      },
+                                    ]
+                              }
+                            />
+                          ) : null}
                         </View>
 
                         {isEditingComment ? (
@@ -1400,42 +1669,79 @@ export default function CommunityPostDetailScreen() {
                                     onCancel={cancelEditingComment}
                                     onSave={saveComment}
                                   />
-                                ) : (
-                                  canEditReply && (
-                                    <CommentActionMenu
-                                      visible={
-                                        commentMenuTargetId === reply.comment_id
-                                      }
-                                      editLabel="답글 수정하기"
-                                      deleteLabel="답글 삭제하기"
-                                      editDisabled={
-                                        updateCommentMutation.isPending
-                                      }
-                                      deleteDisabled={
-                                        deleteCommentMutation.isPending
-                                      }
-                                      onToggle={() =>
-                                        setCommentMenuTargetId((currentId) =>
-                                          currentId === reply.comment_id
-                                            ? null
-                                            : reply.comment_id,
-                                        )
-                                      }
-                                      onEdit={() =>
-                                        startEditingComment(
-                                          reply.comment_id,
-                                          reply.content,
-                                        )
-                                      }
-                                      onDelete={() =>
-                                        confirmDeleteComment(
-                                          reply.comment_id,
-                                          1,
-                                        )
-                                      }
-                                    />
-                                  )
-                                )}
+                                ) : currentUserId ? (
+                                  <CommentActionMenu
+                                    visible={
+                                      commentMenuTargetId === reply.comment_id
+                                    }
+                                    accessibilityLabel="답글 작업 메뉴"
+                                    onToggle={() =>
+                                      setCommentMenuTargetId((currentId) =>
+                                        currentId === reply.comment_id
+                                          ? null
+                                          : reply.comment_id,
+                                      )
+                                    }
+                                    actions={
+                                      canEditReply
+                                        ? [
+                                            {
+                                              label: "답글 수정하기",
+                                              disabled:
+                                                updateCommentMutation.isPending,
+                                              onPress: () =>
+                                                startEditingComment(
+                                                  reply.comment_id,
+                                                  reply.content,
+                                                ),
+                                            },
+                                            {
+                                              label: "답글 삭제하기",
+                                              disabled:
+                                                deleteCommentMutation.isPending,
+                                              onPress: () =>
+                                                confirmDeleteComment(
+                                                  reply.comment_id,
+                                                  1,
+                                                ),
+                                            },
+                                          ]
+                                        : [
+                                            {
+                                              label: "답글 신고하기",
+                                              disabled:
+                                                reportMutation.isPending,
+                                              onPress: () => {
+                                                setCommentMenuTargetId(null);
+                                                setReportError(null);
+                                                setReportTarget({
+                                                  kind: "comment",
+                                                  id: reply.comment_id,
+                                                  label: "답글",
+                                                });
+                                              },
+                                            },
+                                            {
+                                              label: "사용자 차단하기",
+                                              destructive: true,
+                                              disabled:
+                                                blockMutation.isPending,
+                                              onPress: () => {
+                                                setCommentMenuTargetId(null);
+                                                setBlockError(null);
+                                                setBlockTarget({
+                                                  userId: reply.author.user_id,
+                                                  userName:
+                                                    getCommunityAuthorName(
+                                                      reply.author.name,
+                                                    ),
+                                                });
+                                              },
+                                            },
+                                          ]
+                                    }
+                                  />
+                                ) : null}
                               </View>
 
                               {isEditingReply ? (
@@ -1563,6 +1869,38 @@ export default function CommunityPostDetailScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <ReportCommunityContentModal
+        visible={Boolean(reportTarget)}
+        targetLabel={reportTarget?.label ?? "게시글"}
+        isSubmitting={reportMutation.isPending}
+        errorMessage={reportError}
+        onCancel={() => {
+          if (reportMutation.isPending) return;
+          setReportTarget(null);
+          setReportError(null);
+        }}
+        onConfirm={(reason) => {
+          if (reportTarget) {
+            reportMutation.mutate({ target: reportTarget, reason });
+          }
+        }}
+      />
+
+      <BlockCommunityUserModal
+        visible={Boolean(blockTarget)}
+        userName={blockTarget?.userName ?? "이 사용자"}
+        isBlocking={blockMutation.isPending}
+        errorMessage={blockError}
+        onCancel={() => {
+          if (blockMutation.isPending) return;
+          setBlockTarget(null);
+          setBlockError(null);
+        }}
+        onConfirm={() => {
+          if (blockTarget) blockMutation.mutate(blockTarget);
+        }}
+      />
 
       <DeleteCommunityCommentModal
         visible={Boolean(deleteTarget)}
