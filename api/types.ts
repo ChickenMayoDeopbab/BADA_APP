@@ -389,6 +389,29 @@ export interface FeedbackResponse {
 // AI 서버 커뮤니티 API
 export type CommunityReactionKind = "CHEER" | "RELATE" | "LIKE";
 
+export type CommunityReportReason =
+  | "ABUSE"
+  | "SEXUAL"
+  | "HATE"
+  | "VIOLENCE"
+  | "SPAM"
+  | "PRIVACY"
+  | "OTHER";
+
+export interface CommunityReportRequest {
+  reason: CommunityReportReason;
+}
+
+export interface CommunityReportResponse {
+  report_id: number;
+  target_type: "POST" | "COMMENT";
+  target_id: number;
+  reason: CommunityReportReason;
+  status: "PENDING" | "RESOLVED" | "DISMISSED";
+  created_at: string;
+  due_at: string;
+}
+
 export interface CommunityAuthorInfo {
   user_id: number;
   name?: string | null;
