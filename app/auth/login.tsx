@@ -10,10 +10,10 @@ import {
 } from "@/constants/authValidation";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import {
-  isDiagnosisRequired,
   setAuthenticatedUsername,
 } from "@/utils/diagnosisFlow";
 import { setAuthTokens } from "@/utils/authTokenStorage";
+import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -125,8 +125,7 @@ export default function LoginScreen() {
       await setAuthTokens(response.data);
       await setAuthenticatedUsername(username);
 
-      const needsDiagnosis = await isDiagnosisRequired(username);
-      router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
+      router.replace(await getAuthenticatedPath());
     } catch (error) {
       const errorField =
         getApiErrorStatus(error) === 404 ? "username" : "password";
