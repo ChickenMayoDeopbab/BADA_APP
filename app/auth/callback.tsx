@@ -5,6 +5,7 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { setAuthTokens } from "@/utils/authTokenStorage";
+import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
@@ -75,7 +76,7 @@ export default function OAuthCallbackScreen() {
           AsyncStorage.setItem("autoLogin", "true"),
         ]);
 
-        router.replace("/home");
+        router.replace(await getAuthenticatedPath());
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
