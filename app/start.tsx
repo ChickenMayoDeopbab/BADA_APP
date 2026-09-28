@@ -13,6 +13,7 @@ import {
 import { usePendingCall } from "@/context/PendingCallContext";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
@@ -43,6 +44,7 @@ function SectionTitle({ title }: SectionTitleProps) {
 
 export default function Start() {
   const insets = useSafeAreaInsets();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
   const { id, isCustom, title, content, scenarioImage, category } =
     useLocalSearchParams<{
       id?: string;
@@ -91,6 +93,7 @@ export default function Start() {
 
   const handleComplete = async () => {
     if (!id) return;
+    if (!(await ensureSensitiveConsent())) return;
 
     const sessionConfig = {
       scenarioId: parseInt(id, 10),

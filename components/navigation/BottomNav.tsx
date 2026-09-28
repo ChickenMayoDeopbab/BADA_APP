@@ -5,6 +5,7 @@ import Octicons from "@expo/vector-icons/Octicons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
 const TAB_LABELS: Record<string, string> = {
   "(home)": "홈", "(train)": "훈련", "(record)": "기록",
@@ -27,6 +28,7 @@ function TabIcon({ routeName, color }: { routeName: string; color: string }) {
 
 export default function BottomNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const { width } = useWindowDimensions();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
   const horizontalPadding = width < 300 ? 8 : width < 360 ? 16 : 32;
   return (
     <SafeAreaView
@@ -42,7 +44,16 @@ export default function BottomNav({ state, descriptors, navigation }: BottomTabB
           const color = isFocused ? SEMANTIC_COLORS.primary.normal : SEMANTIC_COLORS.line.normal;
           const onPress = () => {
             const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-            if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+            if (isFocused || event.defaultPrevented) return;
+
+            if (route.name === "(record)") {
+              void ensureSensitiveConsent().then((allowed) => {
+                if (allowed) navigation.navigate(route.name, route.params);
+              });
+              return;
+            }
+
+            navigation.navigate(route.name, route.params);
           };
           return (
             <Pressable

@@ -6,9 +6,11 @@ import PartyFace from "@/assets/partyFace.svg";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FONT_WEIGHT } from "@/design-system/typography";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
 export default function Welcome() {
   const insets = useSafeAreaInsets();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
 
   useAndroidBackHandler(() => {
     router.replace("/auth/login");
@@ -22,7 +24,15 @@ export default function Welcome() {
         <Text className="mt-2 text-body text-label-alternative" style={{ fontWeight: FONT_WEIGHT.medium as TextStyle["fontWeight"] }}>간단한 자가진단을 통해 {"\n"} 나의 콜포비아 지수를 진단해보세요.</Text>
       </View>
 
-      <CustomButton label="자가진단 시작하기" onPress={() => router.push("/diagnosis/question")} tone="primary" />
+      <CustomButton
+        label="자가진단 시작하기"
+        onPress={() =>
+          void ensureSensitiveConsent().then((allowed) => {
+            if (allowed) router.push("/diagnosis/question");
+          })
+        }
+        tone="primary"
+      />
     </View>
   )
 }
