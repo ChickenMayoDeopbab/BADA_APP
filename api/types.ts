@@ -61,6 +61,23 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+export interface LegalConsentStatus {
+  termsOfServiceAgreed: boolean;
+  termsOfServiceAgreedAt: string | null;
+  privacyPolicyAcknowledged: boolean;
+  privacyPolicyAcknowledgedAt: string | null;
+  sensitiveInformationAgreed: boolean;
+  sensitiveInformationAgreedAt: string | null;
+  sensitiveInformationWithdrawnAt: string | null;
+  legalActionRequired: boolean;
+}
+
+export interface AcceptLegalConsentRequest {
+  termsOfServiceAgreed: true;
+  privacyPolicyAcknowledged: true;
+  sensitiveInformationAgreed: boolean;
+}
+
 export type OAuthProvider = 'google' | 'naver' | 'apple';
 
 export interface OAuthCodeRequest {
