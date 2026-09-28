@@ -9,9 +9,11 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
 export default function WarmupStart() {
   const insets = useSafeAreaInsets();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
@@ -29,6 +31,7 @@ export default function WarmupStart() {
   /** 워밍업 세션 생성 — 발신 시간은 0초(즉시 발신) 고정 */
   const handleComplete = async () => {
     if (!id) return;
+    if (!(await ensureSensitiveConsent())) return;
 
     setIsCreatingSession(true);
     try {
