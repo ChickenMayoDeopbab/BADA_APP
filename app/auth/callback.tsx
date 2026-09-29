@@ -9,7 +9,7 @@ import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
-import { Href, router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -78,7 +78,10 @@ export default function OAuthCallbackScreen() {
 
         router.replace(
           isNewUser
-            ? ("/auth/terms" as Href)
+            ? {
+                pathname: "/auth/terms",
+                params: { newUser: "true" },
+              }
             : await getAuthenticatedPath(),
         );
       } catch (error) {
