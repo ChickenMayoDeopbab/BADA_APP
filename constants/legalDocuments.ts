@@ -1,8 +1,6 @@
 import {
   COMMUNITY_SAFETY_NOTICE,
   DEVELOPER_CONTACT_EMAIL,
-  TRAINING_RECORD_RETENTION_NOTICE,
-  VOICE_DATA_RETENTION_NOTICE,
 } from "@/constants/legal";
 
 export interface LegalDocumentSection {
@@ -26,29 +24,6 @@ export const TERMS_OF_SERVICE_SECTIONS: LegalDocumentSection[] = [
   {
     title: "문의",
     body: `서비스 이용약관 관련 문의: ${DEVELOPER_CONTACT_EMAIL}`,
-  },
-];
-
-export const PRIVACY_POLICY_SECTIONS: LegalDocumentSection[] = [
-  {
-    title: "수집하는 개인정보",
-    body: "회원 식별을 위한 계정 정보와 서비스 이용 과정에서 생성되는 훈련 내용, 음성 데이터 및 분석 결과를 처리할 수 있습니다.",
-  },
-  {
-    title: "이용 목적",
-    body: "회원 식별, 대화 훈련 제공, 맞춤형 분석과 피드백 제공 및 서비스 이용 기록 관리에 사용합니다.",
-  },
-  {
-    title: "보관 및 파기",
-    body: `${VOICE_DATA_RETENTION_NOTICE}\n${TRAINING_RECORD_RETENTION_NOTICE}\n보관기간이 지나거나 삭제 사유가 발생하면 복구할 수 없는 방법으로 지체 없이 파기합니다.`,
-  },
-  {
-    title: "이용자의 권리",
-    body: "회원은 자신의 개인정보 열람·정정·삭제 및 처리정지를 요청할 수 있으며, 훈련 기록 삭제 또는 회원 탈퇴를 통해 개인정보 삭제를 요청할 수 있습니다.",
-  },
-  {
-    title: "개인정보 문의",
-    body: DEVELOPER_CONTACT_EMAIL,
   },
 ];
 
