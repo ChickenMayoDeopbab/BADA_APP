@@ -1,10 +1,63 @@
 import { createSession } from "@/api/trainApi";
 import BottomNav from "@/components/navigation/BottomNav";
 import { usePendingCall } from "@/context/PendingCallContext";
-import { Tabs, router, usePathname, useSegments } from "expo-router";
-import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Tabs, router, usePathname, useSegments } from "expo-router";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const TAB_BAR_CONTENT_HEIGHT = 72;
+
+function AnimatedBottomNav({
+  hidden,
+  ...props
+}: BottomTabBarProps & { hidden: boolean }) {
+  const insets = useSafeAreaInsets();
+  const visibility = useRef(new Animated.Value(hidden ? 0 : 1)).current;
+
+  useEffect(() => {
+    visibility.stopAnimation();
+    const animation = Animated.timing(visibility, {
+      toValue: hidden ? 0 : 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [hidden, visibility]);
+
+  return (
+    <View
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
+      pointerEvents={hidden ? "none" : "auto"}
+      style={{
+        height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+        overflow: "hidden",
+      }}
+    >
+      <Animated.View
+        style={{
+          opacity: visibility,
+          transform: [
+            {
+              translateY: visibility.interpolate({
+                inputRange: [0, 1],
+                outputRange: [TAB_BAR_CONTENT_HEIGHT + insets.bottom, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        <BottomNav {...props} />
+      </Animated.View>
+    </View>
+  );
+}
 
 /** 발신 예약 타이머 감시 — 예약된 시각이 되면 세션을 생성하고 훈련 화면으로 이동 */
 function CallWatcher() {
@@ -86,7 +139,9 @@ export default function TabLayout() {
     <>
       <CallWatcher />
       <Tabs
-        tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
+        tabBar={(props) => (
+          <AnimatedBottomNav {...props} hidden={hideTabBar} />
+        )}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
