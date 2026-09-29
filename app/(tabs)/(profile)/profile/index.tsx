@@ -14,7 +14,7 @@ import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useFocusEffect } from "expo-router";
+import { Href, router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -278,6 +278,14 @@ function ProfileScreen() {
                 label="개인정보 관리"
                 onPress={() =>
                   router.push("/(tabs)/(profile)/profile/settings/privacy")
+                }
+              />
+              <MenuRow
+                label="차단 사용자 관리"
+                onPress={() =>
+                  router.push(
+                    "/(tabs)/(profile)/profile/settings/blocked-users" as Href,
+                  )
                 }
               />
               {/* <MenuRow

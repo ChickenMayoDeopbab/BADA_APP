@@ -21,7 +21,7 @@ export default function BlockCommunityUserModal({
     <CustomModal
       visible={visible}
       title={`${userName}님을 차단할까요?`}
-      description="차단하면 이 사용자의 게시글과 댓글이 즉시 표시되지 않습니다. 프로필 설정에서 언제든 차단을 해제할 수 있습니다."
+      description="차단하면 이 사용자의 게시글과 댓글이 즉시 표시되지 않습니다. 프로필 설정의 차단 사용자 관리에서 언제든 해제할 수 있습니다."
       errorMessage={errorMessage}
       onClose={onCancel}
       closeOnBackdrop={!isBlocking}

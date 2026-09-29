@@ -857,7 +857,7 @@ export default function CommunityPostDetailScreen() {
       setBlockError(null);
 
       void queryClient.invalidateQueries({
-        queryKey: communityQueryKeys.all,
+        queryKey: ["community", "blocked-users"],
       });
       showAlert({
         title: "사용자를 차단했어요",
