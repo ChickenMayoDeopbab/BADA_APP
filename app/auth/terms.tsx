@@ -1,4 +1,7 @@
-import { acceptLegalConsents } from "@/api/legalConsentApi";
+import {
+  acceptLegalConsents,
+  getLegalConsentStatus,
+} from "@/api/legalConsentApi";
 import SignupLegalConsentScreen from "@/components/auth/SignupLegalConsentScreen";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { getApiErrorMessage } from "@/api/error";
@@ -25,11 +28,13 @@ export default function OAuthLegalConsentScreen() {
 
     setIsSubmitting(true);
     try {
+      const currentStatus = await getLegalConsentStatus();
       const status = await acceptLegalConsents({
         termsOfServiceAgreed: true,
         privacyPolicyAcknowledged: true,
         sensitiveInformationAgreed,
-        profileImageAgreed: false,
+        // 이 화면에서는 프로필 이미지 동의를 받지 않으므로 기존 값을 보존한다.
+        profileImageAgreed: currentStatus.profileImageAgreed,
       });
       if (status.legalActionRequired) {
         throw new Error("필수 약관 동의가 저장되지 않았습니다.");
