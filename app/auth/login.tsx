@@ -1,5 +1,6 @@
 import { SEMANTIC_COLORS } from "@/design-system";
 import { postLogin } from "@/api/authApi";
+import { acceptLegalConsents } from "@/api/legalConsentApi";
 import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
@@ -10,10 +11,14 @@ import {
 } from "@/constants/authValidation";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import {
-  isDiagnosisRequired,
   setAuthenticatedUsername,
 } from "@/utils/diagnosisFlow";
 import { setAuthTokens } from "@/utils/authTokenStorage";
+import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
+import {
+  clearPendingLegalConsent,
+  getPendingLegalConsent,
+} from "@/utils/pendingLegalConsent";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -125,8 +130,24 @@ export default function LoginScreen() {
       await setAuthTokens(response.data);
       await setAuthenticatedUsername(username);
 
-      const needsDiagnosis = await isDiagnosisRequired(username);
-      router.replace(needsDiagnosis ? "/diagnosis/welcome" : "/home");
+      const pendingConsent = await getPendingLegalConsent();
+      if (pendingConsent?.username === username) {
+        try {
+          await acceptLegalConsents({
+            termsOfServiceAgreed: true,
+            privacyPolicyAcknowledged: true,
+            sensitiveInformationAgreed:
+              pendingConsent.sensitiveInformationAgreed,
+            profileImageAgreed: false,
+          });
+          await clearPendingLegalConsent();
+        } catch {
+          // 저장 실패 시 pending 값을 유지하고 서버 상태 확인 결과에 따라
+          // 약관 화면에서 다시 동의할 수 있게 한다.
+        }
+      }
+
+      router.replace(await getAuthenticatedPath());
     } catch (error) {
       const errorField =
         getApiErrorStatus(error) === 404 ? "username" : "password";

@@ -4,9 +4,11 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
+import SignupLegalConsentScreen from "@/components/auth/SignupLegalConsentScreen";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { RegisterFormValues } from "@/types/auth";
 import { markDiagnosisRequired } from "@/utils/diagnosisFlow";
+import { savePendingLegalConsent } from "@/utils/pendingLegalConsent";
 import { router } from "expo-router";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -21,7 +23,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignupScreen() {
+  const [isConsentVisible, setIsConsentVisible] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
   useAndroidBackHandler(() => {
+    if (isConsentVisible) {
+      if (!isSigningUp) setIsConsentVisible(false);
+      return true;
+    }
     router.replace("/auth/login");
     return true;
   });
@@ -34,7 +43,6 @@ export default function SignupScreen() {
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
   const [step, setStep] = useState(1);
   const [isEmailSent, setIsEmailSent] = useState(false);
-  const [isSigningUp, setIsSigningUp] = useState(false);
   const [signupError, setSignupError] = useState("");
 
   const methods = useForm<RegisterFormValues>({
@@ -50,7 +58,7 @@ export default function SignupScreen() {
     reValidateMode: "onChange",
   });
 
-  const handleSignup = async () => {
+  const handleSignup = async (sensitiveInformationAgreed: boolean) => {
     const {
       email: rawEmail,
       password,
@@ -66,7 +74,10 @@ export default function SignupScreen() {
 
     try {
       await postSignup({ username, password, email, name });
-      await markDiagnosisRequired(username);
+      await Promise.all([
+        markDiagnosisRequired(username),
+        savePendingLegalConsent(sensitiveInformationAgreed, username),
+      ]);
       router.replace("/auth/login");
       return true;
     } catch (error) {
@@ -81,6 +92,20 @@ export default function SignupScreen() {
       setIsSigningUp(false);
     }
   };
+
+  if (isConsentVisible) {
+    return (
+      <SignupLegalConsentScreen
+        isSubmitting={isSigningUp}
+        onBack={() => setIsConsentVisible(false)}
+        onConfirm={(sensitiveInformationAgreed) =>
+          void handleSignup(sensitiveInformationAgreed).then((succeeded) => {
+            if (!succeeded) setIsConsentVisible(false);
+          })
+        }
+      />
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background-normal">
@@ -128,7 +153,11 @@ export default function SignupScreen() {
                     setSignupError("");
                     setStep(2);
                   }}
-                  onNext={handleSignup}
+                  onNext={() => {
+                    setSignupError("");
+                    setIsConsentVisible(true);
+                    return true;
+                  }}
                   isSent={isEmailSent}
                   onSentChange={setIsEmailSent}
                   isSubmitting={isSigningUp}

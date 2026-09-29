@@ -29,27 +29,29 @@ export default function AuthScreen() {
     login: () => Promise<string | undefined>,
   ) => {
     if (loginInProgress.current) return;
+
     loginInProgress.current = true;
     setIsLoggingIn(true);
     try {
       const callbackUrl = await login();
-      if (callbackUrl) {
-        const callback = new URL(callbackUrl);
-        const path = `${callback.hostname}${callback.pathname}`.replace(/^\/+/, "");
-        if (callback.protocol !== "bada:" || path !== "auth/callback") {
-          throw new Error("Unexpected OAuth callback");
-        }
+      if (!callbackUrl) return;
 
-        router.replace({
-          pathname: "/auth/callback",
-          params: {
-            code: callback.searchParams.get("code") ?? "",
-            error: callback.searchParams.get("error") ?? "",
-            error_description: callback.searchParams.get("error_description") ?? "",
-            message: callback.searchParams.get("message") ?? "",
-          },
-        });
+      const callback = new URL(callbackUrl);
+      const path = `${callback.hostname}${callback.pathname}`.replace(/^\/+/, "");
+      if (callback.protocol !== "bada:" || path !== "auth/callback") {
+        throw new Error("Unexpected OAuth callback");
       }
+
+      router.replace({
+        pathname: "/auth/callback",
+        params: {
+          code: callback.searchParams.get("code") ?? "",
+          error: callback.searchParams.get("error") ?? "",
+          error_description:
+            callback.searchParams.get("error_description") ?? "",
+          message: callback.searchParams.get("message") ?? "",
+        },
+      });
     } catch {
       showAlert({
         title: "로그인 오류",

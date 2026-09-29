@@ -4,10 +4,12 @@ import { usePendingCall } from "@/context/PendingCallContext";
 import { Tabs, router, usePathname, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
 /** 발신 예약 타이머 감시 — 예약된 시각이 되면 세션을 생성하고 훈련 화면으로 이동 */
 function CallWatcher() {
   const { pendingCall, cancel } = usePendingCall();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
 
   useEffect(() => {
     if (!pendingCall.config || !pendingCall.callAt) return;
@@ -16,9 +18,10 @@ function CallWatcher() {
     const remaining = pendingCall.callAt - Date.now();
 
     const fire = async () => {
-      cancel();
+      if (!(await ensureSensitiveConsent())) return;
       try {
         const session = await createSession(config);
+        cancel();
         /*
           예약 발신은 사용자가 어디에 있든 걸려온다. 시나리오 상세처럼 모달로 열린
           화면이 남아 있으면 통화 화면 위를 덮으므로, 세션을 얻은 뒤 현재 스택을 비운다.
@@ -46,7 +49,7 @@ function CallWatcher() {
 
     const timeout = setTimeout(fire, remaining);
     return () => clearTimeout(timeout);
-  }, [pendingCall, cancel]);
+  }, [pendingCall, cancel, ensureSensitiveConsent]);
 
   return null;
 }

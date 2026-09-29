@@ -15,7 +15,7 @@ import {
 } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { isDiagnosisRequiredForAuthenticatedUser } from "@/utils/diagnosisFlow";
+import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import {
   clearAuthTokens,
   getAccessToken,
@@ -25,7 +25,11 @@ import { unregisterForPushNotifications } from "@/services/pushNotifications";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
-type StartupPath = "/auth" | "/diagnosis/welcome" | "/home";
+type StartupPath =
+  | "/auth"
+  | "/auth/terms"
+  | "/diagnosis/welcome"
+  | "/home";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,9 +85,7 @@ export default function RootLayout() {
           await unregisterForPushNotifications();
           await clearAuthTokens();
         } else {
-          const needsDiagnosis =
-            await isDiagnosisRequiredForAuthenticatedUser();
-          nextPath = needsDiagnosis ? "/diagnosis/welcome" : "/home";
+          nextPath = await getAuthenticatedPath();
         }
       } catch {
         await clearAuthTokens().catch(() => {});
