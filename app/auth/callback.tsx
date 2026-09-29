@@ -9,7 +9,7 @@ import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
-import { router, useLocalSearchParams } from "expo-router";
+import { Href, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -65,7 +65,7 @@ export default function OAuthCallbackScreen() {
     const completeOAuthLogin = async () => {
       try {
         const response = await postOAuthToken({ code });
-        const { accessToken, refreshToken } = response.data ?? {};
+        const { accessToken, refreshToken, isNewUser } = response.data ?? {};
 
         if (!accessToken || !refreshToken) {
           throw new Error("OAuth token response is invalid");
@@ -76,7 +76,11 @@ export default function OAuthCallbackScreen() {
           AsyncStorage.setItem("autoLogin", "true"),
         ]);
 
-        router.replace(await getAuthenticatedPath());
+        router.replace(
+          isNewUser
+            ? ("/auth/terms" as Href)
+            : await getAuthenticatedPath(),
+        );
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
