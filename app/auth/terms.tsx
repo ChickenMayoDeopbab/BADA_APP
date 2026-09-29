@@ -1,13 +1,18 @@
-import { acceptLegalConsents } from "@/api/legalConsentApi";
+import {
+  acceptLegalConsents,
+  getLegalConsentStatus,
+} from "@/api/legalConsentApi";
 import SignupLegalConsentScreen from "@/components/auth/SignupLegalConsentScreen";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { getApiErrorMessage } from "@/api/error";
-import { router, Stack } from "expo-router";
+import { getAuthenticatedAppPath } from "@/utils/legalConsentFlow";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { BackHandler } from "react-native";
 
 export default function OAuthLegalConsentScreen() {
   const { showAlert } = useAppAlert();
+  const { newUser } = useLocalSearchParams<{ newUser?: string }>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -23,13 +28,23 @@ export default function OAuthLegalConsentScreen() {
 
     setIsSubmitting(true);
     try {
-      await acceptLegalConsents({
+      const currentStatus = await getLegalConsentStatus();
+      const status = await acceptLegalConsents({
         termsOfServiceAgreed: true,
         privacyPolicyAcknowledged: true,
         sensitiveInformationAgreed,
-        profileImageAgreed: false,
+        // 이 화면에서는 프로필 이미지 동의를 받지 않으므로 기존 값을 보존한다.
+        profileImageAgreed: currentStatus.profileImageAgreed,
       });
-      router.replace("/diagnosis/welcome");
+      if (status.legalActionRequired) {
+        throw new Error("필수 약관 동의가 저장되지 않았습니다.");
+      }
+
+      router.replace(
+        newUser === "true"
+          ? "/diagnosis/welcome"
+          : await getAuthenticatedAppPath(),
+      );
     } catch (error) {
       showAlert({
         title: "동의를 저장하지 못했어요",

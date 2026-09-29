@@ -132,17 +132,19 @@ export default function LoginScreen() {
 
       const pendingConsent = await getPendingLegalConsent();
       if (pendingConsent?.username === username) {
-        // 동의 기록 저장이 느리거나 일시적으로 실패해도 로그인 자체를
-        // 막지 않는다. 실패하면 로컬 기록을 유지해 다음 로그인 때 재시도한다.
-        void acceptLegalConsents({
-          termsOfServiceAgreed: true,
-          privacyPolicyAcknowledged: true,
-          sensitiveInformationAgreed:
-            pendingConsent.sensitiveInformationAgreed,
-          profileImageAgreed: false,
-        })
-          .then(() => clearPendingLegalConsent())
-          .catch(() => undefined);
+        try {
+          await acceptLegalConsents({
+            termsOfServiceAgreed: true,
+            privacyPolicyAcknowledged: true,
+            sensitiveInformationAgreed:
+              pendingConsent.sensitiveInformationAgreed,
+            profileImageAgreed: false,
+          });
+          await clearPendingLegalConsent();
+        } catch {
+          // 저장 실패 시 pending 값을 유지하고 서버 상태 확인 결과에 따라
+          // 약관 화면에서 다시 동의할 수 있게 한다.
+        }
       }
 
       router.replace(await getAuthenticatedPath());
