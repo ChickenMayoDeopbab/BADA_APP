@@ -4,6 +4,7 @@ import {
   CommunityCommentListResponse,
   CommunityCommentResponse,
   CommunityCommentUpdateRequest,
+  CommunityBlockedUserListResponse,
   CommunityPostCreateRequest,
   CommunityPostDetailResponse,
   CommunityPostListResponse,
@@ -179,6 +180,17 @@ export const deleteCommunityUserBlock = async (
   userId: number,
 ): Promise<void> => {
   await aiApiClient.delete(`${COMMUNITY_USERS_PATH}/${userId}/block`);
+};
+
+/** 로그인 사용자가 차단한 커뮤니티 사용자 전체 조회 */
+export const getBlockedCommunityUsers = async (
+  signal?: AbortSignal,
+): Promise<CommunityBlockedUserListResponse> => {
+  const response = await aiApiClient.get<CommunityBlockedUserListResponse>(
+    "/api/v1/community/me/blocked-users",
+    { signal },
+  );
+  return response.data;
 };
 
 /** 로그인 사용자가 작성한 커뮤니티 게시글 조회 */

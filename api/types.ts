@@ -443,6 +443,17 @@ export interface CommunityAuthorInfo {
   profile_image_url?: string | null;
 }
 
+export interface CommunityBlockedUserResponse {
+  user_id: number;
+  name?: string | null;
+  profile_image_url?: string | null;
+  blocked_at: string;
+}
+
+export interface CommunityBlockedUserListResponse {
+  blocked_users: CommunityBlockedUserResponse[];
+}
+
 export type CommunityAttachmentKind = "FILE" | "SCENARIO" | "TRAINING_RECORD";
 
 export interface CommunityAttachmentRequest {
