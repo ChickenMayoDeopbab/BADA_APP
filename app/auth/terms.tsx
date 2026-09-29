@@ -2,12 +2,14 @@ import { acceptLegalConsents } from "@/api/legalConsentApi";
 import SignupLegalConsentScreen from "@/components/auth/SignupLegalConsentScreen";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { getApiErrorMessage } from "@/api/error";
-import { router, Stack } from "expo-router";
+import { getAuthenticatedAppPath } from "@/utils/legalConsentFlow";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { BackHandler } from "react-native";
 
 export default function OAuthLegalConsentScreen() {
   const { showAlert } = useAppAlert();
+  const { newUser } = useLocalSearchParams<{ newUser?: string }>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -23,13 +25,21 @@ export default function OAuthLegalConsentScreen() {
 
     setIsSubmitting(true);
     try {
-      await acceptLegalConsents({
+      const status = await acceptLegalConsents({
         termsOfServiceAgreed: true,
         privacyPolicyAcknowledged: true,
         sensitiveInformationAgreed,
         profileImageAgreed: false,
       });
-      router.replace("/diagnosis/welcome");
+      if (status.legalActionRequired) {
+        throw new Error("필수 약관 동의가 저장되지 않았습니다.");
+      }
+
+      router.replace(
+        newUser === "true"
+          ? "/diagnosis/welcome"
+          : await getAuthenticatedAppPath(),
+      );
     } catch (error) {
       showAlert({
         title: "동의를 저장하지 못했어요",

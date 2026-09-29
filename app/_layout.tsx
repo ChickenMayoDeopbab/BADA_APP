@@ -27,6 +27,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type StartupPath =
   | "/auth"
+  | "/auth/terms"
   | "/diagnosis/welcome"
   | "/home";
 
