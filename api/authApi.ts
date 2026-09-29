@@ -14,6 +14,7 @@ import {
   LoginResponse,
   OAuthCodeRequest,
   OAuthProvider,
+  OAuthTokenResponse,
   SignUpRequest,
 } from "./types";
 
@@ -72,8 +73,8 @@ export const getAppleLogin = (): Promise<string | undefined> =>
 
 export const postOAuthToken = async (
   data: OAuthCodeRequest,
-): Promise<ApiResponse<LoginResponse>> => {
-  const response = await apiClient.post<ApiResponse<LoginResponse>>(
+): Promise<ApiResponse<OAuthTokenResponse>> => {
+  const response = await apiClient.post<ApiResponse<OAuthTokenResponse>>(
     "/api/v1/auth/oauth/token",
     data,
   );
