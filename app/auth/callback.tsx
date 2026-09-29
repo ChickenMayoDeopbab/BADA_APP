@@ -5,6 +5,7 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { setAuthTokens } from "@/utils/authTokenStorage";
+import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
@@ -64,7 +65,7 @@ export default function OAuthCallbackScreen() {
     const completeOAuthLogin = async () => {
       try {
         const response = await postOAuthToken({ code });
-        const { accessToken, refreshToken } = response.data ?? {};
+        const { accessToken, refreshToken, isNewUser } = response.data ?? {};
 
         if (!accessToken || !refreshToken) {
           throw new Error("OAuth token response is invalid");
@@ -75,7 +76,14 @@ export default function OAuthCallbackScreen() {
           AsyncStorage.setItem("autoLogin", "true"),
         ]);
 
-        router.replace("/home");
+        router.replace(
+          isNewUser
+            ? {
+                pathname: "/auth/terms",
+                params: { newUser: "true" },
+              }
+            : await getAuthenticatedPath(),
+        );
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(

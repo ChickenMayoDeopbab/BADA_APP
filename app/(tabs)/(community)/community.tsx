@@ -9,7 +9,10 @@ import {
   useCommunityPosts,
 } from "@/hooks/useCommunityPosts";
 import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
-import { router } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { DEVELOPER_CONTACT_EMAIL } from "@/constants/legal";
+import { SEMANTIC_COLORS } from "@/design-system";
+import { router, type Href } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -258,6 +261,34 @@ export default function Community() {
           />
         </View>
       </ScrollView>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="커뮤니티 운영정책 및 개발자 문의"
+        className="mx-8 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
+        onPress={() =>
+          router.push("/(tabs)/(community)/policy" as Href)
+        }
+      >
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={20}
+          color={SEMANTIC_COLORS.label.alternative}
+        />
+        <View className="ml-2 flex-1">
+          <Text className="text-label font-medium text-label-normal">
+            커뮤니티 운영정책 및 문의
+          </Text>
+          <Text className="text-caption text-label-alternative">
+            {DEVELOPER_CONTACT_EMAIL}
+          </Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={SEMANTIC_COLORS.line.normal}
+        />
+      </Pressable>
 
       <Animated.FlatList
         ref={pagerRef}

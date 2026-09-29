@@ -9,6 +9,7 @@ import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useProfileImage } from "@/hooks/useProfileImage";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
@@ -60,6 +61,7 @@ function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
 }
 
 function ProfileScreen() {
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
   const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [loadedImageUri, setLoadedImageUri] = useState("");
@@ -233,9 +235,12 @@ function ProfileScreen() {
               }
               className="items-center justify-center py-1 active:opacity-60"
               onPress={() =>
-                router.push({
-                  pathname: "/diagnosis/question",
-                  params: { from: "profile" },
+                void ensureSensitiveConsent().then((allowed) => {
+                  if (!allowed) return;
+                  router.push({
+                    pathname: "/diagnosis/question",
+                    params: { from: "profile" },
+                  });
                 })
               }
             >
@@ -267,6 +272,12 @@ function ProfileScreen() {
                 label="알림"
                 onPress={() =>
                   router.push("/(tabs)/(profile)/profile/settings/notification")
+                }
+              />
+              <MenuRow
+                label="개인정보 관리"
+                onPress={() =>
+                  router.push("/(tabs)/(profile)/profile/settings/privacy")
                 }
               />
               {/* <MenuRow
