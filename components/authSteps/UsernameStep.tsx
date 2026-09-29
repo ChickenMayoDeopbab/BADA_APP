@@ -75,10 +75,15 @@ export default function UsernameStep({ onNext }: UsernameProps) {
     if (!isValid) return;
 
     const username = getValues("username").trim();
-    const isAvailable =
-      checkedUsername === username || (await handleUsernameCheck());
+    if (checkedUsername !== username) {
+      setError("username", {
+        type: "manual",
+        message: "아이디 중복 확인을 해주세요.",
+      });
+      return;
+    }
 
-    if (isAvailable) await onNext();
+    await onNext();
   };
 
   return (

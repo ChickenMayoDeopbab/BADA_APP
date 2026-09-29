@@ -4,32 +4,41 @@ import {
   withdrawSensitiveInformationConsent,
 } from "@/api/legalConsentApi";
 import { LegalConsentStatus } from "@/api/types";
+import AccordionContent from "@/components/common/AccordionContent";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
+import {
+  LegalDocumentSection,
+  SENSITIVE_INFORMATION_SECTIONS,
+  TERMS_OF_SERVICE_SECTIONS,
+} from "@/constants/legalDocuments";
+import { PRIVACY_POLICY_TEXT } from "@/constants/privacyPolicyText";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface DocumentRowProps {
+  expanded: boolean;
   label: string;
   onPress: () => void;
 }
 
-function DocumentRow({ label, onPress }: DocumentRowProps) {
+function DocumentRow({ expanded, label, onPress }: DocumentRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      className="min-h-14 flex-row items-center justify-between px-4 active:bg-fill-pressed"
+      accessibilityState={{ expanded }}
+      className="min-h-14 flex-row items-center justify-between px-4"
       onPress={onPress}
     >
       <Text className="text-body font-medium text-label-normal">{label}</Text>
       <Ionicons
-        name="chevron-forward"
+        name={expanded ? "chevron-up" : "chevron-down"}
         size={22}
         color={SEMANTIC_COLORS.line.normal}
       />
@@ -37,11 +46,54 @@ function DocumentRow({ label, onPress }: DocumentRowProps) {
   );
 }
 
+function SectionDocument({
+  sections,
+}: {
+  sections: LegalDocumentSection[];
+}) {
+  return (
+    <View className="mx-4 mb-4 gap-5 rounded-[18px] bg-fill-normal px-5 py-5">
+      {sections.map((section) => (
+        <View key={section.title} className="gap-1.5">
+          <Text className="text-label font-bold text-label-normal">
+            {section.title}
+          </Text>
+          <Text className="text-label leading-6 text-label-alternative">
+            {section.body}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function TextDocument({ text }: { text: string }) {
+  return (
+    <View className="mx-4 mb-4 rounded-[18px] bg-fill-normal px-5 py-5">
+      <Text className="text-label leading-6 text-label-alternative">
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+type ExpandedDocument = "terms" | "privacy" | "sensitive" | null;
+
 export default function PrivacySettingsScreen() {
   const { showAlert } = useAppAlert();
   const [status, setStatus] = useState<LegalConsentStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [expandedDocument, setExpandedDocument] =
+    useState<ExpandedDocument>(null);
+
+  const toggleDocument = (
+    document: Exclude<ExpandedDocument, null>,
+  ) => {
+    setExpandedDocument((current) =>
+      current === document ? null : document,
+    );
+  };
 
   const loadStatus = useCallback(async () => {
     setIsLoading(true);
@@ -71,6 +123,7 @@ export default function PrivacySettingsScreen() {
         termsOfServiceAgreed: true,
         privacyPolicyAcknowledged: true,
         sensitiveInformationAgreed: true,
+        profileImageAgreed: status?.profileImageAgreed ?? false,
       });
       setStatus(nextStatus);
       showAlert({ title: "민감정보 처리에 동의했어요" });
@@ -122,20 +175,38 @@ export default function PrivacySettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="overflow-hidden rounded-component bg-background-normal">
-          <DocumentRow
-            label="서비스 이용약관"
-            onPress={() => router.push("/legal/terms-of-service")}
-          />
+          <View className="overflow-hidden">
+            <DocumentRow
+              expanded={expandedDocument === "terms"}
+              label="서비스 이용약관"
+              onPress={() => toggleDocument("terms")}
+            />
+            <AccordionContent expanded={expandedDocument === "terms"}>
+              <SectionDocument sections={TERMS_OF_SERVICE_SECTIONS} />
+            </AccordionContent>
+          </View>
           <View className="mx-4 h-px bg-line-alternative" />
-          <DocumentRow
-            label="개인정보처리방침"
-            onPress={() => router.push("/legal/privacy-policy")}
-          />
+          <View className="overflow-hidden">
+            <DocumentRow
+              expanded={expandedDocument === "privacy"}
+              label="개인정보처리방침"
+              onPress={() => toggleDocument("privacy")}
+            />
+            <AccordionContent expanded={expandedDocument === "privacy"}>
+              <TextDocument text={PRIVACY_POLICY_TEXT} />
+            </AccordionContent>
+          </View>
           <View className="mx-4 h-px bg-line-alternative" />
-          <DocumentRow
-            label="민감정보 처리 안내"
-            onPress={() => router.push("/legal/sensitive-information")}
-          />
+          <View className="overflow-hidden">
+            <DocumentRow
+              expanded={expandedDocument === "sensitive"}
+              label="민감정보 처리 안내"
+              onPress={() => toggleDocument("sensitive")}
+            />
+            <AccordionContent expanded={expandedDocument === "sensitive"}>
+              <SectionDocument sections={SENSITIVE_INFORMATION_SECTIONS} />
+            </AccordionContent>
+          </View>
         </View>
 
         <View className="gap-3 rounded-component bg-background-normal p-5">

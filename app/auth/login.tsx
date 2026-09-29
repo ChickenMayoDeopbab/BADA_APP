@@ -1,5 +1,6 @@
 import { SEMANTIC_COLORS } from "@/design-system";
 import { postLogin } from "@/api/authApi";
+import { acceptLegalConsents } from "@/api/legalConsentApi";
 import { getApiErrorMessage, getApiErrorStatus } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
@@ -14,6 +15,10 @@ import {
 } from "@/utils/diagnosisFlow";
 import { setAuthTokens } from "@/utils/authTokenStorage";
 import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
+import {
+  clearPendingLegalConsent,
+  getPendingLegalConsent,
+} from "@/utils/pendingLegalConsent";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -124,6 +129,21 @@ export default function LoginScreen() {
       );
       await setAuthTokens(response.data);
       await setAuthenticatedUsername(username);
+
+      const pendingConsent = await getPendingLegalConsent();
+      if (pendingConsent?.username === username) {
+        // 동의 기록 저장이 느리거나 일시적으로 실패해도 로그인 자체를
+        // 막지 않는다. 실패하면 로컬 기록을 유지해 다음 로그인 때 재시도한다.
+        void acceptLegalConsents({
+          termsOfServiceAgreed: true,
+          privacyPolicyAcknowledged: true,
+          sensitiveInformationAgreed:
+            pendingConsent.sensitiveInformationAgreed,
+          profileImageAgreed: false,
+        })
+          .then(() => clearPendingLegalConsent())
+          .catch(() => undefined);
+      }
 
       router.replace(await getAuthenticatedPath());
     } catch (error) {
