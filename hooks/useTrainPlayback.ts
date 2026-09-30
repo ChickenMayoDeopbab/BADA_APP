@@ -6,6 +6,7 @@ import { TrainPlayback, TRAIN_SAMPLE_RATE, type PlaybackStats } from "@/utils/tr
 export interface TrainPlaybackOptions {
   onPlaybackBlocked?: (blocked: boolean) => void;
   onPlaybackStats?: (stats: PlaybackStats & { platform: string; os: string; route: string }) => void;
+  onPlaybackComplete?: (turnId: number) => void;
   onPlaybackError?: (error: unknown) => void;
 }
 
@@ -56,8 +57,8 @@ export function useTrainPlayback(options: TrainPlaybackOptions) {
       onStats: (stats) => callbacks.current.onPlaybackStats?.({
         ...stats, platform: Platform.OS, os: String(Platform.Version), route: "unknown",
       }),
+      onComplete: (turnId) => callbacks.current.onPlaybackComplete?.(turnId),
       onError: (error) => {
-        console.warn("[Audio] PCM 재생 실패", error);
         callbacks.current.onPlaybackError?.(error);
       },
       driver: {
@@ -149,9 +150,9 @@ export function useTrainPlayback(options: TrainPlaybackOptions) {
   const streamPcmChunk = useCallback((data: ArrayBuffer) => {
     if (active.current && !discardTurn.current) controller.current!.push(data);
   }, []);
-  const flushPlayback = useCallback(() => {
+  const flushPlayback = useCallback((turnId?: number) => {
     discardTurn.current = false;
-    controller.current!.end();
+    controller.current!.end(turnId);
   }, []);
   const resetStream = useCallback((reason = "interrupt") => controller.current!.reset(reason), []);
   const preparePlayback = useCallback(() => {

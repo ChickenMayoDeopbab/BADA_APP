@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import {
@@ -9,7 +10,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,14 +17,11 @@ import {
 } from "react-native";
 
 type PasswordProps = {
-  inputTranslateY: Animated.Value;
-  inputAreaHeight: number;
   onPrev: () => void;
   onNext: () => void;
 };
 
 export default function PasswordStep({
-  inputTranslateY,
   onPrev,
   onNext,
 }: PasswordProps) {
@@ -47,10 +44,7 @@ export default function PasswordStep({
 
   return (
     <View>
-      <Animated.View
-        className="mb-5"
-        style={{ transform: [{ translateY: inputTranslateY }] }}
-      >
+      <View className="mb-5">
         <Controller
           control={control}
           name="password"
@@ -74,7 +68,7 @@ export default function PasswordStep({
                   <Ionicons
                     name={isPasswordVisible ? "eye-off-sharp" : "eye"}
                     size={20}
-                    color="#BDBEBE"
+                    color={SEMANTIC_COLORS.line.normal}
                   />
                 </TouchableOpacity>
               }
@@ -108,29 +102,28 @@ export default function PasswordStep({
                   <Ionicons
                     name={isConfirmPasswordVisible ? "eye-off-sharp" : "eye"}
                     size={20}
-                    color="#BDBEBE"
+                    color={SEMANTIC_COLORS.line.normal}
                   />
                 </TouchableOpacity>
               }
             />
           )}
         />
-      </Animated.View>
+      </View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
           label="다음으로"
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
+          tone="primary"
           onPress={handleNext}
         />
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
         <TouchableOpacity onPress={onPrev}>
-          <Text className="text-sm text-[#5C5E5E]">이전으로</Text>
+          <Text className="text-label text-label-alternative">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>

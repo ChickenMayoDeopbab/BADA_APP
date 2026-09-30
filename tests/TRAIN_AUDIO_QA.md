@@ -14,6 +14,8 @@ The pinned audio-api 0.12.0 package has a C++ return-type mismatch in its Androi
 
 `playback_stats` is emitted once per finalized turn, before socket shutdown for a local end-call. Turn IDs start at zero for the mounted call. Normal `played_ms` counts frames whose completion events arrived. On reset/error, `played_ms` is omitted: a partially played buffer cannot be measured precisely. `completed_played_ms` is a conservative lower bound, and `dropped_chunks` counts original input chunks not known to be fully played, including an interrupted partial buffer. `invalid_bytes` records an unmatched trailing byte at normal turn end. The current route is reported as `unknown`.
 
+The client advertises `playback_capabilities.completion_ack` when the WebSocket opens. The server's `speaking_end.turn_id` is stored separately from `playback_stats.turn`; `playback_done` echoes that server ID only after every queued buffer for the turn has completed. Interrupt, call-end, background, dispose, and playback-error resets never emit a completion acknowledgement.
+
 `first_play_ms`, `gaps80`, `max_gap_ms` and `total_gap_ms` are deliberately omitted; JS/native completion callbacks do not provide acoustic output timestamps. The server must accept missing fields as specified in the provided protocol. Native render timestamps would be needed for accurate gap telemetry. Disconnected sockets skip telemetry without retrying it into another session.
 
 ## Verification
@@ -24,4 +26,4 @@ The pinned audio-api 0.12.0 package has a C++ return-type mismatch in its Androi
 - `npx patch-package --error-on-fail`
 - `npx expo prebuild --no-install` then rebuild native apps. A Metro reload alone cannot add the new native dependency. FFmpeg and background-service support are disabled in the Expo plugin.
 
-Device acceptance still requires a live call on iOS and Android: short and long replies, 5-minute speaker call, wired/Bluetooth route changes, interrupt during playback, background/foreground, repeated calls, and lost socket. Confirm no clipped tails, no AI echo sent back, microphone return after the tail, and one statistics message per turn. Compare CPU/memory and audible gaps against the original branch; no measured performance percentage is claimed by this change.
+Device acceptance still requires a live call on iOS and Android: short and long replies, 5-minute speaker call, wired/Bluetooth route changes, interrupt during playback, background/foreground, repeated calls, and lost socket. Confirm no clipped tails, no AI echo sent back, microphone return after the tail, one statistics message per turn, and one `playback_done` only for fully played turns. Compare CPU/memory and audible gaps against the original branch; no measured performance percentage is claimed by this change.

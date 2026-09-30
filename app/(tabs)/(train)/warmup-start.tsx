@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import StepSlider from "@/components/train/StepSlider";
@@ -7,8 +8,12 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
 export default function WarmupStart() {
+  const insets = useSafeAreaInsets();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
@@ -26,6 +31,7 @@ export default function WarmupStart() {
   /** 워밍업 세션 생성 — 발신 시간은 0초(즉시 발신) 고정 */
   const handleComplete = async () => {
     if (!id) return;
+    if (!(await ensureSensitiveConsent())) return;
 
     setIsCreatingSession(true);
     try {
@@ -51,13 +57,13 @@ export default function WarmupStart() {
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-background-normal">
       <Top title="워밍업 설정" back onBack={() => router.back()} />
       <View className="flex-1 px-8 pt-4">
         <View className="mb-10">
           <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-xl font-bold text-[#3B3D3E]">난이도</Text>
-            <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
+            <Text className="text-headline1 font-bold text-label-neutral">난이도</Text>
+            <Ionicons name="help-circle-outline" size={20} color={SEMANTIC_COLORS.line.normal} />
           </View>
           <StepSlider
             steps={DIFFICULTY_LABELS}
@@ -68,8 +74,8 @@ export default function WarmupStart() {
 
         <View>
           <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-xl font-bold text-[#3B3D3E]">상대의 태도</Text>
-            <Ionicons name="help-circle-outline" size={20} color="#BDBEBE" />
+            <Text className="text-headline1 font-bold text-label-neutral">상대의 태도</Text>
+            <Ionicons name="help-circle-outline" size={20} color={SEMANTIC_COLORS.line.normal} />
           </View>
           <StepSlider
             steps={ATTITUDE_LABELS}
@@ -79,11 +85,10 @@ export default function WarmupStart() {
         </View>
       </View>
 
-      <View className="px-8 pb-10 pt-4">
+      <View className="px-8 pt-4" style={{ paddingBottom: insets.bottom + 40 }}>
         <CustomButton
           label={isCreatingSession ? "처리 중..." : "워밍업 시작하기"}
-          backgroundColor="#0AE365"
-          color="white"
+          tone="primary"
           disabled={isCreatingSession}
           onPress={handleComplete}
         />

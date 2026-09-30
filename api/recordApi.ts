@@ -1,5 +1,5 @@
 import apiClient from "./client";
-import { isAxiosError } from "axios";
+import { getCompletedCallDuration } from "@/utils/completedCallDuration";
 import {
   ApiResponseAnxietyScoreResponse,
   ApiResponsePageTrainingRecordResponse,
@@ -19,7 +19,20 @@ export const getTrainingRecords = async (
     "/api/v1/training-records",
     { params: { page, size } },
   );
-  return response.data;
+  const records = response.data.data.content;
+  const completedDurations = await Promise.all(
+    records.map((record) => getCompletedCallDuration(record.sessionId)),
+  );
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      content: records.map((record, index) => ({
+        ...record,
+        durationSeconds: completedDurations[index] ?? record.durationSeconds,
+      })),
+    },
+  };
 };
 
 export const getTrainingRecord = async (
@@ -28,14 +41,18 @@ export const getTrainingRecord = async (
   const response = await apiClient.get<ApiResponseTrainingRecordDetailResponse>(
     `/api/v1/training-records/${recordId}`,
   );
-  if (__DEV__) {
-    console.info("[AnxietyScore][DetailResponse]", {
-      recordId: response.data.data.recordId,
-      sessionId: response.data.data.sessionId,
-      anxietyScore: response.data.data.anxietyScore,
-    });
-  }
-  return response.data;
+  const completedDuration = await getCompletedCallDuration(
+    response.data.data.sessionId,
+  );
+  return completedDuration === null
+    ? response.data
+    : {
+        ...response.data,
+        data: {
+          ...response.data.data,
+          durationSeconds: completedDuration,
+        },
+      };
 };
 
 export const deleteTrainingRecord = async (
@@ -51,41 +68,11 @@ export const postAnxietyScore = async (
   sessionId: string,
   request: RecordAnxietyScoreRequest,
 ): Promise<ApiResponseAnxietyScoreResponse> => {
-  if (__DEV__) {
-    console.info("[AnxietyScore][SaveRequest]", {
-      sessionId,
-      score: request.score,
-    });
-  }
-
-  try {
-    const response = await apiClient.post<ApiResponseAnxietyScoreResponse>(
-      `/api/v1/training-records/${sessionId}/anxiety-score`,
-      request,
-    );
-    if (__DEV__) {
-      console.info("[AnxietyScore][SaveResponse]", {
-        httpStatus: response.status,
-        data: response.data.data,
-      });
-    }
-    return response.data;
-  } catch (error) {
-    if (__DEV__) {
-      console.warn("[AnxietyScore][SaveFailed]", {
-        sessionId,
-        score: request.score,
-        message: error instanceof Error ? error.message : String(error),
-        ...(isAxiosError(error)
-          ? {
-              httpStatus: error.response?.status ?? null,
-              responseData: error.response?.data ?? null,
-            }
-          : {}),
-      });
-    }
-    throw error;
-  }
+  const response = await apiClient.post<ApiResponseAnxietyScoreResponse>(
+    `/api/v1/training-records/${sessionId}/anxiety-score`,
+    request,
+  );
+  return response.data;
 };
 
 export const getFeedback = async (

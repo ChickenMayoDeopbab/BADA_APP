@@ -1,7 +1,10 @@
 import { TrainingRecordItem } from "@/api/types";
 import Top from "@/components/common/Top";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
+import RecordCategoryIcon from "@/components/record/RecordCategoryIcon";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -19,7 +22,6 @@ import { ko } from "date-fns/locale";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   RefreshControl,
   ScrollView,
@@ -42,14 +44,6 @@ const PERIOD_TABS: { key: Period; label: string }[] = [
   { key: "weekly", label: "주별" },
   { key: "monthly", label: "월별" },
 ];
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.04,
-  shadowRadius: 5.3,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 1,
-};
 
 const toValidDate = (value: string): Date | null => {
   const date = new Date(value);
@@ -95,14 +89,6 @@ const formatDuration = (totalSeconds: number) => {
 
 const getSectionTitle = (date: Date) =>
   isToday(date) ? "오늘" : format(date, "M월 d일");
-
-const getRecordIcon = (
-  sessionType: TrainingRecordItem["sessionType"],
-): keyof typeof Ionicons.glyphMap => {
-  if (sessionType === "WARMUP") return "flame";
-  if (sessionType === "CUSTOM") return "create";
-  return "chatbubbles";
-};
 
 function PeriodTabs({
   selected,
@@ -185,7 +171,7 @@ function SummaryCard({
   return (
     <View
       className="h-[123px] px-[22px] py-[14px] bg-background-normal rounded-component"
-      style={cardShadow}
+      style={SURFACE_CARD_SHADOW}
     >
       <TouchableOpacity
         className="flex-row items-center self-start"
@@ -224,7 +210,7 @@ function RecordCard({ item }: { item: TrainingRecordItem }) {
   return (
     <TouchableOpacity
       className="flex-row items-center h-[82px] px-[22px] bg-background-normal rounded-component"
-      style={cardShadow}
+      style={SURFACE_CARD_SHADOW}
       activeOpacity={0.75}
       onPress={() =>
         router.push({
@@ -233,16 +219,7 @@ function RecordCard({ item }: { item: TrainingRecordItem }) {
         })
       }
     >
-      <View
-        className="items-center justify-center w-[46px] h-[46px] rounded-component"
-        style={{ backgroundColor: SEMANTIC_COLORS.record.iconBackground }}
-      >
-        <Ionicons
-          name={getRecordIcon(item.sessionType)}
-          size={26}
-          color={SEMANTIC_COLORS.status.info}
-        />
-      </View>
+      <RecordCategoryIcon categoryIconUrl={item.categoryIconUrl} />
 
       <View className="flex-1 ml-[10px]">
         <View className="flex-row items-center justify-between">
@@ -348,7 +325,7 @@ export default function RecordScreen() {
       <View className="flex-1 bg-background-alternative">
         {isLoading ? (
           <View className="items-center justify-center flex-1">
-            <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+            <LoadingIndicator />
           </View>
         ) : isError ? (
           <View className="items-center justify-center flex-1 px-8">

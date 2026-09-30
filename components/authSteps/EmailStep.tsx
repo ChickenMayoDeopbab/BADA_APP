@@ -4,11 +4,9 @@ import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import { authCodeRules, emailRules } from "@/constants/authValidation";
 import { RegisterFormValues } from "@/types/auth";
-import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,12 +15,24 @@ import {
 } from "react-native";
 
 type EmailProps = {
-  inputTranslateY: Animated.Value;
-  inputAreaHeight: number;
-  onNext: () => void;
+  onPrev: () => void;
+  onNext: () => boolean | Promise<boolean>;
+  isSent: boolean;
+  onSentChange: (isSent: boolean) => void;
+  isSubmitting?: boolean;
+  submitError?: string;
+  onFormChange?: () => void;
 };
 
-export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
+export default function EmailStep({
+  onPrev,
+  onNext,
+  isSent,
+  onSentChange,
+  isSubmitting = false,
+  submitError = "",
+  onFormChange,
+}: EmailProps) {
   const { width } = useWindowDimensions();
   const codeButtonWidth = Math.min(Math.max(width * 0.31, 116), 128);
 
@@ -34,7 +44,6 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     clearErrors,
     formState: { errors },
   } = useFormContext<RegisterFormValues>();
-  const [isSent, setIsSent] = useState<boolean>(false);
   const [isSending, setIsSending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const verificationRef = useRef<TextInput>(null);
@@ -46,12 +55,12 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     setIsSending(true);
     try {
       const email = getValues("email").trim();
-      await postEmailSend({ email });
+      await postEmailSend({ email, type: "SIGNUP" });
       clearErrors("email");
-      setIsSent(true);
+      onSentChange(true);
       verificationRef.current?.focus();
     } catch (error) {
-      setIsSent(false);
+      onSentChange(false);
       setError("email", {
         type: "server",
         message: getApiErrorMessage(
@@ -79,9 +88,9 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
     try {
       const email = getValues("email").trim();
       const authNum = getValues("authNum").trim();
-      await postEmailCheck({ email, authNum });
+      await postEmailCheck({ email, authNum, type: "SIGNUP" });
       clearErrors(["email", "authNum"]);
-      onNext();
+      await onNext();
     } catch (error) {
       setError("authNum", {
         type: "server",
@@ -97,10 +106,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
 
   return (
     <View>
-      <Animated.View
-        className="mb-5"
-        style={{ transform: [{ translateY: inputTranslateY }] }}
-      >
+      <View className="mb-5">
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <Controller
@@ -115,8 +121,9 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
                   value={value}
                   onChangeText={(text) => {
                     onChange(text);
-                    setIsSent(false);
+                    onSentChange(false);
                     clearErrors("email");
+                    onFormChange?.();
                   }}
                   label="이메일"
                   autoCapitalize="none"
@@ -133,7 +140,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
             <CustomButton
               label={isSending ? "전송 중" : "인증코드 전송"}
               variant="lg"
-              backgroundColor="#0AE365"
+              tone="primary"
               disabled={isSending || isChecking}
               onPress={handleEmailSend}
             />
@@ -151,6 +158,7 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
               onChangeText={(text) => {
                 onChange(text);
                 clearErrors("authNum");
+                onFormChange?.();
               }}
               placeholder="인증코드를 입력하세요."
               label="인증코드"
@@ -161,23 +169,27 @@ export default function EmailStep({ inputTranslateY, onNext }: EmailProps) {
             />
           )}
         />
-      </Animated.View>
+      </View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
       <View className="gap-y-3">
         <CustomButton
-          label={isChecking ? "확인 중" : "인증하기"}
-          color="#F6F6F6"
-          backgroundColor="#0AE365"
-          disabled={isSending || isChecking}
+          label={
+            isSubmitting ? "가입 중" : isChecking ? "확인 중" : "회원가입"
+          }
+          tone="primary"
+          disabled={isChecking || isSubmitting}
           onPress={handleEmailCheck}
         />
+        {submitError ? (
+          <Text className="text-label text-status-error">{submitError}</Text>
+        ) : null}
       </View>
 
       <View className="flex-row mt-3 gap-x-4">
-        <TouchableOpacity onPress={() => router.replace("/auth")}>
-          <Text className="text-sm text-[#5C5E5E]">이미 계정이 있어요</Text>
+        <TouchableOpacity onPress={onPrev}>
+          <Text className="text-label text-label-alternative">이전으로</Text>
         </TouchableOpacity>
       </View>
     </View>

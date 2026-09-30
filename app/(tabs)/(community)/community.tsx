@@ -1,21 +1,26 @@
 import { getApiErrorMessage } from "@/api/error";
 import type { CommunityPostSummary } from "@/api/types";
 import SearchIconButton from "@/components/common/SearchIconButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
+import Top from "@/components/common/Top";
 import CommunityPostCard from "@/components/community/CommunityPostCard";
 import {
   CommunityPostListMode,
   useCommunityPosts,
 } from "@/hooks/useCommunityPosts";
 import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
-import { router } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { DEVELOPER_CONTACT_EMAIL } from "@/constants/legal";
+import { SEMANTIC_COLORS } from "@/design-system";
+import { router, type Href } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   Text,
   useWindowDimensions,
   View,
@@ -41,7 +46,7 @@ const TABS: CommunityTabItem[] = [
   { key: "mine", label: "내 글" },
 ];
 
-const TAB_WIDTH = 64;
+const TAB_WIDTH = 80;
 const TAB_GAP = 15;
 
 function CommunityFeed({
@@ -54,14 +59,7 @@ function CommunityFeed({
     [postsQuery.data],
   );
 
-  const emptyContent = postsQuery.isPending ? (
-    <View className="items-center justify-center py-20">
-      <ActivityIndicator />
-      <Text className="mt-3 text-body text-label-alternative">
-        게시물을 불러오는 중이에요.
-      </Text>
-    </View>
-  ) : postsQuery.isError ? (
+  const emptyContent = postsQuery.isError ? (
     <View className="items-center justify-center px-8 py-20">
       <Text className="text-center text-body text-label-alternative">
         {getApiErrorMessage(postsQuery.error, "게시물을 불러오지 못했어요.")}
@@ -83,11 +81,20 @@ function CommunityFeed({
     </View>
   );
 
+  if (postsQuery.isPending) {
+    return (
+      <View className="flex-1 items-center justify-center" style={{ width: pageWidth }}>
+        <LoadingIndicator />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1" style={{ width: pageWidth }}>
       <FlatList
         data={posts}
         keyExtractor={(post) => String(post.post_id)}
+        removeClippedSubviews={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
@@ -105,7 +112,7 @@ function CommunityFeed({
         ListEmptyComponent={emptyContent}
         ListFooterComponent={
           postsQuery.isFetchingNextPage ? (
-            <ActivityIndicator className="py-5" />
+            <LoadingIndicator size="small" className="py-5" />
           ) : null
         }
         refreshing={
@@ -124,10 +131,23 @@ function CommunityFeed({
 }
 
 export default function Community() {
-  const { width: pageWidth } = useWindowDimensions();
+  const { width: pageWidth, fontScale } = useWindowDimensions();
+  const tabHorizontalPadding = pageWidth < 360 ? 16 : 32;
+  const tabWidth = Math.ceil(TAB_WIDTH * Math.max(1, fontScale));
+  const menuRef = useRef<ScrollView>(null);
   const pagerRef = useRef<FlatList<CommunityTabItem>>(null);
   const pagerScrollX = useRef(new Animated.Value(0)).current;
   const [selectedTab, setSelectedTab] = useState<CommunityTab>("all");
+
+  useEffect(() => {
+    const index = TABS.findIndex((tab) => tab.key === selectedTab);
+    const tabRight =
+      tabHorizontalPadding + (index + 1) * tabWidth + index * TAB_GAP;
+    menuRef.current?.scrollTo({
+      x: index <= 0 ? 0 : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
+      animated: true,
+    });
+  }, [pageWidth, selectedTab, tabHorizontalPadding, tabWidth]);
 
   // 두 페이지를 함께 준비해 스와이프한 뒤 데이터를 기다리는 시간을 줄인다.
   const allPostsQuery = useCommunityPosts({ mode: "all" });
@@ -135,7 +155,7 @@ export default function Community() {
 
   const indicatorTranslateX = pagerScrollX.interpolate({
     inputRange: [0, pageWidth],
-    outputRange: [0, TAB_WIDTH + TAB_GAP],
+    outputRange: [0, tabWidth + TAB_GAP],
     extrapolate: "clamp",
   });
 
@@ -169,64 +189,107 @@ export default function Community() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-alternative">
-      <View className="h-[60px] flex-row items-center justify-between px-8">
-        <Text className="text-title2 font-bold text-label-normal">커뮤니티</Text>
-        <SearchIconButton
-          onPress={() => router.push("/(tabs)/(community)/search")}
-          size={30}
-        />
-      </View>
+      <Top
+        title="커뮤니티"
+        safeArea={false}
+        right={
+          <SearchIconButton
+            onPress={() => router.push("/(tabs)/(community)/search")}
+            size={30}
+          />
+        }
+      />
 
-      <View className="relative h-[53px] px-8">
-        <View className="flex-row gap-x-[15px]">
-          {TABS.map((tab, index) => {
-            const selected = tab.key === selectedTab;
-            const activeTextOpacity = pagerScrollX.interpolate({
-              inputRange: [
-                (index - 1) * pageWidth,
-                index * pageWidth,
-                (index + 1) * pageWidth,
-              ],
-              outputRange: [0, 1, 0],
-              extrapolate: "clamp",
-            });
+      <ScrollView
+        ref={menuRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        className="h-[53px]"
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: tabHorizontalPadding }}
+      >
+        <View className="relative h-[53px]">
+          <View className="flex-row" style={{ gap: TAB_GAP }}>
+            {TABS.map((tab, index) => {
+              const selected = tab.key === selectedTab;
+              const activeTextOpacity = pagerScrollX.interpolate({
+                inputRange: [
+                  (index - 1) * pageWidth,
+                  index * pageWidth,
+                  (index + 1) * pageWidth,
+                ],
+                outputRange: [0, 1, 0],
+                extrapolate: "clamp",
+              });
 
-            return (
-              <Pressable
-                key={tab.key}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                onPress={() => selectTab(tab.key)}
-                className="items-center"
-                style={{ width: TAB_WIDTH }}
-              >
-                <Text
-                  numberOfLines={1}
-                  className="text-headline2 font-medium text-line-normal"
+              return (
+                <Pressable
+                  key={tab.key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  onPress={() => selectTab(tab.key)}
+                  className="items-center"
+                  style={{ width: tabWidth }}
                 >
-                  {tab.label}
-                </Text>
-                <Animated.Text
-                  numberOfLines={1}
-                  pointerEvents="none"
-                  className="absolute text-headline2 font-medium text-green-40"
-                  style={{ opacity: activeTextOpacity }}
-                >
-                  {tab.label}
-                </Animated.Text>
-              </Pressable>
-            );
-          })}
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-headline2 font-medium text-line-normal"
+                    style={{ width: tabWidth }}
+                  >
+                    {tab.label}
+                  </Text>
+                  <Animated.Text
+                    numberOfLines={1}
+                    pointerEvents="none"
+                    className="absolute text-center text-headline2 font-medium text-green-40"
+                    style={{ width: tabWidth, opacity: activeTextOpacity }}
+                  >
+                    {tab.label}
+                  </Animated.Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Animated.View
+            pointerEvents="none"
+            className="absolute h-0.5 bg-green-40"
+            style={{
+              top: Math.min(45, 8 + 23.4 * fontScale),
+              width: tabWidth,
+              transform: [{ translateX: indicatorTranslateX }],
+            }}
+          />
         </View>
-        <Animated.View
-          pointerEvents="none"
-          className="absolute left-8 top-[31px] h-0.5 bg-green-40"
-          style={{
-            width: TAB_WIDTH,
-            transform: [{ translateX: indicatorTranslateX }],
-          }}
+      </ScrollView>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="커뮤니티 운영정책 및 개발자 문의"
+        className="mx-8 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
+        onPress={() =>
+          router.push("/(tabs)/(community)/policy" as Href)
+        }
+      >
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={20}
+          color={SEMANTIC_COLORS.label.alternative}
         />
-      </View>
+        <View className="ml-2 flex-1">
+          <Text className="text-label font-medium text-label-normal">
+            커뮤니티 운영정책 및 문의
+          </Text>
+          <Text className="text-caption text-label-alternative">
+            {DEVELOPER_CONTACT_EMAIL}
+          </Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={SEMANTIC_COLORS.line.normal}
+        />
+      </Pressable>
 
       <Animated.FlatList
         ref={pagerRef}
@@ -242,6 +305,7 @@ export default function Community() {
         snapToAlignment="start"
         data={TABS}
         keyExtractor={(tab) => tab.key}
+        removeClippedSubviews={false}
         showsHorizontalScrollIndicator={false}
         initialNumToRender={TABS.length}
         maxToRenderPerBatch={TABS.length}

@@ -36,13 +36,12 @@ export default function DeleteAccountDialog({
         error,
         "잠시 후 다시 시도해 주세요.",
       );
-      console.warn("[회원 탈퇴 실패]", message);
       setErrorMessage(message);
       setIsDeleting(false);
       return;
     }
 
-    const cleanupResults = await Promise.allSettled([
+    await Promise.allSettled([
       deleteLocalPushToken(),
       clearAuthTokens(),
       AsyncStorage.multiRemove([
@@ -51,12 +50,6 @@ export default function DeleteAccountDialog({
         "diagnosisResult",
       ]),
     ]);
-
-    cleanupResults.forEach((result) => {
-      if (result.status === "rejected") {
-        console.error("[회원 탈퇴 후 로컬 정보 삭제 실패]", result.reason);
-      }
-    });
 
     onClose();
     router.replace("/auth");

@@ -5,17 +5,18 @@ import type {
   CommunityScenarioCopyResponse,
 } from "@/api/types";
 import CustomModal from "@/components/common/CustomModal";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import StyledImage from "@/components/common/StyledImage";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import { CARD_TEXT_SHADOW } from "@/components/train/cardTextShadow";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { getScenarioCover } from "@/utils/scenarioImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Modal,
   Pressable,
@@ -129,9 +130,7 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
         }
         player.play();
       }
-    } catch (error) {
-      console.error("[CommunityTrainingRecord] 재생 실패", error);
-    }
+    } catch {}
   };
 
   if (!record) return null;
@@ -143,7 +142,7 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
     : SEMANTIC_COLORS.label.alternative;
 
   return (
-    <View>
+    <View className="rounded-component" style={SURFACE_CARD_SHADOW}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={
@@ -156,7 +155,6 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
         onPress={() => void togglePlayback()}
         onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}
         className="h-[72px] overflow-hidden rounded-component bg-background-normal px-3"
-        style={styles.cardShadow}
       >
         {isPlaying && (
           <>
@@ -189,7 +187,7 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
 
         <View className="flex-1 flex-row items-center gap-x-2.5">
           <View
-            className="h-10 w-10 items-center justify-center rounded-[8px]"
+            className="h-10 w-10 items-center justify-center rounded-control"
             style={{
               backgroundColor: isPlaying
                 ? "rgba(255,255,255,0.22)"
@@ -197,7 +195,7 @@ function TrainingRecordCard({ attachment }: TrainingRecordCardProps) {
             }}
           >
             {!status.isLoaded && normalizedUrl ? (
-              <ActivityIndicator size="small" color={primaryTextColor} />
+              <LoadingIndicator size="small" color={primaryTextColor} />
             ) : (
               <Ionicons
                 name={getRecordIcon(record.session_type)}
@@ -294,59 +292,55 @@ function ScenarioCard({ postId, attachment }: ScenarioCardProps) {
 
   return (
     <>
-      <View
-        className="h-[72px] overflow-hidden rounded-component bg-background-normal"
-        style={styles.cardShadow}
-      >
-        <StyledImage
-          source={getScenarioCover(undefined, scenario.category)}
-          contentFit="cover"
-          style={StyleSheet.absoluteFill}
-        />
-        <GradientOverlay
-          direction="right"
-          stops={SCENARIO_SCRIM}
-        />
+      <View className="rounded-component" style={SURFACE_CARD_SHADOW}>
+        <View className="h-[72px] overflow-hidden rounded-component bg-background-normal">
+          <StyledImage
+            source={getScenarioCover(undefined, scenario.category)}
+            contentFit="cover"
+            style={StyleSheet.absoluteFill}
+          />
+          <GradientOverlay direction="right" stops={SCENARIO_SCRIM} />
 
-        <View className="flex-1 flex-row items-center justify-between px-3 py-2.5">
-          <View className="flex-1 pr-2">
-            <Text
-              numberOfLines={1}
-              className="text-headline1 font-bold text-white"
-              style={CARD_TEXT_SHADOW}
+          <View className="flex-1 flex-row items-center justify-between px-3 py-2.5">
+            <View className="flex-1 pr-2">
+              <Text
+                numberOfLines={1}
+                className="text-headline1 font-bold text-white"
+                style={CARD_TEXT_SHADOW}
+              >
+                {scenario.title}
+              </Text>
+              <Text
+                numberOfLines={1}
+                className="mt-1 text-caption text-white"
+                style={CARD_TEXT_SHADOW}
+              >
+                {scenario.content || "함께 연습해 볼 수 있는 시나리오예요."}
+              </Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${scenario.title} 저장하기`}
+              accessibilityState={{ disabled: isUnavailable || isSaved }}
+              disabled={isUnavailable || isSaved || copyMutation.isPending}
+              onPress={() => copyMutation.mutate()}
+              className="h-9 min-w-[92px] flex-row items-center justify-center gap-x-0.5 rounded-control border border-white/30 bg-black/20 px-2.5 active:opacity-80"
             >
-              {scenario.title}
-            </Text>
-            <Text
-              numberOfLines={1}
-              className="mt-1 text-caption text-white"
-              style={CARD_TEXT_SHADOW}
-            >
-              {scenario.content || "함께 연습해 볼 수 있는 시나리오예요."}
-            </Text>
+              {copyMutation.isPending ? (
+                <LoadingIndicator size="small" tone="inverse" />
+              ) : (
+                <>
+                  <Text className="text-body font-medium text-white">
+                    {buttonLabel}
+                  </Text>
+                  {!isSaved && (
+                    <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                  )}
+                </>
+              )}
+            </Pressable>
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${scenario.title} 저장하기`}
-            accessibilityState={{ disabled: isUnavailable || isSaved }}
-            disabled={isUnavailable || isSaved || copyMutation.isPending}
-            onPress={() => copyMutation.mutate()}
-            className="h-9 min-w-[92px] flex-row items-center justify-center gap-x-0.5 rounded-[8px] border border-white/30 bg-black/20 px-2.5 active:opacity-80"
-          >
-            {copyMutation.isPending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Text className="text-body font-medium text-white">
-                  {buttonLabel}
-                </Text>
-                {!isSaved && (
-                  <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
-                )}
-              </>
-            )}
-          </Pressable>
         </View>
       </View>
 
@@ -397,19 +391,20 @@ interface ImageAttachmentCardProps {
 
 function ImageAttachmentCard({ imageUrl, onOpen }: ImageAttachmentCardProps) {
   return (
-    <Pressable
-      accessibilityRole="imagebutton"
-      accessibilityLabel="첨부 사진 크게 보기"
-      onPress={onOpen}
-      className="h-[164px] overflow-hidden rounded-component bg-fill-neutral active:opacity-90"
-      style={styles.cardShadow}
-    >
-      <StyledImage
-        source={{ uri: imageUrl }}
-        contentFit="cover"
-        style={StyleSheet.absoluteFill}
-      />
-    </Pressable>
+    <View className="rounded-component" style={SURFACE_CARD_SHADOW}>
+      <Pressable
+        accessibilityRole="imagebutton"
+        accessibilityLabel="첨부 사진 크게 보기"
+        onPress={onOpen}
+        className="h-[164px] overflow-hidden rounded-component bg-fill-neutral active:opacity-90"
+      >
+        <StyledImage
+          source={{ uri: imageUrl }}
+          contentFit="cover"
+          style={StyleSheet.absoluteFill}
+        />
+      </Pressable>
+    </View>
   );
 }
 
@@ -484,17 +479,17 @@ export default function CommunityPostAttachments({
   return (
     <>
       <View className="mt-5 gap-y-2.5">
-        {trainingRecordAttachment && (
-          <TrainingRecordCard attachment={trainingRecordAttachment} />
-        )}
-        {scenarioAttachment && (
-          <ScenarioCard postId={postId} attachment={scenarioAttachment} />
-        )}
         {imageUrl && (
           <ImageAttachmentCard
             imageUrl={imageUrl}
             onOpen={() => setViewerImageUrl(imageUrl)}
           />
+        )}
+        {trainingRecordAttachment && (
+          <TrainingRecordCard attachment={trainingRecordAttachment} />
+        )}
+        {scenarioAttachment && (
+          <ScenarioCard postId={postId} attachment={scenarioAttachment} />
         )}
       </View>
       <ImageViewer
@@ -506,13 +501,6 @@ export default function CommunityPostAttachments({
 }
 
 const styles = StyleSheet.create({
-  cardShadow: {
-    shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowRadius: 3.4,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 2,
-  },
   playingSheen: {
     position: "absolute",
     top: -20,

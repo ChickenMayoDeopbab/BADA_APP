@@ -4,15 +4,16 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
 import PasswordStep from "@/components/authSteps/PasswordStep";
 import UsernameStep from "@/components/authSteps/UsernameStep";
+import SignupLegalConsentScreen from "@/components/auth/SignupLegalConsentScreen";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { RegisterFormValues } from "@/types/auth";
 import { markDiagnosisRequired } from "@/utils/diagnosisFlow";
+import { savePendingLegalConsent } from "@/utils/pendingLegalConsent";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import {
-  Animated,
-  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -22,7 +23,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignupScreen() {
+  const [isConsentVisible, setIsConsentVisible] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
   useAndroidBackHandler(() => {
+    if (isConsentVisible) {
+      if (!isSigningUp) setIsConsentVisible(false);
+      return true;
+    }
     router.replace("/auth/login");
     return true;
   });
@@ -33,15 +41,9 @@ export default function SignupScreen() {
   const inputTop = Math.min(Math.max(height * 0.4, 260), 380);
   const headerHeight = 74;
   const formTopMargin = Math.max(inputTop - topPadding - headerHeight, 40);
-  const inputScale = Math.min(
-    Math.max(width / 393, 0.94),
-    width >= 600 ? 1.06 : 1,
-  );
-  const inputAreaHeight = 82 * inputScale * 2 + 20 + 24 + 24;
   const [step, setStep] = useState(1);
-  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isEmailSent, setIsEmailSent] = useState(false);
   const [signupError, setSignupError] = useState("");
-  const inputTranslateY = useRef(new Animated.Value(0)).current;
 
   const methods = useForm<RegisterFormValues>({
     defaultValues: {
@@ -56,7 +58,7 @@ export default function SignupScreen() {
     reValidateMode: "onChange",
   });
 
-  const handleSignup = async () => {
+  const handleSignup = async (sensitiveInformationAgreed: boolean) => {
     const {
       email: rawEmail,
       password,
@@ -72,7 +74,10 @@ export default function SignupScreen() {
 
     try {
       await postSignup({ username, password, email, name });
-      await markDiagnosisRequired(username);
+      await Promise.all([
+        markDiagnosisRequired(username),
+        savePendingLegalConsent(sensitiveInformationAgreed, username),
+      ]);
       router.replace("/auth/login");
       return true;
     } catch (error) {
@@ -88,54 +93,43 @@ export default function SignupScreen() {
     }
   };
 
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      Animated.timing(inputTranslateY, {
-        toValue: -80,
-        duration: Platform.OS === "ios" ? event.duration : 200,
-        useNativeDriver: true,
-      }).start();
-    });
-
-    const hideSub = Keyboard.addListener(hideEvent, (event) => {
-      Animated.timing(inputTranslateY, {
-        toValue: 0,
-        duration: Platform.OS === "ios" ? event.duration : 200,
-        useNativeDriver: true,
-      }).start();
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [inputTranslateY]);
+  if (isConsentVisible) {
+    return (
+      <SignupLegalConsentScreen
+        isSubmitting={isSigningUp}
+        onBack={() => setIsConsentVisible(false)}
+        onConfirm={(sensitiveInformationAgreed) =>
+          void handleSignup(sensitiveInformationAgreed).then((succeeded) => {
+            if (!succeeded) setIsConsentVisible(false);
+          })
+        }
+      />
+    );
+  }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView className="flex-1 bg-background-normal">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View
-          className="flex-1 px-8"
-          style={{
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
             paddingTop: topPadding,
+            paddingBottom: 32,
+            paddingHorizontal: 32,
             width: "100%",
             maxWidth: isTablet ? 430 : undefined,
             alignSelf: "center",
-            minHeight: height,
           }}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View>
             <BadaLogo width={70} height={32} />
-            <Text className="text-3xl font-bold text-[#0D0D0E]">
+            <Text className="text-title1 font-bold text-label-strong">
               회원가입
             </Text>
           </View>
@@ -143,29 +137,29 @@ export default function SignupScreen() {
           <View style={{ marginTop: formTopMargin }}>
             <FormProvider {...methods}>
               {step === 1 && (
-                <EmailStep
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
+                <UsernameStep
                   onNext={() => setStep(2)}
                 />
               )}
               {step === 2 && (
                 <PasswordStep
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
                   onPrev={() => setStep(1)}
                   onNext={() => setStep(3)}
                 />
               )}
               {step === 3 && (
-                <UsernameStep
-                  inputTranslateY={inputTranslateY}
-                  inputAreaHeight={inputAreaHeight}
+                <EmailStep
                   onPrev={() => {
                     setSignupError("");
                     setStep(2);
                   }}
-                  onNext={handleSignup}
+                  onNext={() => {
+                    setSignupError("");
+                    setIsConsentVisible(true);
+                    return true;
+                  }}
+                  isSent={isEmailSent}
+                  onSentChange={setIsEmailSent}
                   isSubmitting={isSigningUp}
                   submitError={signupError}
                   onFormChange={() => setSignupError("")}
@@ -173,8 +167,8 @@ export default function SignupScreen() {
               )}
             </FormProvider>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
