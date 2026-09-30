@@ -26,14 +26,28 @@ function TabIcon({ routeName, color }: { routeName: string; color: string }) {
   return <View className="size-[34px] items-center justify-center">{icon}</View>;
 }
 
-export default function BottomNav({ state, descriptors, navigation }: BottomTabBarProps) {
+interface BottomNavProps extends BottomTabBarProps {
+  transparentBackground?: boolean;
+}
+
+export default function BottomNav({
+  state,
+  descriptors,
+  navigation,
+  transparentBackground = false,
+}: BottomNavProps) {
   const { width } = useWindowDimensions();
   const ensureSensitiveConsent = useSensitiveConsentGuard();
   const horizontalPadding = width < 300 ? 8 : width < 360 ? 16 : 32;
   return (
     <SafeAreaView
       edges={["bottom"]}
-      className="border-t border-line-alternative bg-background-normal"
+      className="border-t border-line-alternative"
+      style={{
+        backgroundColor: transparentBackground
+          ? "transparent"
+          : SEMANTIC_COLORS.background.normal,
+      }}
     >
       <View
         className="h-[72px] flex-row items-center"
