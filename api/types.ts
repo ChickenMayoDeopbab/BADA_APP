@@ -37,11 +37,12 @@ export interface Level {
   summary: string
 }
 
-export interface Answer {
-  userId: number,
-  sessionId: string,
-  type: string,
-  answers: number[]
+export type DiagnosisType = "LANDING" | "SIGNUP";
+
+export interface DiagnosisSubmitRequest {
+  sessionId: string;
+  type: DiagnosisType;
+  answers: number[];
 }
 
 export interface SignUpRequest {
