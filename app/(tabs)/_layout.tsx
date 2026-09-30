@@ -5,7 +5,7 @@ import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs, router, usePathname, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -22,17 +22,25 @@ function AnimatedBottomNav({
 }: BottomTabBarProps & { hidden: boolean }) {
   const insets = useSafeAreaInsets();
   const visibility = useSharedValue(hidden ? 0 : 1);
+  const backgroundVisibility = useSharedValue(hidden ? 0 : 1);
   const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     visibility.value = withTiming(hidden ? 0 : 1, {
-      duration: 180,
+      duration: hidden ? 110 : 150,
       easing: Easing.out(Easing.cubic),
     });
-  }, [hidden, visibility]);
+    backgroundVisibility.value = withTiming(hidden ? 0 : 1, {
+      duration: hidden ? 45 : 90,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [backgroundVisibility, hidden, visibility]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    height: tabBarHeight * visibility.value,
+    transform: [{ translateY: tabBarHeight * (1 - visibility.value) }],
+  }));
+  const animatedBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: backgroundVisibility.value,
   }));
 
   return (
@@ -40,9 +48,32 @@ function AnimatedBottomNav({
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       pointerEvents={hidden ? "none" : "auto"}
-      style={[{ overflow: "hidden" }, animatedStyle]}
+      style={[
+        {
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 1,
+        },
+        animatedStyle,
+      ]}
     >
-      <BottomNav {...props} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: SEMANTIC_COLORS.background.normal,
+          },
+          animatedBackgroundStyle,
+        ]}
+      />
+      <BottomNav {...props} transparentBackground />
     </Animated.View>
   );
 }
@@ -96,6 +127,7 @@ function CallWatcher() {
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const segments = useSegments();
   const isCommunityStack = segments.some(
@@ -132,6 +164,11 @@ export default function TabLayout() {
         )}
         screenOptions={{
           headerShown: false,
+          sceneStyle: {
+            paddingBottom: hideTabBar
+              ? 0
+              : TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+          },
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
           tabBarInactiveTintColor: SEMANTIC_COLORS.line.normal,
           tabBarLabelStyle: {
