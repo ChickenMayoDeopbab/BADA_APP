@@ -1,11 +1,11 @@
 import { calculateLevel, getQuestion } from "@/api";
+import { createDiagnosisSubmitRequest } from "@/api/requestBuilders";
 import { Question } from "@/api/types";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { getAccessToken } from "@/utils/authTokenStorage";
 import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import { jwtDecode } from "jwt-decode";
 import { useCallback, useEffect, useState } from "react";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
@@ -13,10 +13,6 @@ import { v4 as uuidv4 } from "uuid";
 const QUESTION_COUNT = 10;
 
 type Status = "loading" | "done" | "error" | null;
-
-interface Token {
-  sub: string;
-}
 
 export const useDiagnosisQuestion = () => {
   const { from } = useLocalSearchParams<{ from?: string | string[] }>();
@@ -62,15 +58,13 @@ export const useDiagnosisQuestion = () => {
       return;
     }
 
-    const { sub: userId } = jwtDecode<Token>(token);
-
     try {
-      const data = await calculateLevel({
-        userId: Number(userId),
-        sessionId: uuidv4(),
-        type: "SIGNUP",
+      const request = createDiagnosisSubmitRequest(
+        uuidv4(),
+        "SIGNUP",
         answers,
-      });
+      );
+      const data = await calculateLevel(request);
       await AsyncStorage.setItem("diagnosisResult", JSON.stringify(data.data));
       await completeRequiredDiagnosis();
       setStatus("done");

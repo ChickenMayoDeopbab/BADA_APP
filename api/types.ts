@@ -37,11 +37,12 @@ export interface Level {
   summary: string
 }
 
-export interface Answer {
-  userId: number,
-  sessionId: string,
-  type: string,
-  answers: number[]
+export type DiagnosisType = "LANDING" | "SIGNUP";
+
+export interface DiagnosisSubmitRequest {
+  sessionId: string;
+  type: DiagnosisType;
+  answers: number[];
 }
 
 export interface SignUpRequest {
@@ -129,7 +130,18 @@ export interface MyPageResponse {
   email: string;
   name: string;
   s3Key?: string | null;
+  level?:
+    | "LEVEL_1"
+    | "LEVEL_2"
+    | "LEVEL_3"
+    | "LEVEL_4"
+    | "LEVEL_5"
+    | null;
   levelName?: string | null;
+  diagnosisDate?: string | null;
+  score?: number | null;
+  trainCount?: number | null;
+  attendance?: number | null;
 }
 
 export interface UpdateMyPageRequest {
@@ -185,12 +197,12 @@ export interface ScenarioRecommendationResponse {
 }
 
 export interface ExampleTurn {
-  speaker: string;
+  speaker: "ai" | "user";
   text: string;
 }
 
 export interface ExampleConversationResponse {
-  scenario_id: string;
+  scenario_id: number;
   dialogue: ExampleTurn[];
   audio_url: string | null;
 }
@@ -336,6 +348,7 @@ export interface TrainingRecordResponse {
   scenarioName: string;
   sessionType: SpringSessionType;
   durationSeconds: number;
+  scenarioImage?: string | null;
   categoryIconUrl?: string | null;
 }
 
@@ -386,6 +399,16 @@ export interface AnxietyScoreResponse {
   recordId: number;
   sessionId: string;
   anxietyScore: number;
+  scoreApplied?: boolean;
+  scoreExclusionReason?: string | null;
+  performanceScore?: number;
+  performanceRiskScore?: number;
+  subjectiveAnxietyScore?: number;
+  trainingStateIndex?: number;
+  scoreBefore?: number;
+  scoreAfter?: number;
+  scoreSequence?: number;
+  scoringVersion?: string;
 }
 
 export type ApiResponseAnxietyScoreResponse = ApiResponse<AnxietyScoreResponse>;
@@ -409,6 +432,7 @@ export interface FeedbackResponse {
   trainingTime: string;
   goodSegments: GoodSegment[];
   recordingUrl: string;
+  transcript?: TranscriptTurn[];
 }
 
 // AI 서버 커뮤니티 API
@@ -465,6 +489,7 @@ export interface CommunityAttachedScenario {
   title: string;
   content: string;
   category: string;
+  scenario_image?: string | null;
   is_available?: boolean;
   is_mine?: boolean;
 }
@@ -515,6 +540,8 @@ export interface CommunityPostUpdateRequest {
   title?: string | null;
   /** 값이 있으면 1자 이상 5,000자 이하 */
   content?: string | null;
+  /** 값이 있으면 종류별 최대 1개 */
+  attachments?: CommunityAttachmentRequest[] | null;
 }
 
 export interface GetCommunityPostsParams {

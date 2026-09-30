@@ -1,5 +1,9 @@
 import { postEmailCheck, postEmailSend } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
+import {
+  createEmailSendRequest,
+  createEmailVerificationRequest,
+} from "@/api/requestBuilders";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import { authCodeRules, emailRules } from "@/constants/authValidation";
@@ -54,8 +58,8 @@ export default function EmailStep({
 
     setIsSending(true);
     try {
-      const email = getValues("email").trim();
-      await postEmailSend({ email, type: "SIGNUP" });
+      const request = createEmailSendRequest(getValues("email"), "SIGNUP");
+      await postEmailSend(request);
       clearErrors("email");
       onSentChange(true);
       verificationRef.current?.focus();
@@ -86,9 +90,12 @@ export default function EmailStep({
 
     setIsChecking(true);
     try {
-      const email = getValues("email").trim();
-      const authNum = getValues("authNum").trim();
-      await postEmailCheck({ email, authNum, type: "SIGNUP" });
+      const request = createEmailVerificationRequest(
+        getValues("email"),
+        getValues("authNum"),
+        "SIGNUP",
+      );
+      await postEmailCheck(request);
       clearErrors(["email", "authNum"]);
       await onNext();
     } catch (error) {
@@ -128,6 +135,7 @@ export default function EmailStep({
                   label="이메일"
                   autoCapitalize="none"
                   autoComplete="off"
+                  keyboardType="email-address"
                   error={error?.message ?? errors.email?.message}
                   success={isSent ? "인증코드가 전송됐습니다." : ""}
                   returnKeyType="next"
