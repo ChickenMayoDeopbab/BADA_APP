@@ -94,6 +94,7 @@ function CommunityFeed({
       <FlatList
         data={posts}
         keyExtractor={(post) => String(post.post_id)}
+        removeClippedSubviews={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
@@ -304,6 +305,7 @@ export default function Community() {
         snapToAlignment="start"
         data={TABS}
         keyExtractor={(tab) => tab.key}
+        removeClippedSubviews={false}
         showsHorizontalScrollIndicator={false}
         initialNumToRender={TABS.length}
         maxToRenderPerBatch={TABS.length}
