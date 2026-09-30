@@ -1,3 +1,4 @@
+import { FAST_STACK_SCREEN_OPTIONS } from "@/constants/navigation";
 import { Stack } from "expo-router";
 
 export const unstable_settings = {
@@ -6,7 +7,7 @@ export const unstable_settings = {
 
 export default function TrainLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={FAST_STACK_SCREEN_OPTIONS}>
       {/*
         Stack에 Screen을 선언하면 선언한 순서가 나머지 라우트보다 앞으로 당겨진다.
         마운트 시 초기 화면은 children의 첫 번째로 결정되므로(unstable_settings의

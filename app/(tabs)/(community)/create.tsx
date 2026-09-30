@@ -1,5 +1,8 @@
 import { postCommunityPost } from "@/api/communityApi";
-import { getApiErrorMessage } from "@/api/error";
+import {
+  getApiErrorMessage,
+  getCommunityContentErrorMessage,
+} from "@/api/error";
 import { uploadCommunityImage } from "@/api/fileApi";
 import type {
   CommunityAttachmentRequest,
@@ -132,7 +135,10 @@ export default function CreateCommunityPostScreen() {
     onError: (error) => {
       showAlert({
         title: "게시물을 등록하지 못했어요",
-        description: getApiErrorMessage(error, "잠시 후 다시 시도해주세요."),
+        description: getCommunityContentErrorMessage(
+          error,
+          "잠시 후 다시 시도해주세요.",
+        ),
       });
     },
   });
