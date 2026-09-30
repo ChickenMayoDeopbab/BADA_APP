@@ -5,8 +5,13 @@ import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs, router, usePathname, useSegments } from "expo-router";
-import { useEffect, useRef } from "react";
-import { Animated, Easing, View } from "react-native";
+import { useEffect } from "react";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TAB_BAR_CONTENT_HEIGHT = 72;
@@ -16,46 +21,29 @@ function AnimatedBottomNav({
   ...props
 }: BottomTabBarProps & { hidden: boolean }) {
   const insets = useSafeAreaInsets();
-  const visibility = useRef(new Animated.Value(hidden ? 0 : 1)).current;
+  const visibility = useSharedValue(hidden ? 0 : 1);
+  const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
 
   useEffect(() => {
-    visibility.stopAnimation();
-    const animation = Animated.timing(visibility, {
-      toValue: hidden ? 0 : 1,
+    visibility.value = withTiming(hidden ? 0 : 1, {
       duration: 180,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
     });
-    animation.start();
-    return () => animation.stop();
   }, [hidden, visibility]);
 
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: tabBarHeight * visibility.value,
+  }));
+
   return (
-    <View
+    <Animated.View
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       pointerEvents={hidden ? "none" : "auto"}
-      style={{
-        height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
-        overflow: "hidden",
-      }}
+      style={[{ overflow: "hidden" }, animatedStyle]}
     >
-      <Animated.View
-        style={{
-          opacity: visibility,
-          transform: [
-            {
-              translateY: visibility.interpolate({
-                inputRange: [0, 1],
-                outputRange: [TAB_BAR_CONTENT_HEIGHT + insets.bottom, 0],
-              }),
-            },
-          ],
-        }}
-      >
-        <BottomNav {...props} />
-      </Animated.View>
-    </View>
+      <BottomNav {...props} />
+    </Animated.View>
   );
 }
 
