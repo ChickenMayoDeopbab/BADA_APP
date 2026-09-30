@@ -4,6 +4,10 @@ import {
   postFindId,
 } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
+import {
+  createEmailSendRequest,
+  createEmailVerificationRequest,
+} from "@/api/requestBuilders";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import Top from "@/components/common/Top";
@@ -72,7 +76,9 @@ export default function FindIdScreen() {
 
     setIsSending(true);
     try {
-      await postEmailSend({ email: getValues("email").trim(), type: "FIND_ID" });
+      await postEmailSend(
+        createEmailSendRequest(getValues("email"), "FIND_ID"),
+      );
       clearErrors("email");
       setIsEmailSent(true);
       verificationRef.current?.focus();
@@ -105,11 +111,9 @@ export default function FindIdScreen() {
     setIsSubmitting(true);
 
     try {
-      await postEmailCheck({
-        email: email.trim(),
-        authNum: authNum.trim(),
-        type: "FIND_ID",
-      });
+      await postEmailCheck(
+        createEmailVerificationRequest(email, authNum, "FIND_ID"),
+      );
       clearErrors("authNum");
     } catch (error) {
       setError("authNum", {

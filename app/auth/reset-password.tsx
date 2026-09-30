@@ -5,6 +5,10 @@ import {
   postEmailSend,
 } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
+import {
+  createEmailSendRequest,
+  createEmailVerificationRequest,
+} from "@/api/requestBuilders";
 import PartyFace from "@/assets/partyFace.svg";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
@@ -110,7 +114,9 @@ export default function ResetPasswordScreen() {
 
     setIsSending(true);
     try {
-      await postEmailSend({ email: getValues("email").trim(), type: "RESET_PASSWORD" });
+      await postEmailSend(
+        createEmailSendRequest(getValues("email"), "RESET_PASSWORD"),
+      );
       clearErrors("email");
       setIsEmailSent(true);
       verificationRef.current?.focus();
@@ -143,11 +149,9 @@ export default function ResetPasswordScreen() {
     setIsSubmitting(true);
 
     try {
-      await postEmailCheck({
-        email: email.trim(),
-        authNum: authNum.trim(),
-        type: "RESET_PASSWORD",
-      });
+      await postEmailCheck(
+        createEmailVerificationRequest(email, authNum, "RESET_PASSWORD"),
+      );
       clearErrors("authNum");
       clearErrors("username");
       setStep("password");
