@@ -146,7 +146,7 @@ export default function Home() {
         if (!isActive) return;
         const dates = attendanceResults.flatMap((result) => {
           if (result.status === "rejected") return [];
-          return (result.value.data as unknown as { date: string }[]).map(({ date }) => date);
+          return result.value.data.map(({ date }) => date);
         });
         if (attendanceResults.some((result) => result.status === "fulfilled")) {
           setAttendedDates([...new Set(dates)]);
