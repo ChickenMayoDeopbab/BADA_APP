@@ -1,10 +1,13 @@
 import { getApiErrorMessage } from "@/api/error";
 import type { TrainingRecordItem } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import CommunityHeader from "@/components/community/CommunityHeader";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
+import RecordCategoryIcon from "@/components/record/RecordCategoryIcon";
 import { useCommunityPostDraft } from "@/context/CommunityPostDraftContext";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useTrainingRecordDates } from "@/hooks/useTrainingRecordDates";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { format } from "date-fns";
@@ -12,21 +15,12 @@ import { ko } from "date-fns/locale";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const cardShadow = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.08,
-  shadowRadius: 3.4,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 2,
-};
 
 const toValidDate = (value: string) => {
   const date = new Date(value);
@@ -38,14 +32,6 @@ const formatDuration = (totalSeconds: number) => {
   const minutes = Math.floor(safeSeconds / 60);
   const seconds = safeSeconds % 60;
   return minutes > 0 ? `${minutes}분 ${seconds}초` : `${seconds}초`;
-};
-
-const getRecordIcon = (
-  sessionType: TrainingRecordItem["sessionType"],
-): keyof typeof Ionicons.glyphMap => {
-  if (sessionType === "WARMUP") return "flame";
-  if (sessionType === "CUSTOM") return "create";
-  return "chatbubbles";
 };
 
 const SESSION_LABELS: Record<TrainingRecordItem["sessionType"], string> = {
@@ -170,18 +156,9 @@ export default function AttachTrainingRecordScreen() {
               accessibilityState={{ selected }}
               onPress={() => setSelectedRecordId(item.recordId)}
               className="h-[82px] flex-row items-center rounded-component bg-background-normal px-[22px] active:opacity-80"
-              style={cardShadow}
+              style={SURFACE_CARD_SHADOW}
             >
-              <View
-                className="size-[46px] items-center justify-center rounded-component"
-                style={{ backgroundColor: SEMANTIC_COLORS.record.iconBackground }}
-              >
-                <Ionicons
-                  name={getRecordIcon(item.sessionType)}
-                  size={26}
-                  color={SEMANTIC_COLORS.status.info}
-                />
-              </View>
+              <RecordCategoryIcon categoryIconUrl={item.categoryIconUrl} />
 
               <View className="ml-[10px] flex-1">
                 <View className="flex-row items-center">
@@ -231,7 +208,7 @@ export default function AttachTrainingRecordScreen() {
         ListEmptyComponent={
           recordsQuery.isLoading ? (
             <View className="items-center justify-center flex-1">
-              <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+              <LoadingIndicator />
             </View>
           ) : recordsQuery.isError ? (
             <View className="items-center justify-center flex-1 px-6">

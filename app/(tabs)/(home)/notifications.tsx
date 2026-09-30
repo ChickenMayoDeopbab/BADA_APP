@@ -1,8 +1,10 @@
 import { InAppNotificationResponse, NotificationFilter } from "@/api/types";
 import EmptyNotificationIcon from "@/assets/notifications/empty-notification.svg";
 import StyledImage from "@/components/common/StyledImage";
+import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/useNotifications";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -12,7 +14,6 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { memo, useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   Text,
@@ -38,14 +39,14 @@ function FilterChip({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      className={`flex-row items-center gap-1 rounded-[8px] px-4 py-1.5 ${selected ? "bg-neutral-20" : "bg-neutral-90"}`}
+      className={`flex-row items-center gap-1 rounded-control px-4 py-1.5 ${selected ? "bg-neutral-20" : "bg-neutral-90"}`}
     >
       <Text className={`text-body font-medium ${selected ? "text-neutral-97" : "text-label-alternative"}`}>
         {label}
       </Text>
       {count !== undefined && (
         <View className="items-center w-4">
-          <Text className="text-center text-body font-bold text-[#09C357]">
+          <Text className="text-center text-body font-bold text-green-40">
             {count}
           </Text>
         </View>
@@ -70,12 +71,13 @@ const NotificationCard = memo(function NotificationCard({
   });
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${item.title}, ${item.message}`}
-      onPress={() => onPress(item)}
-      className="h-[82px] w-full justify-center overflow-hidden rounded-[12px] bg-background-normal px-6 py-2.5 shadow-sm"
-    >
+    <View className="w-full rounded-component" style={SURFACE_CARD_SHADOW}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}, ${item.message}`}
+        onPress={() => onPress(item)}
+        className="h-[82px] w-full justify-center overflow-hidden rounded-component bg-background-normal px-6 py-2.5"
+      >
       <View className="flex-row items-center gap-2.5">
         <StyledImage
           source={imageSource}
@@ -100,7 +102,8 @@ const NotificationCard = memo(function NotificationCard({
           </Text>
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 });
 
@@ -149,7 +152,15 @@ export default function NotificationsScreen() {
   return (
     <View className="flex-1 bg-background-normal">
       <StatusBar style="dark" backgroundColor={SEMANTIC_COLORS.background.normal} />
-      <Top title="알림" back />
+      <Top
+        title="알림"
+        back
+        onBack={() =>
+          router.canGoBack()
+            ? router.back()
+            : router.replace("/(tabs)/(home)/home")
+        }
+      />
 
       <View className="flex-1 bg-background-alternative">
         <View className="flex-row gap-2 px-8 pt-[15px]">
@@ -164,7 +175,7 @@ export default function NotificationsScreen() {
 
       {notificationsQuery.isLoading ? (
         <View className="items-center justify-center flex-1 pb-20">
-          <ActivityIndicator color={SEMANTIC_COLORS.primary.normal} />
+          <LoadingIndicator />
         </View>
       ) : notificationsQuery.isError ? (
         <View className="items-center justify-center flex-1 px-8 pb-20">
@@ -173,7 +184,7 @@ export default function NotificationsScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => void notificationsQuery.refetch()}
-            className="mt-4 rounded-[8px] bg-primary-normal px-6 py-2"
+            className="mt-4 rounded-control bg-primary-normal px-6 py-2"
           >
             <Text className="font-bold text-label text-label-buttonText">재시도</Text>
           </Pressable>
@@ -202,7 +213,7 @@ export default function NotificationsScreen() {
             </View>
           )}
           ListFooterComponent={notificationsQuery.isFetchingNextPage ? (
-            <ActivityIndicator className="py-5" color={SEMANTIC_COLORS.primary.normal} />
+            <LoadingIndicator size="small" className="py-5" />
           ) : notifications.length > 0 ? (
             <Text className="py-8 font-medium text-center opacity-50 text-caption text-label-alternative">
               받은 알림은 3일 동안 표시됩니다.

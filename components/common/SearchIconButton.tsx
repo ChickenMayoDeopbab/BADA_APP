@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, View } from "react-native";
 
@@ -21,7 +22,7 @@ export default function SearchIconButton({
   onPress,
   size = 28,
 }: SearchIconButtonProps) {
-  const icon = <Ionicons name="search" size={size} color="#0D0D0E" />;
+  const icon = <Ionicons name="search" size={size} color={SEMANTIC_COLORS.label.normal} />;
 
   // 누를 수 없는 경우에는 눌림 효과 없이 아이콘만 보여준다
   if (!onPress) {

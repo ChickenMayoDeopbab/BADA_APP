@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import {
   getAppleLogin,
   getGoogleLogin,
@@ -6,16 +7,18 @@ import {
 import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
 import CustomButton from "@/components/common/CustomButton";
+import { useAppAlert } from "@/context/AppAlertContext";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
-import { Alert, useWindowDimensions, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
 
 export default function AuthScreen() {
   useDoubleBackExit();
+  const { showAlert } = useAppAlert();
   const { height, width } = useWindowDimensions();
   const isTablet = width >= 600;
   const bottomPadding = Math.min(Math.max(height * 0.1, 64), 96);
@@ -26,32 +29,35 @@ export default function AuthScreen() {
     login: () => Promise<string | undefined>,
   ) => {
     if (loginInProgress.current) return;
+
     loginInProgress.current = true;
     setIsLoggingIn(true);
     try {
       const callbackUrl = await login();
-      if (callbackUrl) {
-        const callback = new URL(callbackUrl);
-        const path = `${callback.hostname}${callback.pathname}`.replace(/^\/+/, "");
-        if (callback.protocol !== "bada:" || path !== "auth/callback") {
-          throw new Error("Unexpected OAuth callback");
-        }
+      if (!callbackUrl) return;
 
-        router.replace({
-          pathname: "/auth/callback",
-          params: {
-            code: callback.searchParams.get("code") ?? "",
-            error: callback.searchParams.get("error") ?? "",
-            error_description: callback.searchParams.get("error_description") ?? "",
-            message: callback.searchParams.get("message") ?? "",
-          },
-        });
+      const callback = new URL(callbackUrl);
+      const path = `${callback.hostname}${callback.pathname}`.replace(/^\/+/, "");
+      if (callback.protocol !== "bada:" || path !== "auth/callback") {
+        throw new Error("Unexpected OAuth callback");
       }
+
+      router.replace({
+        pathname: "/auth/callback",
+        params: {
+          code: callback.searchParams.get("code") ?? "",
+          error: callback.searchParams.get("error") ?? "",
+          error_description:
+            callback.searchParams.get("error_description") ?? "",
+          message: callback.searchParams.get("message") ?? "",
+        },
+      });
     } catch {
-      Alert.alert(
-        "로그인 오류",
-        "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
-      );
+      showAlert({
+        title: "로그인 오류",
+        description:
+          "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      });
     } finally {
       loginInProgress.current = false;
       setIsLoggingIn(false);
@@ -76,8 +82,8 @@ export default function AuthScreen() {
         <View className="w-full gap-y-2">
           <CustomButton
             label="구글로 계속할래요"
-            icon={<AntDesign name="google" size={20} color="#0D0D0E" />}
-            color="#0D0D0E"
+            icon={<AntDesign name="google" size={20} color={SEMANTIC_COLORS.label.normal} />}
+            color={SEMANTIC_COLORS.label.normal}
             backgroundColor="#F2F4F6"
             disabled={isLoggingIn}
             onPress={() => void handleOAuthLogin(getGoogleLogin)}
@@ -100,8 +106,7 @@ export default function AuthScreen() {
           />
           <CustomButton
             label="아이디로 계속할래요"
-            color="#0D0D0E"
-            backgroundColor="#F8F8F8"
+            tone="neutral"
             disabled={isLoggingIn}
             onPress={() => router.replace("/auth/login")}
           />

@@ -6,7 +6,7 @@ import {
   ApiResponse,
   ChangePasswordRequest,
   CheckUsernameRequest,
-  EmailRequest,
+  EmailSendRequest,
   EmailVerificationRequest,
   FindIdRequest,
   FindIdResponse,
@@ -14,6 +14,7 @@ import {
   LoginResponse,
   OAuthCodeRequest,
   OAuthProvider,
+  OAuthTokenResponse,
   SignUpRequest,
 } from "./types";
 
@@ -72,8 +73,8 @@ export const getAppleLogin = (): Promise<string | undefined> =>
 
 export const postOAuthToken = async (
   data: OAuthCodeRequest,
-): Promise<ApiResponse<LoginResponse>> => {
-  const response = await apiClient.post<ApiResponse<LoginResponse>>(
+): Promise<ApiResponse<OAuthTokenResponse>> => {
+  const response = await apiClient.post<ApiResponse<OAuthTokenResponse>>(
     "/api/v1/auth/oauth/token",
     data,
   );
@@ -102,12 +103,9 @@ export const postLogin = async (
 };
 
 export const postEmailSend = async (
-  data: EmailRequest
+  data: EmailSendRequest
 ): Promise<void> => {
-  await apiClient.post(
-    "/api/v1/auth/email/send",
-    data
-  );
+  await apiClient.post("/api/v1/auth/email/send", data);
 };
 
 export const postEmailCheck = async (

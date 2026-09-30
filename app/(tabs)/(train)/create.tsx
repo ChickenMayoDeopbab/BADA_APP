@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { createCustomScenario } from "@/api/trainApi";
 import AnimatedCheck from "@/components/common/AnimatedCheck";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -9,6 +10,7 @@ import StepProgress from "@/components/train/StepProgress";
 import { ScenarioCategory } from "@/api/types";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AnxiousFace from "@/assets/anxiousFace.svg";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
@@ -49,6 +51,7 @@ const FieldBox = ({ label, children }: { label: string; children: ReactNode }) =
 );
 
 export default function Create() {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<CreateStep>("info");
   const [form, setForm] = useState<CustomScenarioForm>(EMPTY_FORM);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -144,7 +147,7 @@ export default function Create() {
             생성 시 입력한 내용을 다시 확인해주세요.
           </Text>
         </View>
-        <View className="px-10 pb-10 gap-y-1">
+        <View className="px-10 gap-y-1" style={{ paddingBottom: insets.bottom + 40 }}>
           <CustomButton
             label="다시 시도하기"
             tone="primary"
@@ -180,7 +183,7 @@ export default function Create() {
             내가 만든 시나리오로 훈련을 시작해볼까요?
           </Text>
         </View>
-        <View className="px-10 pb-10 gap-y-1">
+        <View className="px-10 gap-y-1" style={{ paddingBottom: insets.bottom + 40 }}>
           <CustomButton
             label="훈련 바로 시작하기"
             tone="primary"
@@ -224,9 +227,10 @@ export default function Create() {
           <View className="gap-y-6 mt-8">
             <FieldBox label="시나리오 제목">
               <TextInput
-                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                className="h-[52px] rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                multiline={false}
                 placeholder="시나리오를 나타낼 제목을 입력해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.title}
                 maxLength={50}
                 returnKeyType="next"
@@ -255,9 +259,10 @@ export default function Create() {
             <FieldBox label="전화 상대">
               <TextInput
                 ref={calleeInputRef}
-                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                className="h-[52px] rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                multiline={false}
                 placeholder="전화 상대에 대해 설명해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.callee}
                 maxLength={100}
                 returnKeyType="next"
@@ -271,9 +276,9 @@ export default function Create() {
             <FieldBox label="전화 목적">
               <TextInput
                 ref={purposeInputRef}
-                className="rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
+                className="h-[168px] rounded-component bg-fill-normal px-4 py-[14px] text-body font-medium text-label-normal"
                 placeholder="전화의 목적을 설명해주세요."
-                placeholderTextColor="#BDBEBE"
+                placeholderTextColor={SEMANTIC_COLORS.line.normal}
                 value={form.purpose}
                 maxLength={200}
                 returnKeyType="done"
@@ -285,7 +290,7 @@ export default function Create() {
                   if (isDetailSubmittable) setStep("loading");
                 }}
                 multiline
-                style={{ minHeight: 168, textAlignVertical: "top" }}
+                style={{ textAlignVertical: "top" }}
               />
             </FieldBox>
           </View>
@@ -293,7 +298,8 @@ export default function Create() {
       </ScrollView>
 
       <View
-        className={`px-[33px] pt-4 ${isKeyboardVisible ? "pb-5" : "pb-10"}`}
+        className="px-[33px] pt-4"
+        style={{ paddingBottom: isKeyboardVisible ? 20 : insets.bottom + 40 }}
       >
         {step === "info" ? (
           <CustomButton

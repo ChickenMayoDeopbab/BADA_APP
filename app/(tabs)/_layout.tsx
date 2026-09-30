@@ -1,13 +1,87 @@
 import { createSession } from "@/api/trainApi";
 import BottomNav from "@/components/navigation/BottomNav";
 import { usePendingCall } from "@/context/PendingCallContext";
-import { Tabs, router, usePathname, useSegments } from "expo-router";
-import { useEffect } from "react";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Tabs, router, usePathname, useSegments } from "expo-router";
+import { useEffect, useLayoutEffect } from "react";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const TAB_BAR_CONTENT_HEIGHT = 72;
+
+function AnimatedBottomNav({
+  hidden,
+  ...props
+}: BottomTabBarProps & { hidden: boolean }) {
+  const insets = useSafeAreaInsets();
+  const visibility = useSharedValue(hidden ? 0 : 1);
+  const backgroundVisibility = useSharedValue(hidden ? 0 : 1);
+  const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
+
+  useLayoutEffect(() => {
+    visibility.value = withTiming(hidden ? 0 : 1, {
+      duration: hidden ? 110 : 150,
+      easing: Easing.out(Easing.cubic),
+    });
+    backgroundVisibility.value = withTiming(hidden ? 0 : 1, {
+      duration: hidden ? 45 : 90,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [backgroundVisibility, hidden, visibility]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: tabBarHeight * (1 - visibility.value) }],
+  }));
+  const animatedBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: backgroundVisibility.value,
+  }));
+
+  return (
+    <Animated.View
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
+      pointerEvents={hidden ? "none" : "auto"}
+      style={[
+        {
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 1,
+        },
+        animatedStyle,
+      ]}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: SEMANTIC_COLORS.background.normal,
+          },
+          animatedBackgroundStyle,
+        ]}
+      />
+      <BottomNav {...props} transparentBackground />
+    </Animated.View>
+  );
+}
 
 /** 발신 예약 타이머 감시 — 예약된 시각이 되면 세션을 생성하고 훈련 화면으로 이동 */
 function CallWatcher() {
   const { pendingCall, cancel } = usePendingCall();
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
 
   useEffect(() => {
     if (!pendingCall.config || !pendingCall.callAt) return;
@@ -16,9 +90,10 @@ function CallWatcher() {
     const remaining = pendingCall.callAt - Date.now();
 
     const fire = async () => {
-      cancel();
+      if (!(await ensureSensitiveConsent())) return;
       try {
         const session = await createSession(config);
+        cancel();
         /*
           예약 발신은 사용자가 어디에 있든 걸려온다. 시나리오 상세처럼 모달로 열린
           화면이 남아 있으면 통화 화면 위를 덮으므로, 세션을 얻은 뒤 현재 스택을 비운다.
@@ -46,12 +121,13 @@ function CallWatcher() {
 
     const timeout = setTimeout(fire, remaining);
     return () => clearTimeout(timeout);
-  }, [pendingCall, cancel]);
+  }, [pendingCall, cancel, ensureSensitiveConsent]);
 
   return null;
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const segments = useSegments();
   const isCommunityStack = segments.some(
@@ -60,18 +136,39 @@ export default function TabLayout() {
   const currentRoute = segments[segments.length - 1];
   const isCommunityRoot =
     currentRoute === "(community)" || currentRoute === "community";
+  const isTrainCreation =
+    segments.some((segment) => segment === "(train)") &&
+    ["create", "warmup", "warmup-start"].some((route) =>
+      pathname.endsWith(`/${route}`),
+    );
+  const isRecordDetail =
+    segments.some((segment) => segment === "(record)") &&
+    (segments.some((segment) => segment === "[id]") || /\/record\/[^/]+$/.test(pathname));
+  const isProfileSubscreen =
+    segments.some((segment) => segment === "(profile)") &&
+    (segments.some((segment) => segment === "settings") || pathname.endsWith("/edit"));
   const hideTabBar =
     pathname.endsWith("/notifications") ||
     pathname.endsWith("/search") ||
-    (isCommunityStack && !isCommunityRoot);
+    (isCommunityStack && !isCommunityRoot) ||
+    isTrainCreation ||
+    isRecordDetail ||
+    isProfileSubscreen;
 
   return (
     <>
       <CallWatcher />
       <Tabs
-        tabBar={(props) => (hideTabBar ? null : <BottomNav {...props} />)}
+        tabBar={(props) => (
+          <AnimatedBottomNav {...props} hidden={hideTabBar} />
+        )}
         screenOptions={{
           headerShown: false,
+          sceneStyle: {
+            paddingBottom: hideTabBar
+              ? 0
+              : TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+          },
           tabBarActiveTintColor: SEMANTIC_COLORS.primary.normal,
           tabBarInactiveTintColor: SEMANTIC_COLORS.line.normal,
           tabBarLabelStyle: {

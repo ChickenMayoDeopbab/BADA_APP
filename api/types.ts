@@ -61,6 +61,31 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+export interface OAuthTokenResponse extends LoginResponse {
+  isNewUser: boolean;
+}
+
+export interface LegalConsentStatus {
+  termsOfServiceAgreed: boolean;
+  termsOfServiceAgreedAt: string | null;
+  privacyPolicyAcknowledged: boolean;
+  privacyPolicyAcknowledgedAt: string | null;
+  sensitiveInformationAgreed: boolean;
+  sensitiveInformationAgreedAt: string | null;
+  sensitiveInformationWithdrawnAt: string | null;
+  profileImageAgreed: boolean;
+  profileImageAgreedAt: string | null;
+  profileImageWithdrawnAt: string | null;
+  legalActionRequired: boolean;
+}
+
+export interface AcceptLegalConsentRequest {
+  termsOfServiceAgreed: true;
+  privacyPolicyAcknowledged: true;
+  sensitiveInformationAgreed: boolean;
+  profileImageAgreed: boolean;
+}
+
 export type OAuthProvider = 'google' | 'naver' | 'apple';
 
 export interface OAuthCodeRequest {
@@ -71,9 +96,16 @@ export interface EmailRequest {
   email: string;
 }
 
+export type EmailVerificationType = "SIGNUP" | "FIND_ID" | "RESET_PASSWORD";
+
+export interface EmailSendRequest extends EmailRequest {
+  type: EmailVerificationType;
+}
+
 export interface EmailVerificationRequest {
   email: string;
   authNum: string;
+  type: EmailVerificationType;
 }
 
 export interface FindIdRequest {
@@ -304,6 +336,7 @@ export interface TrainingRecordResponse {
   scenarioName: string;
   sessionType: SpringSessionType;
   durationSeconds: number;
+  categoryIconUrl?: string | null;
 }
 
 export type TrainingRecordItem = TrainingRecordResponse;
@@ -381,13 +414,47 @@ export interface FeedbackResponse {
 // AI 서버 커뮤니티 API
 export type CommunityReactionKind = "CHEER" | "RELATE" | "LIKE";
 
+export type CommunityReportReason =
+  | "ABUSE"
+  | "SEXUAL"
+  | "HATE"
+  | "VIOLENCE"
+  | "SPAM"
+  | "PRIVACY"
+  | "OTHER";
+
+export interface CommunityReportRequest {
+  reason: CommunityReportReason;
+}
+
+export interface CommunityReportResponse {
+  report_id: number;
+  target_type: "POST" | "COMMENT";
+  target_id: number;
+  reason: CommunityReportReason;
+  status: "PENDING" | "RESOLVED" | "DISMISSED";
+  created_at: string;
+  due_at: string;
+}
+
 export interface CommunityAuthorInfo {
   user_id: number;
   name?: string | null;
   profile_image_url?: string | null;
 }
 
-export type CommunityAttachmentKind = "SCENARIO" | "TRAINING_RECORD";
+export interface CommunityBlockedUserResponse {
+  user_id: number;
+  name?: string | null;
+  profile_image_url?: string | null;
+  blocked_at: string;
+}
+
+export interface CommunityBlockedUserListResponse {
+  blocked_users: CommunityBlockedUserResponse[];
+}
+
+export type CommunityAttachmentKind = "FILE" | "SCENARIO" | "TRAINING_RECORD";
 
 export interface CommunityAttachmentRequest {
   kind: CommunityAttachmentKind;
@@ -413,11 +480,18 @@ export interface CommunityAttachedTrainingRecord {
   is_available?: boolean;
 }
 
+export interface CommunityAttachedFile {
+  title?: string | null;
+  url?: string | null;
+  is_available?: boolean;
+}
+
 export interface CommunityPostAttachment {
   kind: CommunityAttachmentKind;
   ref_id: number;
   scenario?: CommunityAttachedScenario | null;
   training_record?: CommunityAttachedTrainingRecord | null;
+  file?: CommunityAttachedFile | null;
 }
 
 export interface CommunityScenarioCopyResponse {

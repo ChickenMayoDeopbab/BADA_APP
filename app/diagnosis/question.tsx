@@ -6,6 +6,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import type { TextStyle } from "react-native";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { FONT_WEIGHT } from "@/design-system/typography";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type RadioSize = 'sm' | 'lg';
 type RadioOption = {
@@ -57,6 +58,7 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
 };
 
 export default function Question() {
+  const insets = useSafeAreaInsets();
   const {
     nowStep,
     currentAnswer,
@@ -94,7 +96,7 @@ export default function Question() {
   return (
     <View className="flex-1 bg-background-normal">
       <Top back={true} title="자가진단" onBack={handleBack} />
-      <View className="flex-col flex-1 px-10 mb-10">
+      <View className="flex-col flex-1 px-10" style={{ paddingBottom: insets.bottom + 40 }}>
         <View className="flex-col items-center w-full gap-3">
           <View className="flex-row justify-between w-full">
             <Text className="text-label text-label-alternative" style={{ fontWeight: FONT_WEIGHT.medium as TextStyle["fontWeight"] }}>콜포비아 자가진단</Text>

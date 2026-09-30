@@ -1,3 +1,4 @@
+import { SEMANTIC_COLORS } from "@/design-system";
 import { forwardRef, ReactNode, useState } from "react";
 import {
   Text,
@@ -16,9 +17,9 @@ interface InputFieldProps extends TextInputProps {
 }
 
 const variantStyles = {
-  filled: "bg-[#F2F4F6] rounded-lg",
+  filled: "bg-[#F2F4F6] rounded-control",
   standard: "",
-  outlined: "border border-[#BDBEBE] rounded-lg",
+  outlined: "border border-line-normal rounded-control",
 };
 
 function getJosa(word: string): string {
@@ -57,23 +58,25 @@ const CustomInput = forwardRef<TextInput, InputFieldProps>(
     const isSuccess = Boolean(success);
 
     const accentColor = isError
-      ? "#FF0000"
+      ? SEMANTIC_COLORS.status.error
       : isSuccess
-        ? "#0BF46D"
+        ? SEMANTIC_COLORS.status.success
         : isFocused
-          ? "#0D0D0E"
-          : "#BDBEBE";
+          ? SEMANTIC_COLORS.label.normal
+          : SEMANTIC_COLORS.line.normal;
 
-    const messageColor = isError ? "#FF0000" : "#0BF46D";
+    const messageColor = isError
+      ? SEMANTIC_COLORS.status.error
+      : SEMANTIC_COLORS.status.success;
     const message = error || success || "";
 
     return (
       <View className="w-full" style={{ marginBottom: 8 * scale }}>
         <Text
+          className="text-caption"
           style={{
-            height: 16 * scale,
+            minHeight: 16 * scale,
             marginBottom: 2 * scale,
-            fontSize: 12 * scale,
             color: accentColor,
             opacity: isFocused || hasValue ? 1 : 0,
           }}
@@ -86,8 +89,8 @@ const CustomInput = forwardRef<TextInput, InputFieldProps>(
         >
           <TextInput
             ref={ref}
-            className="flex-1 p-0 text-lg font-medium text-[#0D0D0E] outline-none"
-            placeholderTextColor="#BDBEBE"
+            className="flex-1 p-0 text-headline2 font-medium text-label-normal outline-none"
+            placeholderTextColor={SEMANTIC_COLORS.line.normal}
             placeholder={
               isFocused
                 ? ""
@@ -108,10 +111,10 @@ const CustomInput = forwardRef<TextInput, InputFieldProps>(
           {rightIcon && <View className="ml-2">{rightIcon}</View>}
         </View>
         <Text
+          className="text-caption"
           style={{
-            height: 16 * scale,
+            minHeight: 16 * scale,
             marginTop: 4 * scale,
-            fontSize: 12 * scale,
             color: messageColor,
             opacity: isError || isSuccess ? 1 : 0,
           }}

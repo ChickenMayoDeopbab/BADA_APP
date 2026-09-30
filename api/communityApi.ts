@@ -4,18 +4,23 @@ import {
   CommunityCommentListResponse,
   CommunityCommentResponse,
   CommunityCommentUpdateRequest,
+  CommunityBlockedUserListResponse,
   CommunityPostCreateRequest,
   CommunityPostDetailResponse,
   CommunityPostListResponse,
   CommunityPostUpdateRequest,
   CommunityReactionRequest,
   CommunityReactionStateResponse,
+  CommunityReportRequest,
+  CommunityReportResponse,
   CommunityScenarioCopyResponse,
   GetCommunityPostsParams,
   GetMyCommunityPostsParams,
 } from "./types";
 
 const COMMUNITY_POSTS_PATH = "/api/v1/community/posts";
+const COMMUNITY_COMMENTS_PATH = "/api/v1/community/comments";
+const COMMUNITY_USERS_PATH = "/api/v1/community/users";
 
 /** 커뮤니티 게시글 작성 */
 export const postCommunityPost = async (
@@ -138,7 +143,54 @@ export const patchCommunityComment = async (
 export const deleteCommunityComment = async (
   commentId: number,
 ): Promise<void> => {
-  await aiApiClient.delete(`/api/v1/community/comments/${commentId}`);
+  await aiApiClient.delete(`${COMMUNITY_COMMENTS_PATH}/${commentId}`);
+};
+
+/** 다른 사용자의 게시글 신고 */
+export const postCommunityPostReport = async (
+  postId: number,
+  data: CommunityReportRequest,
+): Promise<CommunityReportResponse> => {
+  const response = await aiApiClient.post<CommunityReportResponse>(
+    `${COMMUNITY_POSTS_PATH}/${postId}/reports`,
+    data,
+  );
+  return response.data;
+};
+
+/** 다른 사용자의 댓글 또는 답글 신고 */
+export const postCommunityCommentReport = async (
+  commentId: number,
+  data: CommunityReportRequest,
+): Promise<CommunityReportResponse> => {
+  const response = await aiApiClient.post<CommunityReportResponse>(
+    `${COMMUNITY_COMMENTS_PATH}/${commentId}/reports`,
+    data,
+  );
+  return response.data;
+};
+
+/** 커뮤니티 사용자 차단 */
+export const putCommunityUserBlock = async (userId: number): Promise<void> => {
+  await aiApiClient.put(`${COMMUNITY_USERS_PATH}/${userId}/block`);
+};
+
+/** 커뮤니티 사용자 차단 해제 */
+export const deleteCommunityUserBlock = async (
+  userId: number,
+): Promise<void> => {
+  await aiApiClient.delete(`${COMMUNITY_USERS_PATH}/${userId}/block`);
+};
+
+/** 로그인 사용자가 차단한 커뮤니티 사용자 전체 조회 */
+export const getBlockedCommunityUsers = async (
+  signal?: AbortSignal,
+): Promise<CommunityBlockedUserListResponse> => {
+  const response = await aiApiClient.get<CommunityBlockedUserListResponse>(
+    "/api/v1/community/me/blocked-users",
+    { signal },
+  );
+  return response.data;
 };
 
 /** 로그인 사용자가 작성한 커뮤니티 게시글 조회 */

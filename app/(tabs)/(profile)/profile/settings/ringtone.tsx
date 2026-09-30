@@ -1,4 +1,5 @@
 import ProfileSettingsScreen from "@/components/profile/ProfileSettingsScreen";
+import { useAppAlert } from "@/context/AppAlertContext";
 import {
   RadioIndicator,
   SettingCard,
@@ -21,9 +22,10 @@ import { AudioSource, useAudioPlayer } from "expo-audio";
 import * as DocumentPicker from "expo-document-picker";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 export default function RingtoneSettingsScreen() {
+  const { showAlert } = useAppAlert();
   const [initialSettings, setInitialSettings] = useState<RingtoneSettings>(
     DEFAULT_RINGTONE_SETTINGS,
   );
@@ -57,9 +59,12 @@ export default function RingtoneSettingsScreen() {
       void previewPlayer.seekTo(0);
       previewPlayer.play();
     } catch {
-      Alert.alert("벨소리를 재생하지 못했어요", "다른 음원을 선택해 주세요.");
+      showAlert({
+        title: "벨소리를 재생하지 못했어요",
+        description: "다른 음원을 선택해 주세요.",
+      });
     }
-  }, [previewPlayer, previewRequest, previewSource]);
+  }, [previewPlayer, previewRequest, previewSource, showAlert]);
 
   const hasChanges =
     JSON.stringify(settings) !== JSON.stringify(initialSettings);
@@ -75,7 +80,7 @@ export default function RingtoneSettingsScreen() {
       if (result.canceled) return;
       const asset = result.assets[0];
       if (!asset || (asset.mimeType && !asset.mimeType.startsWith("audio/"))) {
-        Alert.alert("음성 파일만 선택할 수 있어요");
+        showAlert({ title: "음성 파일만 선택할 수 있어요" });
         return;
       }
 
@@ -93,7 +98,10 @@ export default function RingtoneSettingsScreen() {
       setSettings(nextSettings);
       preview(nextSettings);
     } catch {
-      Alert.alert("파일을 열지 못했어요", "잠시 후 다시 시도해 주세요.");
+      showAlert({
+        title: "파일을 열지 못했어요",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
     }
   };
 
@@ -118,7 +126,10 @@ export default function RingtoneSettingsScreen() {
       router.back();
     } catch {
       setSaving(false);
-      Alert.alert("벨소리를 저장하지 못했어요", "잠시 후 다시 시도해 주세요.");
+      showAlert({
+        title: "벨소리를 저장하지 못했어요",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
     }
   };
 

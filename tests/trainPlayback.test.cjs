@@ -13,14 +13,15 @@ loaded._compile(compiled, filename);
 const { TrainPlayback } = loaded.exports;
 
 function setup() {
-  const buffers = [], stats = [], gates = [], errors = [], timers = new Map();
+  const buffers = [], stats = [], completions = [], gates = [], errors = [], timers = new Map();
   let time = 0, nextId = 0, clears = 0, idles = 0;
   const driver = {
     enqueue(samples, end) { buffers.push({ samples, end }); },
     clear() { clears++; }, idle() { idles++; },
   };
   const player = new TrainPlayback({
-    driver, onBlocked: (b) => gates.push(b), onStats: (s) => stats.push(s), onError: (e) => errors.push(e),
+    driver, onBlocked: (b) => gates.push(b), onStats: (s) => stats.push(s),
+    onComplete: (turnId) => completions.push(turnId), onError: (e) => errors.push(e),
     setTimer: (callback, ms) => { const id = ++nextId; timers.set(id, { at: time + ms, callback }); return id; },
     clearTimer: (id) => timers.delete(id),
   });
@@ -30,7 +31,7 @@ function setup() {
       if (timer.at <= time) { timers.delete(id); timer.callback(); }
     }
   };
-  return { player, driver, buffers, stats, gates, errors, advance, get clears() { return clears; }, get idles() { return idles; } };
+  return { player, driver, buffers, stats, completions, gates, errors, advance, get clears() { return clears; }, get idles() { return idles; } };
 }
 const pcm = (ms) => new ArrayBuffer(ms * 32);
 
@@ -45,11 +46,13 @@ test('250ms prebuffer merges tiny chunks without creating a player per chunk', (
 
 test('short response flushes at speaking_end; mic waits for real completion + 300ms', () => {
   const s = setup();
-  s.player.push(pcm(50)); s.player.end();
+  s.player.push(pcm(50)); s.player.end(41);
   s.advance(1000);
   assert.equal(s.gates.at(-1), true);
   assert.equal(s.stats.length, 0);
+  assert.deepEqual(s.completions, []);
   s.buffers[0].end();
+  assert.deepEqual(s.completions, [41]);
   s.advance(299); assert.equal(s.gates.at(-1), true);
   s.advance(1); assert.equal(s.gates.at(-1), false);
   assert.equal(s.stats[0].played_ms, 50);
@@ -62,6 +65,19 @@ test('temporary queue starvation does not open the mic while server is sending',
   s.player.push(pcm(100)); s.player.end(); s.buffers[1].end(); s.advance(300);
   assert.equal(s.gates.at(-1), false);
   assert.equal(s.stats[0].played_ms, 350);
+});
+
+test('long response acknowledges the server turn only after its final buffer plays', () => {
+  const s = setup();
+  s.player.push(pcm(250));
+  s.player.push(pcm(100));
+  s.player.end(901);
+  assert.equal(s.buffers.length, 2);
+  s.buffers[0].end();
+  assert.deepEqual(s.completions, []);
+  s.buffers[1].end();
+  assert.deepEqual(s.completions, [901]);
+  assert.equal(s.stats[0].turn, 0);
 });
 
 test('new emotion preserves previous turn tail and stats stay associated with each turn', () => {
@@ -100,6 +116,7 @@ test('interrupt counts original chunks and ignores late or duplicate native call
   const s = setup();
   s.player.push(pcm(100)); s.player.push(pcm(150)); s.player.push(pcm(100));
   s.player.reset();
+  assert.deepEqual(s.completions, []);
   assert.equal(s.stats[0].dropped_chunks, 3);
   assert.equal(s.stats[0].played_ms, undefined);
   s.player.push(pcm(250)); s.player.end();
@@ -107,6 +124,16 @@ test('interrupt counts original chunks and ignores late or duplicate native call
   assert.equal(s.gates.at(-1), true);
   s.buffers[2].end(); s.buffers[2].end();
   assert.equal(s.stats.length, 2);
+});
+
+test('interrupt after speaking_end clears immediately without acknowledging playback', () => {
+  const s = setup();
+  s.player.push(pcm(50)); s.player.end(77);
+  s.player.reset('call_end');
+  assert.equal(s.clears, 1);
+  assert.deepEqual(s.completions, []);
+  s.buffers[0].end();
+  assert.deepEqual(s.completions, []);
 });
 
 test('background reset discards pending prebuffer and reports exactly once', () => {
@@ -127,9 +154,10 @@ test('silent turn and repeated speaking_end finish once', () => {
 test('enqueue failure clears playback and surfaces error', () => {
   const s = setup();
   s.driver.enqueue = () => { throw new Error('audio focus'); };
-  s.player.push(pcm(250));
+  s.player.push(pcm(50)); s.player.end(52);
   assert.equal(s.errors.length, 1);
   assert.equal(s.stats[0].end_reason, 'playback_error');
+  assert.deepEqual(s.completions, []);
   s.advance(300); assert.equal(s.gates.at(-1), false);
 });
 
