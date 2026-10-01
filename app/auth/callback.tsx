@@ -1,10 +1,12 @@
 import { SEMANTIC_COLORS } from "@/design-system";
 import { postOAuthToken } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
+import { getMyPage } from "@/api/userInfoApi";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import { setAuthTokens } from "@/utils/authTokenStorage";
+import { syncAuthenticatedDiagnosisRequirement } from "@/utils/diagnosisFlow";
 import { getAuthenticatedPath } from "@/utils/legalConsentFlow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -111,14 +113,28 @@ export default function OAuthCallbackScreen() {
           AsyncStorage.setItem("autoLogin", "true"),
         ]);
 
-        router.replace(
-          isNewUser
-            ? {
-                pathname: "/auth/terms",
-                params: { newUser: "true" },
-              }
-            : await getAuthenticatedPath(),
-        );
+        try {
+          const { data: profile } = await getMyPage();
+          const isDiagnosisRequired = !(
+            profile.diagnosisDate ||
+            profile.level ||
+            profile.levelName
+          );
+          await syncAuthenticatedDiagnosisRequirement(
+            profile.username,
+            isDiagnosisRequired,
+          );
+        } catch {
+          // 프로필 조회 실패가 OAuth 로그인 자체를 막지 않도록 다음 로그인에서 재시도한다.
+        }
+
+        const nextPath = isNewUser
+          ? {
+              pathname: "/auth/terms" as const,
+              params: { newUser: "true" },
+            }
+          : await getAuthenticatedPath();
+        router.replace(nextPath);
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
