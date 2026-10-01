@@ -8,6 +8,7 @@ import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
 import ScenarioTabs, {
   SCENARIO_TAB_GAP,
+  SCENARIO_TAB_HEIGHT,
   SCENARIO_TAB_WIDTH,
 } from "@/components/train/ScenarioTabs";
 import SearchIconButton from "@/components/common/SearchIconButton";
@@ -162,8 +163,7 @@ export default function List() {
         horizontal
         showsHorizontalScrollIndicator={false}
         bounces={false}
-        className="h-[53px]"
-        style={{ flexGrow: 0 }}
+        style={{ flexGrow: 0, height: SCENARIO_TAB_HEIGHT }}
         contentContainerStyle={{ paddingHorizontal: tabHorizontalPadding }}
       >
         <ScenarioTabs
@@ -171,7 +171,6 @@ export default function List() {
           onChange={selectTab}
           pageWidth={pageWidth}
           tabWidth={tabWidth}
-          fontScale={fontScale}
           scrollX={pagerScrollX}
         />
       </ScrollView>
