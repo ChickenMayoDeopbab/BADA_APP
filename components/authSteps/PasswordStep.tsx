@@ -10,6 +10,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
+  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,11 +18,13 @@ import {
 } from "react-native";
 
 type PasswordProps = {
+  inputTranslateY: Animated.Value;
   onPrev: () => void;
   onNext: () => void;
 };
 
 export default function PasswordStep({
+  inputTranslateY,
   onPrev,
   onNext,
 }: PasswordProps) {
@@ -44,7 +47,10 @@ export default function PasswordStep({
 
   return (
     <View>
-      <View className="mb-5">
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
         <Controller
           control={control}
           name="password"
@@ -109,7 +115,7 @@ export default function PasswordStep({
             />
           )}
         />
-      </View>
+      </Animated.View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
