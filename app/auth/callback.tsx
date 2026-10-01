@@ -11,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type CallbackStatus = "loading" | "error";
@@ -25,6 +25,37 @@ type OAuthCallbackParams = {
 
 const getFirstParam = (value?: string | string[]): string | undefined =>
   Array.isArray(value) ? value[0] : value;
+
+const OAUTH_EXCHANGE_DEDUPLICATION_MS = 10_000;
+const oauthTokenExchangeByCode = new Map<
+  string,
+  ReturnType<typeof postOAuthToken>
+>();
+
+/** 같은 OAuth 콜백이 딥 링크와 인증 세션 반환값으로 중복 처리되지 않게 한다. */
+const exchangeOAuthCodeOnce = (code: string) => {
+  const pendingExchange = oauthTokenExchangeByCode.get(code);
+  if (pendingExchange) return pendingExchange;
+
+  const exchange = postOAuthToken({ code });
+  oauthTokenExchangeByCode.set(code, exchange);
+  void exchange.then(
+    () => {
+      setTimeout(() => {
+        if (oauthTokenExchangeByCode.get(code) === exchange) {
+          oauthTokenExchangeByCode.delete(code);
+        }
+      }, OAUTH_EXCHANGE_DEDUPLICATION_MS);
+    },
+    () => {
+      if (oauthTokenExchangeByCode.get(code) === exchange) {
+        oauthTokenExchangeByCode.delete(code);
+      }
+    },
+  );
+
+  return exchange;
+};
 
 export default function OAuthCallbackScreen() {
   const params = useLocalSearchParams<OAuthCallbackParams>();
@@ -41,11 +72,18 @@ export default function OAuthCallbackScreen() {
     getFirstParam(params.message)?.trim();
 
   useEffect(() => {
+    // Android에서는 화면이 먼저 열린 뒤 딥 링크 파라미터가 채워질 수 있다.
+    // 파라미터가 준비되기 전에 잠그면 이후 code가 들어와도 토큰 교환이 실행되지 않는다.
+    if (!code && !oauthError) return;
+
     if (exchangeStartedRef.current) return;
     exchangeStartedRef.current = true;
 
     // iOS Safari View Controller가 딥 링크 뒤에 남지 않도록 닫는다.
-    void WebBrowser.dismissBrowser().catch(() => undefined);
+    // Android에는 dismissBrowser가 없어 호출 결과에 .catch를 사용하면 effect가 중단된다.
+    if (Platform.OS === "ios") {
+      void WebBrowser.dismissBrowser().catch(() => undefined);
+    }
 
     if (oauthError) {
       setErrorMessage(
@@ -56,15 +94,12 @@ export default function OAuthCallbackScreen() {
       return;
     }
 
-    if (!code) {
-      setErrorMessage("로그인 정보를 받지 못했어요. 다시 시도해 주세요.");
-      setStatus("error");
-      return;
-    }
+    if (!code) return;
+    const callbackCode = code;
 
     const completeOAuthLogin = async () => {
       try {
-        const response = await postOAuthToken({ code });
+        const response = await exchangeOAuthCodeOnce(callbackCode);
         const { accessToken, refreshToken, isNewUser } = response.data ?? {};
 
         if (!accessToken || !refreshToken) {
