@@ -10,10 +10,11 @@ import { RegisterFormValues } from "@/types/auth";
 import { markDiagnosisRequired } from "@/utils/diagnosisFlow";
 import { savePendingLegalConsent } from "@/utils/pendingLegalConsent";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import {
-  KeyboardAvoidingView,
+  Animated,
+  Keyboard,
   Platform,
   ScrollView,
   Text,
@@ -44,6 +45,7 @@ export default function SignupScreen() {
   const [step, setStep] = useState(1);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [signupError, setSignupError] = useState("");
+  const inputTranslateY = useRef(new Animated.Value(0)).current;
 
   const methods = useForm<RegisterFormValues>({
     defaultValues: {
@@ -93,6 +95,34 @@ export default function SignupScreen() {
     }
   };
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      Animated.timing(inputTranslateY, {
+        toValue: -80,
+        duration: Platform.OS === "ios" ? event.duration : 200,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (event) => {
+      Animated.timing(inputTranslateY, {
+        toValue: 0,
+        duration: Platform.OS === "ios" ? event.duration : 200,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [inputTranslateY]);
+
   if (isConsentVisible) {
     return (
       <SignupLegalConsentScreen
@@ -109,66 +139,64 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background-normal">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: topPadding,
+          paddingBottom: 32,
+          paddingHorizontal: 32,
+          width: "100%",
+          maxWidth: isTablet ? 430 : undefined,
+          alignSelf: "center",
+        }}
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingTop: topPadding,
-            paddingBottom: 32,
-            paddingHorizontal: 32,
-            width: "100%",
-            maxWidth: isTablet ? 430 : undefined,
-            alignSelf: "center",
-          }}
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View>
-            <BadaLogo width={70} height={32} />
-            <Text className="text-title1 font-bold text-label-strong">
-              회원가입
-            </Text>
-          </View>
+        <View>
+          <BadaLogo width={70} height={32} />
+          <Text className="text-title1 font-bold text-label-strong">
+            회원가입
+          </Text>
+        </View>
 
-          <View style={{ marginTop: formTopMargin }}>
-            <FormProvider {...methods}>
-              {step === 1 && (
-                <UsernameStep
-                  onNext={() => setStep(2)}
-                />
-              )}
-              {step === 2 && (
-                <PasswordStep
-                  onPrev={() => setStep(1)}
-                  onNext={() => setStep(3)}
-                />
-              )}
-              {step === 3 && (
-                <EmailStep
-                  onPrev={() => {
-                    setSignupError("");
-                    setStep(2);
-                  }}
-                  onNext={() => {
-                    setSignupError("");
-                    setIsConsentVisible(true);
-                    return true;
-                  }}
-                  isSent={isEmailSent}
-                  onSentChange={setIsEmailSent}
-                  isSubmitting={isSigningUp}
-                  submitError={signupError}
-                  onFormChange={() => setSignupError("")}
-                />
-              )}
-            </FormProvider>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <View style={{ marginTop: formTopMargin }}>
+          <FormProvider {...methods}>
+            {step === 1 && (
+              <UsernameStep
+                inputTranslateY={inputTranslateY}
+                onNext={() => setStep(2)}
+              />
+            )}
+            {step === 2 && (
+              <PasswordStep
+                inputTranslateY={inputTranslateY}
+                onPrev={() => setStep(1)}
+                onNext={() => setStep(3)}
+              />
+            )}
+            {step === 3 && (
+              <EmailStep
+                inputTranslateY={inputTranslateY}
+                onPrev={() => {
+                  setSignupError("");
+                  setStep(2);
+                }}
+                onNext={() => {
+                  setSignupError("");
+                  setIsConsentVisible(true);
+                  return true;
+                }}
+                isSent={isEmailSent}
+                onSentChange={setIsEmailSent}
+                isSubmitting={isSigningUp}
+                submitError={signupError}
+                onFormChange={() => setSignupError("")}
+              />
+            )}
+          </FormProvider>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

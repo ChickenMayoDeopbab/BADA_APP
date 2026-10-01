@@ -24,6 +24,48 @@ const OAUTH_LOGIN_PATHS: Record<OAuthProvider, string> = {
   apple: "/api/v1/auth/apple",
 };
 
+const ANDROID_CALLBACK_GRACE_PERIOD_MS = 1_000;
+
+/** Android 브라우저가 앱을 먼저 활성화한 뒤 보내는 늦은 딥 링크를 기다린다. */
+const waitForAndroidOAuthCallback = async (
+  loginUrl: string,
+  redirectUrl: string,
+): Promise<string | undefined> => {
+  let receivedCallbackUrl: string | undefined;
+  let resolveCallback: (url: string) => void = () => undefined;
+  const callbackPromise = new Promise<string>((resolve) => {
+    resolveCallback = resolve;
+  });
+  const subscription = Linking.addEventListener("url", ({ url }) => {
+    if (url !== redirectUrl && !url.startsWith(`${redirectUrl}?`)) return;
+
+    receivedCallbackUrl = url;
+    resolveCallback(url);
+  });
+
+  try {
+    const result = await WebBrowser.openAuthSessionAsync(
+      loginUrl,
+      redirectUrl,
+    );
+    if (result.type === "success") return result.url;
+    if (receivedCallbackUrl) return receivedCallbackUrl;
+
+    return await new Promise<string | undefined>((resolve) => {
+      const timeout = setTimeout(
+        () => resolve(undefined),
+        ANDROID_CALLBACK_GRACE_PERIOD_MS,
+      );
+      void callbackPromise.then((url) => {
+        clearTimeout(timeout);
+        resolve(url);
+      });
+    });
+  } finally {
+    subscription.remove();
+  }
+};
+
 export const getOAuthLoginUrl = (provider: OAuthProvider): string => {
   const url = apiClient.getUri({
     url: OAUTH_LOGIN_PATHS[provider],
@@ -54,12 +96,11 @@ export const openOAuthLogin = async (
   }
 
   // Android는 Custom Tabs 인증 세션을 사용한다.
-  await WebBrowser.openAuthSessionAsync(
+  // 브라우저별 앱 활성화/딥 링크 순서 차이까지 처리한 콜백 URL을 반환한다.
+  return waitForAndroidOAuthCallback(
     url,
     Linking.createURL("auth/callback", { scheme: "bada" }),
   );
-
-  // Android는 Linking 이벤트로 Expo Router가 콜백 화면을 연다.
 };
 
 export const getGoogleLogin = (): Promise<string | undefined> =>

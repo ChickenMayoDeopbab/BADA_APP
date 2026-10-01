@@ -162,6 +162,7 @@ module.exports = {
         },
       ],
       "expo-asset",
+      "./plugins/withAndroidOAuthIntent",
     ],
     experiments: {
       typedRoutes: true,
