@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
+  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,10 +17,14 @@ import {
 } from "react-native";
 
 type UsernameProps = {
+  inputTranslateY: Animated.Value;
   onNext: () => void;
 };
 
-export default function UsernameStep({ onNext }: UsernameProps) {
+export default function UsernameStep({
+  inputTranslateY,
+  onNext,
+}: UsernameProps) {
   const { width } = useWindowDimensions();
   const codeButtonWidth = Math.min(Math.max(width * 0.31, 116), 128);
   const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
@@ -88,7 +93,10 @@ export default function UsernameStep({ onNext }: UsernameProps) {
 
   return (
     <View>
-      <View className="mb-5">
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <Controller
@@ -145,7 +153,7 @@ export default function UsernameStep({ onNext }: UsernameProps) {
             />
           )}
         />
-      </View>
+      </Animated.View>
 
       <View style={{ height: 24 }} className="mb-6" />
 
