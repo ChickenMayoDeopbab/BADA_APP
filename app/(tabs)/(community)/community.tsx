@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
+  LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -35,6 +36,11 @@ interface CommunityTabItem {
   label: string;
 }
 
+type CommunityTabLabelSize = {
+  width: number;
+  height: number;
+};
+
 interface CommunityFeedProps {
   pageWidth: number;
   postsQuery: CommunityPostsQuery;
@@ -46,8 +52,9 @@ const TABS: CommunityTabItem[] = [
   { key: "mine", label: "내 글" },
 ];
 
-const TAB_WIDTH = 80;
-const TAB_GAP = 15;
+const TAB_WIDTH = 76;
+const TAB_GAP = 0;
+const TAB_HEIGHT = 44;
 
 function CommunityFeed({
   pageWidth,
@@ -138,6 +145,9 @@ export default function Community() {
   const pagerRef = useRef<FlatList<CommunityTabItem>>(null);
   const pagerScrollX = useRef(new Animated.Value(0)).current;
   const [selectedTab, setSelectedTab] = useState<CommunityTab>("all");
+  const [tabLabelSizes, setTabLabelSizes] = useState<
+    Partial<Record<CommunityTab, CommunityTabLabelSize>>
+  >({});
 
   useEffect(() => {
     const index = TABS.findIndex((tab) => tab.key === selectedTab);
@@ -153,11 +163,40 @@ export default function Community() {
   const allPostsQuery = useCommunityPosts({ mode: "all" });
   const myPostsQuery = useCommunityPosts({ mode: "mine" });
 
+  const tabLabelWidths = TABS.map(
+    (tab) => tabLabelSizes[tab.key]?.width ?? 0,
+  );
+  const hasMeasuredTabLabels = tabLabelWidths.every((width) => width > 0);
   const indicatorTranslateX = pagerScrollX.interpolate({
     inputRange: [0, pageWidth],
     outputRange: [0, tabWidth + TAB_GAP],
     extrapolate: "clamp",
   });
+  const indicatorScaleX = pagerScrollX.interpolate({
+    inputRange: [0, pageWidth],
+    outputRange: tabLabelWidths.map((width) => width / tabWidth),
+    extrapolate: "clamp",
+  });
+  const indicatorTop =
+    Math.max(
+      ...TABS.map((tab) => tabLabelSizes[tab.key]?.height ?? 0),
+    ) + 2;
+
+  /** 커뮤니티 탭 글자의 실제 크기를 저장해 밑줄 애니메이션에 사용한다. */
+  const handleTabLabelLayout = (
+    tab: CommunityTab,
+    event: LayoutChangeEvent,
+  ) => {
+    const { width, height } = event.nativeEvent.layout;
+    setTabLabelSizes((previous) => {
+      const current = previous[tab];
+      if (current?.width === width && current.height === height) {
+        return previous;
+      }
+
+      return { ...previous, [tab]: { width, height } };
+    });
+  };
 
   const openPost = (post: CommunityPostSummary) => {
     router.push({
@@ -205,11 +244,10 @@ export default function Community() {
         horizontal
         showsHorizontalScrollIndicator={false}
         bounces={false}
-        className="h-[53px]"
-        style={{ flexGrow: 0 }}
+        style={{ flexGrow: 0, height: TAB_HEIGHT }}
         contentContainerStyle={{ paddingHorizontal: tabHorizontalPadding }}
       >
-        <View className="relative h-[53px]">
+        <View className="relative" style={{ height: TAB_HEIGHT }}>
           <View className="flex-row" style={{ gap: TAB_GAP }}>
             {TABS.map((tab, index) => {
               const selected = tab.key === selectedTab;
@@ -230,36 +268,47 @@ export default function Community() {
                   accessibilityState={{ selected }}
                   onPress={() => selectTab(tab.key)}
                   className="items-center"
-                  style={{ width: tabWidth }}
+                  style={{ width: tabWidth, height: TAB_HEIGHT }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-headline2 font-medium text-line-normal"
-                    style={{ width: tabWidth }}
-                  >
-                    {tab.label}
-                  </Text>
-                  <Animated.Text
-                    numberOfLines={1}
-                    pointerEvents="none"
-                    className="absolute text-center text-headline2 font-medium text-green-40"
-                    style={{ width: tabWidth, opacity: activeTextOpacity }}
-                  >
-                    {tab.label}
-                  </Animated.Text>
+                  <View className="relative items-center">
+                    <Text
+                      numberOfLines={1}
+                      className="text-center text-headline2 font-medium text-line-normal"
+                      onLayout={(event) =>
+                        handleTabLabelLayout(tab.key, event)
+                      }
+                    >
+                      {tab.label}
+                    </Text>
+                    <Animated.Text
+                      numberOfLines={1}
+                      pointerEvents="none"
+                      className="absolute text-center text-headline2 font-medium text-green-40"
+                      style={{ opacity: activeTextOpacity }}
+                    >
+                      {tab.label}
+                    </Animated.Text>
+                  </View>
                 </Pressable>
               );
             })}
           </View>
-          <Animated.View
-            pointerEvents="none"
-            className="absolute h-0.5 bg-green-40"
-            style={{
-              top: Math.min(45, 8 + 23.4 * fontScale),
-              width: tabWidth,
-              transform: [{ translateX: indicatorTranslateX }],
-            }}
-          />
+          {hasMeasuredTabLabels && (
+            <Animated.View
+              pointerEvents="none"
+              className="absolute"
+              style={{
+                top: indicatorTop,
+                width: tabWidth,
+                transform: [{ translateX: indicatorTranslateX }],
+              }}
+            >
+              <Animated.View
+                className="h-0.5 w-full rounded-pill bg-green-40"
+                style={{ transform: [{ scaleX: indicatorScaleX }] }}
+              />
+            </Animated.View>
+          )}
         </View>
       </ScrollView>
 
