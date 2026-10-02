@@ -11,6 +11,7 @@ import { RegisterFormValues } from "@/types/auth";
 import { useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
+  Animated,
   Text,
   TextInput,
   TouchableOpacity,
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 
 type EmailProps = {
+  inputTranslateY: Animated.Value;
   onPrev: () => void;
   onNext: () => boolean | Promise<boolean>;
   isSent: boolean;
@@ -29,6 +31,7 @@ type EmailProps = {
 };
 
 export default function EmailStep({
+  inputTranslateY,
   onPrev,
   onNext,
   isSent,
@@ -113,7 +116,10 @@ export default function EmailStep({
 
   return (
     <View>
-      <View className="mb-5">
+      <Animated.View
+        className="mb-5"
+        style={{ transform: [{ translateY: inputTranslateY }] }}
+      >
         <View className="flex-row items-start gap-x-3">
           <View className="flex-1">
             <Controller
@@ -177,7 +183,7 @@ export default function EmailStep({
             />
           )}
         />
-      </View>
+      </Animated.View>
 
       <View style={{ height: 24 }} className="mb-6" />
 

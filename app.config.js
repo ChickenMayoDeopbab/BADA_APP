@@ -61,6 +61,7 @@ module.exports = {
     },
     plugins: [
       "expo-router",
+      "./plugins/withPodfileFixes",
       ...(FIREBASE_PUSH_ENABLED
         ? [
             [
@@ -162,6 +163,7 @@ module.exports = {
         },
       ],
       "expo-asset",
+      "./plugins/withAndroidOAuthIntent",
     ],
     experiments: {
       typedRoutes: true,

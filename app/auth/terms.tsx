@@ -6,6 +6,8 @@ import SignupLegalConsentScreen from "@/components/auth/SignupLegalConsentScreen
 import { useAppAlert } from "@/context/AppAlertContext";
 import { getApiErrorMessage } from "@/api/error";
 import { getAuthenticatedAppPath } from "@/utils/legalConsentFlow";
+import { clearAuthTokens } from "@/utils/authTokenStorage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { BackHandler } from "react-native";
@@ -22,6 +24,17 @@ export default function OAuthLegalConsentScreen() {
     );
     return () => subscription.remove();
   }, []);
+
+  /** 약관 동의를 취소하면 임시 OAuth 로그인 상태를 정리하고 로그인 화면으로 돌아간다. */
+  const handleBack = async () => {
+    if (isSubmitting) return;
+
+    await Promise.all([
+      clearAuthTokens(),
+      AsyncStorage.removeItem("autoLogin"),
+    ]);
+    router.replace("/auth");
+  };
 
   const submitConsents = async (sensitiveInformationAgreed: boolean) => {
     if (isSubmitting) return;
@@ -66,10 +79,10 @@ export default function OAuthLegalConsentScreen() {
         description="필수 항목에 동의하면 바다를 시작할 수 있어요."
         heading="서비스 이용을 위해 약관을 확인해 주세요"
         isSubmitting={isSubmitting}
+        onBack={() => void handleBack()}
         onConfirm={(sensitiveInformationAgreed) =>
           void submitConsents(sensitiveInformationAgreed)
         }
-        showBack={false}
       />
     </>
   );
