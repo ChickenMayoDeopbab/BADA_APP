@@ -18,6 +18,37 @@ https://github.com/ChickenMayoDeopbab/BADA_FASTAPI<br>
 https://github.com/ChickenMayoDeopbab/BADA_SPRING_SERVER<br>
 
 <br>
+
+# iOS 로컬 아카이브 절차
+`ios/` 폴더는 git에 포함되지 않고 `expo prebuild`로 생성됩니다.<br>
+pull만 받고 예전 `ios/`로 아카이브하면 config plugin 변경(예: iOS 27 Scene 생명주기)이 빠진 채 제출되므로 아래 순서를 반드시 지켜주세요.<br>
+
+**사전 준비**
+- 프로젝트 루트에 `GoogleService-Info.plist` (Firebase 콘솔에서 받은 파일)
+- `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_AI_API_URL`이 `eas.json`의 production 값과 같은지 확인
+
+**절차**
+1. 최신 코드 받기 및 의존성 설치
+   ```bash
+   git pull
+   npm install
+   ```
+2. `ios/` 다시 생성 및 점검 (기존 `ios/`를 삭제하고 다시 만든 뒤 `ios:check`까지 실행)
+   ```bash
+   npm run ios:prebuild
+   ```
+   `ios:check`가 실패하면 출력된 누락 항목을 확인하고 다시 실행합니다.
+3. Xcode에서 `ios/app.xcworkspace`를 열고 빌드 번호를 App Store Connect의 마지막 빌드보다 크게 설정
+4. Product > Archive
+5. 아카이브 결과물에 Scene 구성이 들어갔는지 확인
+   ```bash
+   /usr/libexec/PlistBuddy -c 'Print :UIApplicationSceneManifest' \
+     "<아카이브 경로>.xcarchive/Products/Applications/app.app/Info.plist"
+   ```
+   `Does Not Exist`가 출력되면 업로드하지 말고 2번부터 다시 진행합니다.
+6. Organizer에서 업로드
+
+<br>
 <br>
 <br>
 <br>
