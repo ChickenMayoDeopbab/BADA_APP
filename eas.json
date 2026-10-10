@@ -27,6 +27,9 @@
       "android": {
         "buildType": "app-bundle"
       },
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://spring.chickenmayo.kr",
         "EXPO_PUBLIC_AI_API_URL": "https://fastapi.chickenmayo.kr",
