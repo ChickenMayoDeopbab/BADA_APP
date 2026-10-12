@@ -7,10 +7,13 @@
     "reset-project": "node ./scripts/reset-project.js",
     "android": "node scripts/run-android.cjs",
     "ios": "expo run:ios",
+    "ios:prebuild": "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED=true expo prebuild --clean --platform ios && npm run ios:check",
+    "ios:check": "node scripts/check-ios-native.cjs",
     "web": "expo start --web",
     "lint": "expo lint",
     "test:api": "node --test tests/apiContract.test.cjs",
     "test:audio": "node --test tests/trainPlayback.test.cjs",
+    "test:ios": "node --test tests/iosSceneLifecycle.test.cjs tests/podfileFixes.test.cjs tests/iosNativeCheck.test.cjs",
     "postinstall": "patch-package"
   },
   "dependencies": {
