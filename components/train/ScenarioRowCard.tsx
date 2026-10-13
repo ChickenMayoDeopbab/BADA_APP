@@ -29,7 +29,7 @@ export default function ScenarioRowCard({
     <View className="w-full rounded-component" style={SURFACE_CARD_SHADOW}>
       <Pressable
         onPress={() => onPress(scenario)}
-        className="h-[72px] overflow-hidden rounded-component bg-background-normal active:opacity-90"
+        className="h-[72px] overflow-hidden rounded-component bg-fill-neutral active:opacity-90"
       >
       <ScenarioImage source={getScenarioThumbnail(scenario.scenario_image, scenario.category)} />
       <GradientOverlay
