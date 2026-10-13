@@ -1,11 +1,12 @@
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
-import LoadingIndicator from "@/components/common/LoadingIndicator";
 import CategoryChips from "@/components/train/CategoryChips";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import CustomScenarioBanner from "@/components/train/CustomScenarioBanner";
 import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
+import RecommendScenarioCardSkeleton from "@/components/train/skeleton/RecommendScenarioCardSkeleton";
+import ScenarioGridSkeleton from "@/components/train/skeleton/ScenarioGridSkeleton";
 import ScenarioTabs, {
   SCENARIO_TAB_GAP,
   SCENARIO_TAB_HEIGHT,
@@ -87,7 +88,10 @@ export default function List() {
     isFetching,
     refetch,
   } = useScenarios();
-  const { data: recommendedScenario } = useRecommendedScenario();
+  const {
+    data: recommendedScenario,
+    isPending: isRecommendationPending,
+  } = useRecommendedScenario();
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -173,11 +177,27 @@ export default function List() {
         />
       </ScrollView>
 
-      {/* 목록 로딩 중 */}
+      {/* 목록 로딩 중: 기본 제공 탭과 같은 배치로 자리만 채워 데이터 도착 시 레이아웃이 움직이지 않게 한다 */}
       {isPending && (
-        <View className="flex-1 items-center justify-center">
-          <LoadingIndicator />
-        </View>
+        <ScrollView
+          className="flex-1"
+          scrollEnabled={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <View className="px-8 pb-5">
+            <RecommendScenarioCardSkeleton />
+          </View>
+          <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
+            <Text className="text-headline2 font-bold text-label-normal">
+              시나리오
+            </Text>
+            <CategoryChips
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+            />
+            <ScenarioGridSkeleton />
+          </View>
+        </ScrollView>
       )}
 
       {/* 목록 조회 실패 */}
@@ -252,6 +272,11 @@ export default function List() {
                         scenario={recommendedScenario}
                         onPress={openScenarioDetail}
                       />
+                    </View>
+                  ) : item.value === "basic" && isRecommendationPending ? (
+                    // 추천은 별도 API라 늦게 오면 그리드가 밀리므로 자리를 먼저 잡아둔다
+                    <View className="px-8 pb-5">
+                      <RecommendScenarioCardSkeleton />
                     </View>
                   ) : null}
 
