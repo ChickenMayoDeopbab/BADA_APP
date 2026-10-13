@@ -1,11 +1,12 @@
 import CallBackground from "@/components/train/CallBackground";
+import ScriptHintBar from "@/components/train/ScriptHintBar";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
-import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import { ScriptHint, TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
 import { setMediaVolumeControlEnabled } from "@/utils/mediaVolumeControl";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -184,6 +185,7 @@ export default function Train() {
   const [isMeditationVideoVisible, setIsMeditationVideoVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
+  const [scriptHint, setScriptHint] = useState<ScriptHint | null>(null); // 다음 힌트가 올 때까지 유지
   const [seconds, setSeconds] = useState(0);
   const [calleeName, setCalleeName] = useState<string | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
@@ -240,6 +242,7 @@ export default function Train() {
       streamPcmChunk(data);
     },
     onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
+    onScriptHint: setScriptHint,
     onEmotion: beginPlayback,
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
@@ -337,6 +340,7 @@ export default function Train() {
       setIsMeditationVideoVisible(false);
       setIsScriptVisible(false);
       setTranscript([]);
+      setScriptHint(null);
       setSeconds(0);
       setCalleeName(null);
       setIsMuted(false);
@@ -603,6 +607,7 @@ export default function Train() {
                 ))}
               </ScrollView>
             )}
+            <ScriptHintBar hint={scriptHint} />
           </View>
         </View>
       )}
