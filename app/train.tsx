@@ -1,11 +1,12 @@
 import CallBackground from "@/components/train/CallBackground";
+import ScriptHintBar from "@/components/train/ScriptHintBar";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
-import { TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import { ScriptHint, TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
 import { setMediaVolumeControlEnabled } from "@/utils/mediaVolumeControl";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -184,6 +185,7 @@ export default function Train() {
   const [isMeditationVideoVisible, setIsMeditationVideoVisible] = useState(false);
   const [isScriptVisible, setIsScriptVisible] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
+  const [scriptHint, setScriptHint] = useState<ScriptHint | null>(null); // 다음 힌트가 올 때까지 유지
   const [seconds, setSeconds] = useState(0);
   const [calleeName, setCalleeName] = useState<string | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
@@ -240,6 +242,7 @@ export default function Train() {
       streamPcmChunk(data);
     },
     onTranscript: (turn) => setTranscript((prev) => [...prev, turn]),
+    onScriptHint: setScriptHint,
     onEmotion: beginPlayback,
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
@@ -337,6 +340,7 @@ export default function Train() {
       setIsMeditationVideoVisible(false);
       setIsScriptVisible(false);
       setTranscript([]);
+      setScriptHint(null);
       setSeconds(0);
       setCalleeName(null);
       setIsMuted(false);
@@ -574,7 +578,7 @@ export default function Train() {
             activeOpacity={0.8}
             style={styles.scriptHideButton}
           >
-            <Text className="text-body font-medium text-label-normal">스크립트 가리기</Text>
+            <Text className="text-body font-medium text-label-neutral">스크립트 가리기</Text>
           </TouchableOpacity>
           <View style={styles.scriptContainer}>
             {transcript.length === 0 ? (
@@ -587,6 +591,7 @@ export default function Train() {
               <ScrollView
                 ref={scriptScrollRef}
                 showsVerticalScrollIndicator={false}
+                contentContainerClassName="gap-y-[10px]"
                 onContentSizeChange={() =>
                   scriptScrollRef.current?.scrollToEnd({ animated: true })
                 }
@@ -594,15 +599,14 @@ export default function Train() {
                 {transcript.map((line, index) => (
                   <Text
                     key={index}
-                    className="text-label text-label-normal mb-3"
-                    style={{ lineHeight: 22 }}
+                    className="text-body font-medium text-label-neutral"
                   >
-                    <Text className="font-semibold">{roleToSpeaker(line.role)} : </Text>
-                    {line.text}
+                    {roleToSpeaker(line.role)} : {line.text}
                   </Text>
                 ))}
               </ScrollView>
             )}
+            <ScriptHintBar hint={scriptHint} />
           </View>
         </View>
       )}
@@ -667,17 +671,19 @@ const styles = StyleSheet.create({
   },
   scriptHideButton: {
     alignSelf: "center",
-    paddingHorizontal: 24,
+    alignItems: "center",
+    minWidth: 178,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(254,254,254,0.85)",
-    marginBottom: 16,
+    borderRadius: 12,
+    backgroundColor: SEMANTIC_COLORS.background.normal,
+    marginBottom: 8,
   },
   scriptContainer: {
     flex: 1,
-    borderRadius: 24,
-    padding: 20,
-    backgroundColor: "rgba(254,254,254,0.6)",
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: "rgba(254,254,254,0.72)",
   },
   overlay: {
     flex: 1,
