@@ -2,9 +2,10 @@ import { ScenarioInfo } from "@/api/types";
 import { ELEVATED_CARD_SHADOW } from "@/design-system/effects";
 import { getScenarioCover } from "@/utils/scenarioImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import GlassChip from "./GlassChip";
 import GradientOverlay from "./GradientOverlay";
+import ScenarioImage from "./ScenarioImage";
 import { CARD_TEXT_SHADOW } from "./cardTextShadow";
 
 interface RecommendScenarioCardProps {
@@ -27,13 +28,7 @@ export default function RecommendScenarioCard({
           onPress={() => onPress(scenario)}
           className="flex-1 overflow-hidden rounded-component bg-black active:opacity-90"
         >
-          <Image
-            source={getScenarioCover(scenario.scenario_image, scenario.category)}
-            // require() 에셋은 원본 크기가 인라인 스타일로 새어 컨테이너를 벗어난다.
-            // 크기를 명시해 컨테이너를 정확히 채운다(여백 없음, 넘치는 부분은 cover가 잘라냄).
-            style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
-            resizeMode="cover"
-          />
+          <ScenarioImage source={getScenarioCover(scenario.scenario_image, scenario.category)} />
           <GradientOverlay direction="bottom" style={{ top: "44%" }} />
 
           {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
