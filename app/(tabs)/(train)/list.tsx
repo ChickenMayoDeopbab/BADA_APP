@@ -87,9 +87,6 @@ export default function List() {
     isFetching,
     refetch,
   } = useScenarios();
-  // 카테고리를 고르면 API의 category 쿼리로 다시 조회한다.
-  // 전체 목록 쿼리는 커스텀·공유 탭과 추천 카드에서 계속 사용한다.
-  const categoryScenariosQuery = useScenarios(selectedCategory);
   const { data: recommendedScenario } = useRecommendedScenario();
 
   const basicScenarios = useMemo(
@@ -111,15 +108,16 @@ export default function List() {
     [scenarios],
   );
 
+  // 카테고리는 이미 받은 전체 목록에서 거른다.
+  // category API로 다시 조회하면 이미지 서명 URL이 새로 발급돼 같은 썸네일을 다시 내려받는다.
   const categorizedBasicScenarios = useMemo(() => {
     if (!selectedCategory) return basicScenarios;
 
-    return (categoryScenariosQuery.data ?? []).filter(
+    return basicScenarios.filter(
       (scenario) =>
-        !scenario.is_custom &&
         scenario.category?.trim().toLowerCase() === selectedCategory,
     );
-  }, [basicScenarios, categoryScenariosQuery.data, selectedCategory]);
+  }, [basicScenarios, selectedCategory]);
 
   const selectTab = (tab: ScenarioTabValue) => {
     const tabIndex = SCENARIO_TABS.findIndex((item) => item.value === tab);
@@ -269,32 +267,7 @@ export default function List() {
                       />
                     )}
 
-                    {item.value === "basic" &&
-                    selectedCategory &&
-                    categoryScenariosQuery.isPending ? (
-                      <LoadingIndicator className="py-10" />
-                    ) : item.value === "basic" &&
-                      selectedCategory &&
-                      categoryScenariosQuery.isError ? (
-                      <View className="items-center py-10 gap-y-3">
-                        <Text className="text-center text-label text-label-alternative">
-                          카테고리 시나리오를 불러오지 못했어요.
-                        </Text>
-                        <View className="w-[140px]">
-                          <CustomButton
-                            label={
-                              categoryScenariosQuery.isFetching
-                                ? "불러오는 중..."
-                                : "다시 불러오기"
-                            }
-                            tone="primary"
-                            variant="md"
-                            disabled={categoryScenariosQuery.isFetching}
-                            onPress={() => categoryScenariosQuery.refetch()}
-                          />
-                        </View>
-                      </View>
-                    ) : tabScenarios.length === 0 ? (
+                    {tabScenarios.length === 0 ? (
                       <Text className="py-10 text-center text-label text-label-alternative">
                         {item.value === "custom"
                           ? "아직 만든 커스텀 시나리오가 없습니다."
