@@ -21,6 +21,12 @@ export interface TranscriptTurn {
   text: string;
 }
 
+/** AI 턴마다 오는 다음 대답 힌트 (level 1=추천 문장, 2=조언, 3=힌트 없음) */
+export interface ScriptHint {
+  level: number;
+  text: string;
+}
+
 interface UseTrainWebSocketProps {
   sessionId: string | null;
   wsUrl: string | null; // Spring이 반환한 WS URL (토큰 미포함)
@@ -32,6 +38,7 @@ interface UseTrainWebSocketProps {
   onError?: (code: string) => void;
   onBinaryMessage?: (data: ArrayBuffer) => void;
   onTranscript?: (turn: TranscriptTurn) => void; // 실시간 대화 스크립트 수신
+  onScriptHint?: (hint: ScriptHint) => void; // 연습 횟수별 대답 힌트 수신
 }
 
 export interface UseTrainWebSocketReturn {
@@ -57,6 +64,7 @@ export function useTrainWebSocket({
   onError,
   onBinaryMessage,
   onTranscript,
+  onScriptHint,
 }: UseTrainWebSocketProps): UseTrainWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -71,6 +79,7 @@ export function useTrainWebSocket({
   const onErrorRef = useRef(onError);
   const onBinaryMessageRef = useRef(onBinaryMessage);
   const onTranscriptRef = useRef(onTranscript);
+  const onScriptHintRef = useRef(onScriptHint);
   const aiSpeakingRef = useRef(false);
   onEmotionRef.current = onEmotion;
   onSpeakingEndRef.current = onSpeakingEnd;
@@ -79,6 +88,7 @@ export function useTrainWebSocket({
   onErrorRef.current = onError;
   onBinaryMessageRef.current = onBinaryMessage;
   onTranscriptRef.current = onTranscript;
+  onScriptHintRef.current = onScriptHint;
 
   const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
@@ -149,6 +159,14 @@ export function useTrainWebSocket({
                 onTranscriptRef.current?.({
                   role: typeof msg.role === "string" ? msg.role : "",
                   text: msg.text,
+                });
+              }
+              break;
+            case "script_hint":
+              if (typeof msg.level === "number") {
+                onScriptHintRef.current?.({
+                  level: msg.level,
+                  text: typeof msg.text === "string" ? msg.text.trim() : "",
                 });
               }
               break;
