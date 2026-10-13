@@ -21,7 +21,7 @@ export default function ScenarioGridCard({
   return (
     <Pressable
       onPress={() => onPress(scenario)}
-      className="flex-1 aspect-square overflow-hidden rounded-control border border-line-alternative active:opacity-90"
+      className="flex-1 aspect-square overflow-hidden rounded-control border border-line-alternative bg-fill-neutral active:opacity-90"
     >
       <ScenarioImage source={getScenarioThumbnail(scenario.scenario_image, scenario.category)} />
       {/* 아래쪽 텍스트 가독성을 위한 스크림 */}
