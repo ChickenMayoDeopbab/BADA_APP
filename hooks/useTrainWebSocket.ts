@@ -113,13 +113,16 @@ export function useTrainWebSocket({
     if (!token) return;
 
     // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
-    const url = `${getWsBaseUrl()}/ws/voice/${sessionId}?token=${token}`;
+    // 토큰은 URL에 싣지 않는다(접속 로그에 남는다). 연결 직후 첫 프레임으로 보낸다.
+    const url = `${getWsBaseUrl()}/ws/voice/${sessionId}`;
     const ws = new WebSocket(url);
     // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
+      // 서버는 첫 프레임을 인증으로 읽는다 — 마이크 PCM 등 어떤 프레임보다 먼저 보낸다.
+      ws.send(JSON.stringify({ type: "auth", token }));
       setIsConnected(true);
       ws.send(JSON.stringify({ type: "playback_capabilities", completion_ack: true }));
       // keep-alive ping 30초마다
