@@ -1,4 +1,5 @@
 import { postSignup } from "@/api/authApi";
+import { OptionalLegalConsents } from "@/api/types";
 import { getApiErrorMessage } from "@/api/error";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import EmailStep from "@/components/authSteps/EmailStep";
@@ -60,7 +61,8 @@ export default function SignupScreen() {
     reValidateMode: "onChange",
   });
 
-  const handleSignup = async (sensitiveInformationAgreed: boolean) => {
+  /** 가입 완료 후 선택 동의를 보관하여 첫 로그인에서 서버에 등록한다. */
+  const handleSignup = async (consents: OptionalLegalConsents) => {
     const {
       email: rawEmail,
       password,
@@ -78,7 +80,7 @@ export default function SignupScreen() {
       await postSignup({ username, password, email, name });
       await Promise.all([
         markDiagnosisRequired(username),
-        savePendingLegalConsent(sensitiveInformationAgreed, username),
+        savePendingLegalConsent(consents, username),
       ]);
       router.replace("/auth/login");
       return true;
@@ -128,8 +130,8 @@ export default function SignupScreen() {
       <SignupLegalConsentScreen
         isSubmitting={isSigningUp}
         onBack={() => setIsConsentVisible(false)}
-        onConfirm={(sensitiveInformationAgreed) =>
-          void handleSignup(sensitiveInformationAgreed).then((succeeded) => {
+        onConfirm={(consents) =>
+          void handleSignup(consents).then((succeeded) => {
             if (!succeeded) setIsConsentVisible(false);
           })
         }
