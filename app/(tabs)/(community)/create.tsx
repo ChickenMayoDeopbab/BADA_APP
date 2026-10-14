@@ -15,11 +15,11 @@ import { useCommunityPostDraft } from "@/context/CommunityPostDraftContext";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { communityQueryKeys } from "@/hooks/useCommunityPosts";
 import { formatCommunityTimestamp } from "@/utils/community";
+import { pickSingleImage } from "@/utils/imagePicker";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialDesignIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import Octicons from "@expo/vector-icons/Octicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -193,14 +193,7 @@ export default function CreateCommunityPostScreen() {
 
     setIsPickingPhoto(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        allowsMultipleSelection: false,
-        quality: 1,
-        preferredAssetRepresentationMode:
-          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-      });
+      const result = await pickSingleImage();
 
       if (result.canceled) return;
       const asset = result.assets[0];
