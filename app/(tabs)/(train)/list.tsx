@@ -1,11 +1,12 @@
 import { ScenarioCategory, ScenarioInfo } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
-import LoadingIndicator from "@/components/common/LoadingIndicator";
 import CategoryChips from "@/components/train/CategoryChips";
 import GradientOverlay from "@/components/train/GradientOverlay";
 import CustomScenarioBanner from "@/components/train/CustomScenarioBanner";
 import RecommendScenarioCard from "@/components/train/RecommendScenarioCard";
 import ScenarioGridCard from "@/components/train/ScenarioGridCard";
+import RecommendScenarioCardSkeleton from "@/components/train/skeleton/RecommendScenarioCardSkeleton";
+import ScenarioGridSkeleton from "@/components/train/skeleton/ScenarioGridSkeleton";
 import ScenarioTabs, {
   SCENARIO_TAB_GAP,
   SCENARIO_TAB_HEIGHT,
@@ -87,10 +88,10 @@ export default function List() {
     isFetching,
     refetch,
   } = useScenarios();
-  // 카테고리를 고르면 API의 category 쿼리로 다시 조회한다.
-  // 전체 목록 쿼리는 커스텀·공유 탭과 추천 카드에서 계속 사용한다.
-  const categoryScenariosQuery = useScenarios(selectedCategory);
-  const { data: recommendedScenario } = useRecommendedScenario();
+  const {
+    data: recommendedScenario,
+    isPending: isRecommendationPending,
+  } = useRecommendedScenario();
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -111,15 +112,16 @@ export default function List() {
     [scenarios],
   );
 
+  // 카테고리는 이미 받은 전체 목록에서 거른다.
+  // category API로 다시 조회하면 이미지 서명 URL이 새로 발급돼 같은 썸네일을 다시 내려받는다.
   const categorizedBasicScenarios = useMemo(() => {
     if (!selectedCategory) return basicScenarios;
 
-    return (categoryScenariosQuery.data ?? []).filter(
+    return basicScenarios.filter(
       (scenario) =>
-        !scenario.is_custom &&
         scenario.category?.trim().toLowerCase() === selectedCategory,
     );
-  }, [basicScenarios, categoryScenariosQuery.data, selectedCategory]);
+  }, [basicScenarios, selectedCategory]);
 
   const selectTab = (tab: ScenarioTabValue) => {
     const tabIndex = SCENARIO_TABS.findIndex((item) => item.value === tab);
@@ -175,11 +177,27 @@ export default function List() {
         />
       </ScrollView>
 
-      {/* 목록 로딩 중 */}
+      {/* 목록 로딩 중: 기본 제공 탭과 같은 배치로 자리만 채워 데이터 도착 시 레이아웃이 움직이지 않게 한다 */}
       {isPending && (
-        <View className="flex-1 items-center justify-center">
-          <LoadingIndicator />
-        </View>
+        <ScrollView
+          className="flex-1"
+          scrollEnabled={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <View className="px-8 pb-5">
+            <RecommendScenarioCardSkeleton />
+          </View>
+          <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
+            <Text className="text-headline2 font-bold text-label-normal">
+              시나리오
+            </Text>
+            <CategoryChips
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+            />
+            <ScenarioGridSkeleton />
+          </View>
+        </ScrollView>
       )}
 
       {/* 목록 조회 실패 */}
@@ -255,6 +273,11 @@ export default function List() {
                         onPress={openScenarioDetail}
                       />
                     </View>
+                  ) : item.value === "basic" && isRecommendationPending ? (
+                    // 추천은 별도 API라 늦게 오면 그리드가 밀리므로 자리를 먼저 잡아둔다
+                    <View className="px-8 pb-5">
+                      <RecommendScenarioCardSkeleton />
+                    </View>
                   ) : null}
 
                   <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
@@ -269,32 +292,7 @@ export default function List() {
                       />
                     )}
 
-                    {item.value === "basic" &&
-                    selectedCategory &&
-                    categoryScenariosQuery.isPending ? (
-                      <LoadingIndicator className="py-10" />
-                    ) : item.value === "basic" &&
-                      selectedCategory &&
-                      categoryScenariosQuery.isError ? (
-                      <View className="items-center py-10 gap-y-3">
-                        <Text className="text-center text-label text-label-alternative">
-                          카테고리 시나리오를 불러오지 못했어요.
-                        </Text>
-                        <View className="w-[140px]">
-                          <CustomButton
-                            label={
-                              categoryScenariosQuery.isFetching
-                                ? "불러오는 중..."
-                                : "다시 불러오기"
-                            }
-                            tone="primary"
-                            variant="md"
-                            disabled={categoryScenariosQuery.isFetching}
-                            onPress={() => categoryScenariosQuery.refetch()}
-                          />
-                        </View>
-                      </View>
-                    ) : tabScenarios.length === 0 ? (
+                    {tabScenarios.length === 0 ? (
                       <Text className="py-10 text-center text-label text-label-alternative">
                         {item.value === "custom"
                           ? "아직 만든 커스텀 시나리오가 없습니다."

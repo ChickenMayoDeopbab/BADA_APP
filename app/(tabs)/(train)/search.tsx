@@ -1,8 +1,8 @@
 import SearchBox from "@/components/common/SearchBox";
-import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import RecentSearchChips from "@/components/train/RecentSearchChips";
 import ScenarioRowCard from "@/components/train/ScenarioRowCard";
+import ScenarioRowListSkeleton from "@/components/train/skeleton/ScenarioRowListSkeleton";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
 import { useScenarios } from "@/hooks/useScenarios";
 import { openScenarioDetail } from "@/utils/scenarioNavigation";
@@ -68,19 +68,17 @@ export default function Search() {
         </View>
       </View>
 
-      {/* 시나리오 목록 로딩 중 */}
-      {isPending ? (
-        <View className="flex-1 items-center justify-center">
-          <LoadingIndicator />
-        </View>
-      ) : submittedKeyword ? (
+      {/* 검색 전에는 최근 검색어(로컬 데이터)를 바로 보여주고, 검색 후 목록 로딩 중이면 결과 자리에 스켈레톤 */}
+      {submittedKeyword ? (
         <ScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ gap: 4, paddingHorizontal: 21, paddingVertical: 12 }}
         >
-          {results.length === 0 ? (
+          {isPending ? (
+            <ScenarioRowListSkeleton />
+          ) : results.length === 0 ? (
             <Text className="py-10 text-center text-label text-label-alternative">
               {isError
                 ? "시나리오 목록을 불러오지 못했습니다."
