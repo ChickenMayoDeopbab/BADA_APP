@@ -16,6 +16,7 @@ import {
 } from "@/constants/profileValidation";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useProfileImage } from "@/hooks/useProfileImage";
+import { useProfileImageConsentGuard } from "@/hooks/useProfileImageConsentGuard";
 import { setAuthenticatedUsername } from "@/utils/diagnosisFlow";
 import { prepareProfileImageForUpload } from "@/utils/profileImageProcessing";
 import { Ionicons } from "@expo/vector-icons";
@@ -100,6 +101,7 @@ export default function ProfileEditScreen() {
   const checkRequest = useRef(0);
   const saving = useRef(false);
   const savedImage = useProfileImage(myPage?.s3Key);
+  const ensureProfileImageConsent = useProfileImageConsentGuard();
 
   const loadProfile = useCallback(async () => {
     setIsLoading(true);
@@ -269,6 +271,8 @@ export default function ProfileEditScreen() {
     let stage: "upload" | "profile" =
       selectedImage && !uploadedS3Key ? "upload" : "profile";
     try {
+      // 시스템 선택기에서 복원한 사진과 업로드 재시도도 동의를 확인한다.
+      if (selectedImage && !(await ensureProfileImageConsent())) return;
       let nextS3Key = uploadedS3Key ?? myPage.s3Key ?? undefined;
       if (selectedImage && !uploadedS3Key) {
         setIsUploading(true);

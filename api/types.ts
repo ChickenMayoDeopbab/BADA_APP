@@ -87,6 +87,11 @@ export interface AcceptLegalConsentRequest {
   profileImageAgreed: boolean;
 }
 
+export type OptionalLegalConsents = Pick<
+  AcceptLegalConsentRequest,
+  "sensitiveInformationAgreed" | "profileImageAgreed"
+>;
+
 export type OAuthProvider = 'google' | 'naver' | 'apple';
 
 export interface OAuthCodeRequest {
