@@ -19,9 +19,9 @@ import { useProfileImage } from "@/hooks/useProfileImage";
 import { useProfileImageConsentGuard } from "@/hooks/useProfileImageConsentGuard";
 import { setAuthenticatedUsername } from "@/utils/diagnosisFlow";
 import { prepareProfileImageForUpload } from "@/utils/profileImageProcessing";
+import { getPendingImagePickerResult, pickSingleImage } from "@/utils/imagePicker";
 import { Ionicons } from "@expo/vector-icons";
 import FontAsweome5 from "@expo/vector-icons/FontAwesome5";
-import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -196,14 +196,7 @@ export default function ProfileEditScreen() {
     try {
       // Android Photo Picker와 iOS PHPicker는 전체 사진 권한 없이 선택한 파일의
       // 앱 캐시 URI를 반환하므로 scoped storage와 제한된 사진 권한에 안전하다.
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        allowsMultipleSelection: false,
-        quality: 1,
-        preferredAssetRepresentationMode:
-          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-      });
+      const result = await pickSingleImage();
 
       if (result.canceled) return;
       const asset = result.assets[0];
@@ -226,7 +219,7 @@ export default function ProfileEditScreen() {
     let active = true;
     // Android가 시스템 선택기 실행 중 MainActivity를 재생성한 경우에도
     // OS에 보관된 선택 결과를 복원한다.
-    void ImagePicker.getPendingResultAsync()
+    void getPendingImagePickerResult()
       .then((result) => {
         if (!active || !result) return;
         if (!("canceled" in result)) {
