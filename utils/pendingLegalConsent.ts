@@ -1,19 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { OptionalLegalConsents } from "@/api/types";
 
 const PENDING_LEGAL_CONSENT_KEY = "pendingLegalConsent";
 
-export interface PendingLegalConsent {
+export interface PendingLegalConsent extends OptionalLegalConsents {
   username: string | null;
-  sensitiveInformationAgreed: boolean;
 }
 
+/** 회원가입에서 선택한 동의 값을 첫 로그인까지 보관한다. */
 export const savePendingLegalConsent = async (
-  sensitiveInformationAgreed: boolean,
+  consents: OptionalLegalConsents,
   username: string | null = null,
 ): Promise<void> => {
   const pending: PendingLegalConsent = {
     username,
-    sensitiveInformationAgreed,
+    ...consents,
   };
   await AsyncStorage.setItem(
     PENDING_LEGAL_CONSENT_KEY,
@@ -30,9 +31,17 @@ export const getPendingLegalConsent = async (): Promise<
   try {
     const pending = JSON.parse(stored) as Partial<PendingLegalConsent>;
     if (typeof pending.sensitiveInformationAgreed !== "boolean") return null;
+    if (
+      pending.profileImageAgreed !== undefined &&
+      typeof pending.profileImageAgreed !== "boolean"
+    ) {
+      return null;
+    }
     return {
       username: typeof pending.username === "string" ? pending.username : null,
       sensitiveInformationAgreed: pending.sensitiveInformationAgreed,
+      // 이전 앱에서 저장한 값에는 이미지 동의가 없으므로 미동의로 처리한다.
+      profileImageAgreed: pending.profileImageAgreed ?? false,
     };
   } catch {
     return null;

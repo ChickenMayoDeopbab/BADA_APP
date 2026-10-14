@@ -138,7 +138,7 @@ export default function LoginScreen() {
             privacyPolicyAcknowledged: true,
             sensitiveInformationAgreed:
               pendingConsent.sensitiveInformationAgreed,
-            profileImageAgreed: false,
+            profileImageAgreed: pendingConsent.profileImageAgreed,
           });
           await clearPendingLegalConsent();
         } catch {
