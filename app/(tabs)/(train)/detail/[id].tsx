@@ -6,6 +6,7 @@ import Top from "@/components/common/Top";
 import { useAppAlert } from "@/context/AppAlertContext";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
+import ScenarioImage from "@/components/train/ScenarioImage";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
@@ -18,7 +19,6 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -329,16 +329,7 @@ export default function Detail() {
           <>
             <View className="flex-row gap-x-4">
               <View className="h-[163px] w-[163px] overflow-hidden rounded-control border border-line-alternative">
-                <Image
-                  source={getScenarioThumbnail(
-                    scenario.scenario_image,
-                    scenario.category,
-                  )}
-                  // require() 에셋은 원본 크기가 인라인 스타일로 새어 컨테이너를 벗어난다.
-                  // 크기를 명시해 컨테이너를 정확히 채운다(여백 없음, 넘치는 부분은 cover가 잘라냄).
-                  style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
-                  resizeMode="cover"
-                />
+                <ScenarioImage source={getScenarioThumbnail(scenario.scenario_image, scenario.category)} />
                 <GradientOverlay direction="bottom" style={{ top: "32%" }} />
                 {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
                 <View className="flex-1 items-end justify-end p-3">
