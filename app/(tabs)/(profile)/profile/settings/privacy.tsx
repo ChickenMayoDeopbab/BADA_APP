@@ -1,6 +1,7 @@
 import {
   acceptLegalConsents,
   getLegalConsentStatus,
+  withdrawProfileImageConsent,
   withdrawSensitiveInformationConsent,
 } from "@/api/legalConsentApi";
 import { LegalConsentStatus } from "@/api/types";
@@ -10,6 +11,7 @@ import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import {
   LegalDocumentSection,
+  PROFILE_IMAGE_SECTIONS,
   SENSITIVE_INFORMATION_SECTIONS,
   TERMS_OF_SERVICE_SECTIONS,
 } from "@/constants/legalDocuments";
@@ -77,7 +79,7 @@ function TextDocument({ text }: { text: string }) {
   );
 }
 
-type ExpandedDocument = "terms" | "privacy" | "sensitive" | null;
+type ExpandedDocument = "terms" | "privacy" | "sensitive" | "profileImage" | null;
 
 export default function PrivacySettingsScreen() {
   const { showAlert } = useAppAlert();
@@ -166,6 +168,59 @@ export default function PrivacySettingsScreen() {
     });
   };
 
+  /** 민감정보 동의를 유지하며 프로필 이미지 처리 동의를 등록한다. */
+  const agreeProfileImage = async () => {
+    if (isUpdating || !status) return;
+    setIsUpdating(true);
+    try {
+      const currentStatus = await getLegalConsentStatus();
+      const nextStatus = await acceptLegalConsents({
+        termsOfServiceAgreed: true,
+        privacyPolicyAcknowledged: true,
+        sensitiveInformationAgreed: currentStatus.sensitiveInformationAgreed,
+        profileImageAgreed: true,
+      });
+      setStatus(nextStatus);
+      showAlert({ title: "프로필 이미지 처리에 동의했어요" });
+    } catch {
+      showAlert({
+        title: "동의를 저장하지 못했어요",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  /** 프로필 이미지 동의를 철회하고 서버에서 반환한 상태를 표시한다. */
+  const withdrawProfileImage = async () => {
+    if (isUpdating || !status) return;
+    setIsUpdating(true);
+    try {
+      setStatus(await withdrawProfileImageConsent());
+      showAlert({ title: "프로필 이미지 처리 동의를 철회했어요" });
+    } catch {
+      showAlert({
+        title: "동의를 철회하지 못했어요",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  /** 이미지 동의 철회에 따른 이용 제한을 확인한 후 철회 요청을 보낸다. */
+  const confirmProfileImageWithdrawal = () => {
+    showAlert({
+      title: "프로필 이미지 처리 동의를 철회할까요?",
+      description: "철회 후 프로필 이미지를 등록하려면 다시 동의해야 합니다.",
+      cancelLabel: "취소",
+      confirmLabel: "철회하기",
+      confirmTone: "danger",
+      onConfirm: () => void withdrawProfileImage(),
+    });
+  };
+
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
       <Top title="개인정보 관리" back safeArea={false} />
@@ -207,6 +262,51 @@ export default function PrivacySettingsScreen() {
               <SectionDocument sections={SENSITIVE_INFORMATION_SECTIONS} />
             </AccordionContent>
           </View>
+          <View className="mx-4 h-px bg-line-alternative" />
+          <View className="overflow-hidden">
+            <DocumentRow
+              expanded={expandedDocument === "profileImage"}
+              label="프로필 이미지 처리 안내"
+              onPress={() => toggleDocument("profileImage")}
+            />
+            <AccordionContent expanded={expandedDocument === "profileImage"}>
+              <SectionDocument sections={PROFILE_IMAGE_SECTIONS} />
+            </AccordionContent>
+          </View>
+        </View>
+        <View className="gap-3 rounded-component bg-background-normal p-5">
+          <Text className="text-headline2 font-bold text-label-normal">
+            프로필 이미지 처리 동의
+          </Text>
+          {isLoading ? (
+            <View className="items-center py-5">
+              <LoadingIndicator size="small" />
+            </View>
+          ) : (
+            <>
+              <Text className="text-body leading-6 text-label-alternative">
+                {status?.profileImageAgreed
+                  ? "현재 동의 상태입니다. 개인정보 관리에서 동의를 철회할 수 있습니다."
+                  : "현재 미동의 상태입니다. 프로필 이미지를 등록하려면 동의가 필요합니다."}
+              </Text>
+              <CustomButton
+                label={
+                  isUpdating
+                    ? "처리 중..."
+                    : status?.profileImageAgreed
+                      ? "동의 철회하기"
+                      : "동의하기"
+                }
+                tone={status?.profileImageAgreed ? "neutral" : "primary"}
+                disabled={isUpdating || !status}
+                onPress={
+                  status?.profileImageAgreed
+                    ? confirmProfileImageWithdrawal
+                    : () => void agreeProfileImage()
+                }
+              />
+            </>
+          )}
         </View>
 
         <View className="gap-3 rounded-component bg-background-normal p-5">

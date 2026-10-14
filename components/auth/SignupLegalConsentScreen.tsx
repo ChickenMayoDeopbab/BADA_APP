@@ -1,8 +1,10 @@
+import { OptionalLegalConsents } from "@/api/types";
 import CustomButton from "@/components/common/CustomButton";
 import AccordionContent from "@/components/common/AccordionContent";
 import Top from "@/components/common/Top";
 import {
   LegalDocumentSection,
+  PROFILE_IMAGE_SECTIONS,
   SENSITIVE_INFORMATION_SECTIONS,
   TERMS_OF_SERVICE_SECTIONS,
 } from "@/constants/legalDocuments";
@@ -27,9 +29,10 @@ interface SignupLegalConsentScreenProps {
   confirmLabel?: string;
   description?: string;
   heading?: string;
+  initialConsents?: OptionalLegalConsents;
   isSubmitting: boolean;
   onBack?: () => void;
-  onConfirm: (sensitiveInformationAgreed: boolean) => void;
+  onConfirm: (consents: OptionalLegalConsents) => void;
   showBack?: boolean;
 }
 
@@ -145,12 +148,13 @@ function InlineTextDocument({ text }: { text: string }) {
   );
 }
 
-type ExpandedConsent = "terms" | "privacy" | "sensitive" | null;
+type ExpandedConsent = "terms" | "privacy" | "sensitive" | "profileImage" | null;
 
 export default function SignupLegalConsentScreen({
   confirmLabel = "동의하고 가입하기",
   description = "필수 항목에 동의하면 회원가입이 완료됩니다.",
   heading = "마지막으로 약관을 확인해 주세요",
+  initialConsents,
   isSubmitting,
   onBack,
   onConfirm,
@@ -161,12 +165,18 @@ export default function SignupLegalConsentScreen({
   const isTablet = width >= 600;
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [sensitiveAccepted, setSensitiveAccepted] = useState(false);
+  const [sensitiveAccepted, setSensitiveAccepted] = useState(
+    initialConsents?.sensitiveInformationAgreed ?? false,
+  );
+  const [isProfileImageAccepted, setIsProfileImageAccepted] = useState(
+    initialConsents?.profileImageAgreed ?? false,
+  );
   const [expandedConsent, setExpandedConsent] =
     useState<ExpandedConsent>(null);
 
   const requiredAccepted = termsAccepted && privacyAccepted;
-  const allAccepted = requiredAccepted && sensitiveAccepted;
+  const allAccepted =
+    requiredAccepted && sensitiveAccepted && isProfileImageAccepted;
 
   const toggleDocument = (document: Exclude<ExpandedConsent, null>) => {
     setExpandedConsent((current) =>
@@ -217,6 +227,7 @@ export default function SignupLegalConsentScreen({
                 setTermsAccepted(nextChecked);
                 setPrivacyAccepted(nextChecked);
                 setSensitiveAccepted(nextChecked);
+                setIsProfileImageAccepted(nextChecked);
               }}
             />
           </View>
@@ -262,10 +273,23 @@ export default function SignupLegalConsentScreen({
                 />
               </AccordionContent>
             </View>
+            <View className="overflow-hidden">
+              <ConsentRow
+                checked={isProfileImageAccepted}
+                expanded={expandedConsent === "profileImage"}
+                label="프로필 이미지 처리 선택 동의"
+                onToggle={() => setIsProfileImageAccepted((current) => !current)}
+                onOpen={() => toggleDocument("profileImage")}
+              />
+              <AccordionContent expanded={expandedConsent === "profileImage"}>
+                <InlineSectionDocument sections={PROFILE_IMAGE_SECTIONS} />
+              </AccordionContent>
+            </View>
           </View>
 
           <Text className="px-2 pt-3 text-label leading-6 text-label-alternative">
-            민감정보 처리는 동의하지 않아도 일반 서비스를 이용할 수 있습니다.
+            선택 항목에 동의하지 않아도 일반 서비스를 이용할 수 있습니다.
+            민감정보 미동의 시 진단·분석 기능이, 프로필 이미지 미동의 시 사진 등록이 제한됩니다.
           </Text>
         </ScrollView>
 
@@ -278,7 +302,12 @@ export default function SignupLegalConsentScreen({
             tone="primary"
             className="min-h-[58px]"
             disabled={!requiredAccepted || isSubmitting}
-            onPress={() => onConfirm(sensitiveAccepted)}
+            onPress={() =>
+              onConfirm({
+                sensitiveInformationAgreed: sensitiveAccepted,
+                profileImageAgreed: isProfileImageAccepted,
+              })
+            }
           />
         </View>
       </View>
