@@ -134,7 +134,7 @@ function ProfileScreen() {
           className="w-full items-center gap-6 rounded-component bg-background-normal px-[22px] py-[14px]"
           style={SURFACE_CARD_SHADOW}
         >
-          <View className="items-center gap-4">
+          <View className="w-full items-center gap-4">
             <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
               {profileImage.uri ? (
                 <>
@@ -192,33 +192,35 @@ function ProfileScreen() {
                   </Text>
                 </View>
               ) : null}
-              <View className="min-h-[18px] w-full flex-row items-center justify-center gap-[10px]">
-                <View className="min-w-0 flex-row items-center gap-0.5">
-                  <Ionicons
-                    name="person"
-                    size={18}
-                    color={SEMANTIC_COLORS.label.alternative}
-                  />
-                  <Text
-                    numberOfLines={1}
-                    className="max-w-[84px] text-label text-label-alternative"
-                  >
-                    {myPage?.username ?? ""}
-                  </Text>
-                </View>
-                <View className="w-px h-3 bg-line-neutral" />
-                <View className="min-w-0 shrink flex-row items-center gap-0.5">
-                  <Ionicons
-                    name="mail"
-                    size={18}
-                    color={SEMANTIC_COLORS.label.alternative}
-                  />
-                  <Text
-                    numberOfLines={1}
-                    className="max-w-[158px] shrink text-label text-label-alternative"
-                  >
-                    {myPage?.email ?? ""}
-                  </Text>
+              <View className="w-full items-center">
+                <View className="min-h-[18px] max-w-full flex-row items-center justify-center gap-[10px]">
+                  <View className="min-w-0 shrink flex-row items-center gap-0.5">
+                    <Ionicons
+                      name="person"
+                      size={18}
+                      color={SEMANTIC_COLORS.label.alternative}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      className="min-w-0 max-w-[84px] shrink text-label text-label-alternative"
+                    >
+                      {myPage?.username ?? ""}
+                    </Text>
+                  </View>
+                  <View className="w-px h-3 bg-line-neutral" />
+                  <View className="min-w-0 shrink flex-row items-center gap-0.5">
+                    <Ionicons
+                      name="mail"
+                      size={18}
+                      color={SEMANTIC_COLORS.label.alternative}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      className="min-w-0 max-w-[158px] shrink text-label text-label-alternative"
+                    >
+                      {myPage?.email ?? ""}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>

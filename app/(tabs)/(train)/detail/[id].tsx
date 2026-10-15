@@ -2,7 +2,6 @@ import { SEMANTIC_COLORS } from "@/design-system";
 import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
-import Top from "@/components/common/Top";
 import { useAppAlert } from "@/context/AppAlertContext";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
@@ -299,7 +298,6 @@ export default function Detail() {
         <View className="h-3 items-center justify-center">
           <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
         </View>
-        <Top title="훈련 자세히 보기" back onBack={handleDismiss} safeArea={false} />
 
         {/* 시나리오 정보를 아직 못 받았을 때 */}
         {isPending ? (
