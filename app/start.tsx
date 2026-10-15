@@ -10,13 +10,16 @@ import {
   DIFFICULTY_MAP,
   SPRING_PERSONALITY_MAP,
 } from "@/constants/train";
-import { usePendingCall } from "@/context/PendingCallContext";
+import { cancelTrainingCallSchedule, createTrainingCallSchedule } from "@/api/trainingCallApi";
+import { saveTrainingCallScenario } from "@/utils/trainingCallScenario";
+import { getApiErrorMessage } from "@/api/error";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -54,7 +57,8 @@ export default function Start() {
       scenarioImage?: string;
       category?: string;
     }>();
-  const { schedule } = usePendingCall();
+  const { showAlert } = useAppAlert();
+  const isSubmittingRef = useRef(false);
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
@@ -91,21 +95,24 @@ export default function Start() {
     return true;
   });
 
+  /** 즉시 발신은 세션을 생성하고 예약 발신은 서버에 시간 범위를 등록한다. */
   const handleComplete = async () => {
-    if (!id) return;
-    if (!(await ensureSensitiveConsent())) return;
-
-    const sessionConfig = {
-      scenarioId: parseInt(id, 10),
-      type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
-      aiPersonality: SPRING_PERSONALITY_MAP[attitude],
-      difficulty: DIFFICULTY_MAP[difficulty],
-    } as const;
-
-    // 발신 시간이 모두 0이면 즉시 세션 생성 후 훈련 시작
-    if (timeFrom === 0 && timeTo === 0) {
-      setIsCreatingSession(true);
-      try {
+    const scenarioId = Number(id);
+    if (
+      !Number.isSafeInteger(scenarioId) || scenarioId <= 0 ||
+      timeFrom > timeTo || isSubmittingRef.current
+    ) return;
+    isSubmittingRef.current = true;
+    setIsCreatingSession(true);
+    try {
+      if (!(await ensureSensitiveConsent())) return;
+      const sessionConfig = {
+        scenarioId,
+        type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
+        aiPersonality: SPRING_PERSONALITY_MAP[attitude],
+        difficulty: DIFFICULTY_MAP[difficulty],
+      } as const;
+      if (timeFrom === 0 && timeTo === 0) {
         const session = await createSession(sessionConfig);
         router.push({
           pathname: "/train",
@@ -113,28 +120,38 @@ export default function Start() {
             sessionId: session.sessionId,
             wsUrl: session.wsUrl,
             scenarioId: id,
-            title,
-            content,
-            isCustom,
-            scenarioImage,
-            category,
+            title, content, isCustom, scenarioImage, category,
           },
         });
-      } catch {
-        // 세션 생성 실패 시 버튼 재활성화
-        setIsCreatingSession(false);
+      } else {
+        const schedule = await createTrainingCallSchedule({
+          scenarioId,
+          type: sessionConfig.type,
+          aiPersonality: sessionConfig.aiPersonality,
+          minDelayMinutes: timeFrom,
+          maxDelayMinutes: timeTo,
+        });
+        try {
+          await saveTrainingCallScenario(schedule.scheduleId, scenarioId);
+        } catch {
+          await cancelTrainingCallSchedule(schedule.scheduleId);
+          throw new Error("예약 정보를 기기에 저장하지 못해 예약을 취소했어요. 다시 시도해 주세요.");
+        }
+        router.replace("/(tabs)/(home)/home");
+        showAlert({
+          title: "발신을 예약했어요",
+          description: `${timeFrom}분~${timeTo}분 사이에 전화가 와요. 앱을 다시 열어도 수신 중인 예약을 확인할 수 있어요.`,
+        });
       }
-      return;
+    } catch (error) {
+      showAlert({
+        title: "훈련을 시작하지 못했어요",
+        description: getApiErrorMessage(error, "네트워크 상태를 확인하고 다시 시도해 주세요."),
+      });
+    } finally {
+      isSubmittingRef.current = false;
+      setIsCreatingSession(false);
     }
-
-    // 발신 대기: timeFrom~timeTo 사이 랜덤 시간 후 발신 예약 후 홈으로 이동
-    const from = Math.min(timeFrom, timeTo);
-    const to = Math.max(timeFrom, timeTo);
-    const delayMinutes = from + Math.random() * (to - from);
-    const delayMs = Math.round(delayMinutes * 60 * 1000);
-
-    schedule(sessionConfig, delayMs);
-    router.push("/(tabs)/(home)/home");
   };
 
   const currentStep = FLOW_STEPS.indexOf(flowStep) + 1;
@@ -144,7 +161,7 @@ export default function Start() {
     ? "최대 시간은 최소 시간보다 작을 수 없어요."
     : timeFrom === 0 && timeTo === 0
       ? "바로 훈련이 시작돼요!"
-      : `${timeFrom}분~${timeTo}분 사이에 훈련이 시작돼요!`;
+      : `${timeFrom}분~${timeTo}분 사이에 전화가 와요. 예약 전화는 기본 난이도로 진행돼요.`;
 
   return (
     <View className="flex-1 bg-background-normal">

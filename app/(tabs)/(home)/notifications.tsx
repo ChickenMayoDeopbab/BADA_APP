@@ -5,7 +5,13 @@ import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
-import { useMarkNotificationRead, useNotifications } from "@/hooks/useNotifications";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+} from "@/hooks/useNotifications";
+import { getApiErrorMessage } from "@/api/error";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -108,9 +114,12 @@ const NotificationCard = memo(function NotificationCard({
 });
 
 export default function NotificationsScreen() {
+  const { showAlert } = useAppAlert();
   const [filter, setFilter] = useState<NotificationFilter>("ALL");
+  const markAllMutation = useMarkAllNotificationsRead();
   const notificationsQuery = useNotifications(filter);
-  const { mutate: markNotificationRead } = useMarkNotificationRead();
+  const { mutate: markNotificationRead, isPending: isMarkingRead } =
+    useMarkNotificationRead();
   const notifications = useMemo(
     () =>
       notificationsQuery.data?.pages.flatMap(
@@ -119,8 +128,25 @@ export default function NotificationsScreen() {
     [notificationsQuery.data],
   );
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
+  const isMarkAllDisabled = unreadCount === 0 || isMarkingRead ||
+    markAllMutation.isPending || notificationsQuery.isError;
+
+  /** 전체 읽음 처리 실패를 안내하고 재시도할 수 있게 한다. */
+  const handleMarkAllRead = () => {
+    if (isMarkAllDisabled) return;
+    markAllMutation.mutate(undefined, {
+      onError: (error) => showAlert({
+        title: "읽음 처리 실패",
+        description: getApiErrorMessage(
+          error,
+          "알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.",
+        ),
+      }),
+    });
+  };
   const openNotification = useCallback(
     (item: InAppNotificationResponse) => {
+      if (markAllMutation.isPending) return;
       const openPost = () => {
         if (!item.postId) return;
 
@@ -139,7 +165,7 @@ export default function NotificationsScreen() {
         onSuccess: openPost,
       });
     },
-    [markNotificationRead],
+    [markNotificationRead, markAllMutation.isPending],
   );
 
   const renderNotification = useCallback(
@@ -154,6 +180,21 @@ export default function NotificationsScreen() {
       <StatusBar style="dark" backgroundColor={SEMANTIC_COLORS.background.normal} />
       <Top
         title="알림"
+        right={(
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="알림 전체 읽기"
+            accessibilityState={{ disabled: isMarkAllDisabled, busy: markAllMutation.isPending }}
+            disabled={isMarkAllDisabled}
+            className="py-3 disabled:opacity-40"
+            hitSlop={8}
+            onPress={handleMarkAllRead}
+          >
+            <Text className="text-label font-medium text-label-alternative">
+              {markAllMutation.isPending ? "처리 중" : "전체 읽기"}
+            </Text>
+          </Pressable>
+        )}
         back
         onBack={() =>
           router.canGoBack()

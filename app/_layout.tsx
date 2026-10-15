@@ -3,7 +3,7 @@ import "@/global.css";
 import "@/design-system/setupDefaultFont";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PendingCallProvider } from "@/context/PendingCallContext";
+import ScheduledCallWatcher from "@/components/train/ScheduledCallWatcher";
 import { AppAlertProvider } from "@/context/AppAlertContext";
 import { setAudioModeAsync } from "expo-audio";
 import * as SplashScreen from "expo-splash-screen";
@@ -64,16 +64,19 @@ export default function RootLayout() {
     if (!navigationState?.key) return;
 
     if (isOAuthCallback) {
-      requestAnimationFrame(() => {
+      // 콜백 화면이 로그인 완료와 다음 경로를 결정하므로 시작 시 인증 검사를 생략한다.
+      startupCheckStartedRef.current = true;
+      const frame = requestAnimationFrame(() => {
         void SplashScreen.hideAsync();
       });
-      return;
+      return () => cancelAnimationFrame(frame);
     }
 
     if (startupCheckStartedRef.current) return;
     startupCheckStartedRef.current = true;
 
     let active = true;
+    let completed = false;
 
     const checkToken = async () => {
       let nextPath: StartupPath = "/auth";
@@ -81,17 +84,20 @@ export default function RootLayout() {
       try {
         const token = await getAccessToken();
         const autoLogin = await AsyncStorage.getItem("autoLogin");
+        if (!active) return;
         if (!token || autoLogin !== "true") {
           await unregisterForPushNotifications();
+          if (!active) return;
           await clearAuthTokens();
         } else {
           nextPath = await getAuthenticatedPath();
         }
       } catch {
-        await clearAuthTokens().catch(() => {});
+        if (active) await clearAuthTokens().catch(() => {});
       }
 
       if (!active) return;
+      completed = true;
       setStartupPath(nextPath);
       router.replace(nextPath);
     };
@@ -99,6 +105,7 @@ export default function RootLayout() {
     void checkToken();
     return () => {
       active = false;
+      if (!completed) startupCheckStartedRef.current = false;
     };
   }, [isOAuthCallback, navigationState?.key]);
 
@@ -115,15 +122,16 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <AppAlertProvider>
-          <PendingCallProvider>
-            <PushNotificationManager />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: SEMANTIC_COLORS.background.normal },
-              }}
-            />
-          </PendingCallProvider>
+          <PushNotificationManager />
+          <ScheduledCallWatcher />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: SEMANTIC_COLORS.background.normal },
+            }}
+          >
+            <Stack.Screen name="train" options={{ gestureEnabled: false }} />
+          </Stack>
         </AppAlertProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
