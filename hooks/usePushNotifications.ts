@@ -7,6 +7,7 @@ import {
   registerForPushNotifications,
 } from "@/services/pushNotifications";
 import { getAccessToken } from "@/utils/authTokenStorage";
+import { notifyTrainingCallUpdate } from "@/utils/trainingCallEvents";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, usePathname, useRootNavigationState } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
@@ -68,6 +69,7 @@ export function usePushNotifications() {
   const openNotification = useCallback(
     async (message: PushMessage) => {
       if (!(await getAccessToken())) return;
+      notifyTrainingCallUpdate();
 
       const notificationId = getMessageId(
         message,
@@ -101,7 +103,10 @@ export function usePushNotifications() {
 
   useEffect(() => {
     return listenForPushNotifications({
-      onForegroundMessage: refreshNotifications,
+      onForegroundMessage: () => {
+        refreshNotifications();
+        notifyTrainingCallUpdate();
+      },
       onNotificationOpened: (message) => void openNotification(message),
     });
   }, [openNotification, refreshNotifications]);

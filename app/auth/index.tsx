@@ -8,6 +8,8 @@ import BadaLogo from "@/assets/badaLogo2.svg";
 import NaverLogo from "@/assets/naver.svg";
 import CustomButton from "@/components/common/CustomButton";
 import { useAppAlert } from "@/context/AppAlertContext";
+import { parseOAuthCallback } from "@/utils/oauthCallback";
+import { getApiErrorMessage } from "@/api/error";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
@@ -36,27 +38,15 @@ export default function AuthScreen() {
       const callbackUrl = await login();
       if (!callbackUrl) return;
 
-      const callback = new URL(callbackUrl);
-      const path = `${callback.hostname}${callback.pathname}`.replace(/^\/+/, "");
-      if (callback.protocol !== "bada:" || path !== "auth/callback") {
-        throw new Error("Unexpected OAuth callback");
-      }
-
       router.replace({
         pathname: "/auth/callback",
-        params: {
-          code: callback.searchParams.get("code") ?? "",
-          error: callback.searchParams.get("error") ?? "",
-          error_description:
-            callback.searchParams.get("error_description") ?? "",
-          message: callback.searchParams.get("message") ?? "",
-        },
+        params: parseOAuthCallback(callbackUrl),
       });
-    } catch {
+    } catch (error) {
       showAlert({
         title: "로그인 오류",
         description:
-          "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
+          getApiErrorMessage(error, "소셜 로그인 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요."),
       });
     } finally {
       loginInProgress.current = false;
