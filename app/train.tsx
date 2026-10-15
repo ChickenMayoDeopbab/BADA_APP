@@ -1,4 +1,9 @@
 import CallBackground from "@/components/train/CallBackground";
+import { acceptTrainingCallSchedule, cancelTrainingCallSchedule } from "@/api/trainingCallApi";
+import { getApiErrorMessage } from "@/api/error";
+import type { CreateSessionResponse } from "@/api/types";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
+import { getTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
 import ScriptHintBar from "@/components/train/ScriptHintBar";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
@@ -130,10 +135,10 @@ function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
   avatarSize?: number;
 }) {
   return (
-    <View className="items-center gap-y-6">
-      <View className="items-center">
-        <Text className="text-title1 font-bold text-label-normal">{name}</Text>
-        <Text className="text-body text-label-neutral">폰 {phoneNumber}</Text>
+    <View className="w-full items-center gap-y-6 px-4">
+      <View className="w-full items-center">
+        <Text className="w-full text-center text-title1 font-bold text-label-normal">{name}</Text>
+        <Text className="w-full text-center text-body text-label-neutral">폰 {phoneNumber}</Text>
       </View>
       <View
         style={{ width: avatarSize, height: avatarSize }}
@@ -155,7 +160,7 @@ function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
 function ScenarioLabel({ title }: { title?: string }) {
   if (!title) return null;
   return (
-    <Text className="mt-[26px] text-caption font-medium text-label-alternative text-center opacity-60">
+    <Text className="mt-[26px] px-4 text-caption font-medium text-label-alternative text-center opacity-60">
       {title}
     </Text>
   );
@@ -163,9 +168,13 @@ function ScenarioLabel({ title }: { title?: string }) {
 
 export default function Train() {
   const { showAlert } = useAppAlert();
-  const { sessionId, wsUrl, isWarmup, scenarioId, title, content, isCustom, scenarioImage, category } = useLocalSearchParams<{
-    sessionId: string;
-    wsUrl: string;
+  const {
+    sessionId: initialSessionId, wsUrl: initialWsUrl, scheduleId,
+    isWarmup, scenarioId: initialScenarioId, title, content, isCustom, scenarioImage, category,
+  } = useLocalSearchParams<{
+    sessionId?: string;
+    wsUrl?: string;
+    scheduleId?: string;
     isWarmup?: string;
     scenarioId?: string;
     title?: string;
@@ -174,6 +183,14 @@ export default function Train() {
     scenarioImage?: string;
     category?: string;
   }>();
+  const [acceptedSession, setAcceptedSession] = useState<CreateSessionResponse | null>(null);
+  const sessionId = acceptedSession?.sessionId ?? initialSessionId;
+  const wsUrl = acceptedSession?.wsUrl ?? initialWsUrl;
+  const [recoveredScenarioId, setRecoveredScenarioId] = useState<string>();
+  const scenarioId = initialScenarioId ?? recoveredScenarioId;
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
+  const isHandlingScheduleRef = useRef(false);
+  const [isHandlingSchedule, setIsHandlingSchedule] = useState(false);
 
   useAndroidBackHandler(() => {
     BackHandler.exitApp();
@@ -196,14 +213,14 @@ export default function Train() {
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
-   * 예약 발신(CallWatcher)은 params에 시나리오 정보를 싣지 않고 scenarioId만 넘긴다.
+   * 즉시 발신에서 시나리오 정보가 생략되어도 scenarioId로 조회한다.
    * 목록 캐시를 공유하는 useScenario로 조회해 두 경로 모두 이름이 뜨게 한다.
    */
   const { data: scenario } = useScenario(scenarioId);
   const scenarioTitle = title ?? scenario?.title;
   /** iPhone SE·8처럼 세로가 짧은 기기에서 통화 버튼이 잘리지 않도록 값을 줄인다 */
-  const { height: windowHeight } = useWindowDimensions();
-  const isCompactScreen = windowHeight < 700;
+  const { height: windowHeight, fontScale } = useWindowDimensions();
+  const isCompactScreen = windowHeight < 700 || fontScale > 1.2;
 
   const [isMuted, setIsMuted] = useState(false);
   const isWarmupSession = isWarmup === "true";
@@ -221,6 +238,7 @@ export default function Train() {
     requestPermission,
     startSendingAudio,
     stopSendingAudio,
+    setMicrophoneMuted,
     beginPlayback,
     streamPcmChunk,
     flushPlayback,
@@ -232,6 +250,13 @@ export default function Train() {
       sendJson({ type: "playback_done", turn_id: turnId });
     },
     onPlaybackError: () => handleEndCall(),
+    onRecordingError: () => {
+      showAlert({
+        title: "마이크 연결에 실패했어요",
+        description: "마이크 권한과 연결 상태를 확인한 뒤 다시 시도해 주세요.",
+      });
+      handleEndCall();
+    },
   });
 
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
@@ -272,8 +297,9 @@ export default function Train() {
   useEffect(() => {
     if (isConnected && step === "training" && isAudioReady) {
       void startSendingAudio(sendBinary).catch(() => {});
+      return () => { void stopSendingAudio().catch(() => {}); };
     }
-  }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
+  }, [isAudioReady, isConnected, step, startSendingAudio, stopSendingAudio, sendBinary]);
 
   useEffect(() => {
     if (step !== "training" || !isConnected || !isAudioReady || endHandledRef.current) return;
@@ -344,6 +370,7 @@ export default function Train() {
       setSeconds(0);
       setCalleeName(null);
       setIsMuted(false);
+      setMicrophoneMuted(false);
       setIsAudioReady(false);
       callStartedAtRef.current = null;
       completedCallDurationRef.current = null;
@@ -352,23 +379,75 @@ export default function Train() {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      stopSendingAudio();
+      void stopSendingAudio().catch(() => {});
       resetStream();
-    }, [stopSendingAudio, resetStream])
+    }, [stopSendingAudio, resetStream, setMicrophoneMuted])
   );
 
   // 벨소리·진동은 벨이 울리는 동안만 — 전화를 받으면(명상 안내가 뜨면) 바로 멈춘다
   useIncomingCallRinging(
-    step === "receive" && !isMeditationVisible && !isMeditationVideoVisible,
+    step === "receive" && !isMeditationVisible &&
+      !isMeditationVideoVisible && !isHandlingSchedule,
   );
 
-  const handleAccept = () => setIsMeditationVisible(true);
-  const handleDecline = () => router.back();
+  /** 서버 예약은 사용자가 수락한 시점에 세션을 만들고 명상 안내로 이어간다. */
+  const handleAccept = async () => {
+    if (isHandlingScheduleRef.current) return;
+    if (!scheduleId || acceptedSession) {
+      setIsMeditationVisible(true);
+      return;
+    }
+    isHandlingScheduleRef.current = true;
+    setIsHandlingSchedule(true);
+    try {
+      if (!(await ensureSensitiveConsent())) return;
+      const session = await acceptTrainingCallSchedule(Number(scheduleId));
+      // 예약 생성 직후 수신 화면이 먼저 열려도 저장이 끝난 시나리오 ID를 복구한다.
+      if (!scenarioId) {
+        setRecoveredScenarioId(await getTrainingCallScenario(Number(scheduleId)));
+      }
+      setAcceptedSession(session);
+      setIsMeditationVisible(true);
+      void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
+    } catch (error) {
+      showAlert({
+        title: "전화를 받지 못했어요",
+        description: getApiErrorMessage(error, "예약 상태를 확인하고 다시 시도해 주세요."),
+      });
+    } finally {
+      isHandlingScheduleRef.current = false;
+      setIsHandlingSchedule(false);
+    }
+  };
+
+  /** 예약 수신을 거절할 때 서버 예약도 취소한다. */
+  const handleDecline = async () => {
+    if (isHandlingScheduleRef.current) return;
+    isHandlingScheduleRef.current = true;
+    setIsHandlingSchedule(true);
+    try {
+      if (scheduleId && !acceptedSession) {
+        await cancelTrainingCallSchedule(Number(scheduleId));
+        void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
+      }
+      if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)/(home)/home");
+    } catch (error) {
+      showAlert({
+        title: "전화를 거절하지 못했어요",
+        description: getApiErrorMessage(error, "잠시 후 다시 시도해 주세요."),
+      });
+    } finally {
+      isHandlingScheduleRef.current = false;
+      setIsHandlingSchedule(false);
+    }
+  };
   const handleToggleMute = useCallback(() => {
     const next = !isMuted;
     setIsMuted(next);
+    setMicrophoneMuted(next);
     sendMute(next);
-  }, [isMuted, sendMute]);
+  }, [isMuted, sendMute, setMicrophoneMuted]);
 
   /**
    * 훈련 시작: WS는 즉시 연결하고 오디오 권한/세션은 병렬로 준비한다.
@@ -379,6 +458,7 @@ export default function Train() {
     setStep("training");
 
     const granted = await requestPermission();
+    if (endHandledRef.current) return;
     if (!granted) {
       showAlert({
         title: "마이크를 사용할 수 없어요",
@@ -416,9 +496,10 @@ export default function Train() {
     completedCallDurationRef.current = callDurationSeconds;
     setSeconds(callDurationSeconds);
     if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
+    // Release the microphone lookahead synchronously before the end message.
+    void stopSendingAudio(true).catch(() => {});
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
-    void stopSendingAudio().catch(() => {});
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -435,41 +516,66 @@ export default function Train() {
         <View className="flex-1">
           <CallBackground />
           <View className="flex-1" style={safeArea}>
-          <View className="items-center flex-1 pt-[22px]">
-            <Text className="text-body font-medium text-label-alternative">
-              바다 시나리오 훈련
-            </Text>
-            <View className="mt-10">
-              <CalleeProfile name={roleName} phoneNumber={generatedPhoneNumber} />
-            </View>
-          </View>
-          <View className="items-center pb-6">
-            <View className="flex-row items-center justify-between w-[300px]">
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="전화 받기"
-              onPress={handleAccept}
-              activeOpacity={0.8}
-              style={[styles.callButton, { backgroundColor: PALETTE.green[40] }]}
+            <ScrollView
+              className="flex-1"
+              contentContainerClassName="grow items-center pt-[22px] pb-6"
+              showsVerticalScrollIndicator={false}
             >
-              <Ionicons name="call" size={36} color={PALETTE.common[0]} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="전화 거절하기"
-              onPress={handleDecline}
-              activeOpacity={0.8}
-              style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
-            >
-              <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
-            </TouchableOpacity>
+              <Text className="text-body font-medium text-label-alternative">
+                바다 시나리오 훈련
+              </Text>
+              <View className="mt-10 w-full">
+                <CalleeProfile
+                  name={roleName}
+                  phoneNumber={generatedPhoneNumber}
+                  avatarSize={isCompactScreen ? 112 : 140}
+                />
+              </View>
+            </ScrollView>
+            <View className="shrink-0 items-center pb-6">
+              <View className="w-full max-w-[300px] flex-row items-center justify-between px-4">
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="전화 받기"
+                  onPress={() => void handleAccept()}
+                  disabled={isHandlingSchedule}
+                  accessibilityState={{
+                    disabled: isHandlingSchedule,
+                    busy: isHandlingSchedule,
+                  }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.callButton,
+                    { backgroundColor: PALETTE.green[40] },
+                  ]}
+                >
+                  <Ionicons name="call" size={36} color={PALETTE.common[0]} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="전화 거절하기"
+                  onPress={() => void handleDecline()}
+                  disabled={isHandlingSchedule}
+                  activeOpacity={0.8}
+                  style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
+                >
+                  <Ionicons
+                    name="call"
+                    size={36}
+                    color={PALETTE.common[0]}
+                    style={styles.rotatedIcon}
+                  />
+                </TouchableOpacity>
+              </View>
+              <ScenarioLabel title={scenarioTitle} />
             </View>
-            <ScenarioLabel title={scenarioTitle} />
-          </View>
           </View>
         </View>
         <Modal visible={isMeditationVisible} transparent animationType="fade">
-          <MeditationDialog onSkip={handleMeditationSkip} onMeditate={handleMeditationStart} />
+          <MeditationDialog
+            onSkip={handleMeditationSkip}
+            onMeditate={handleMeditationStart}
+          />
         </Modal>
         {isMeditationVideoVisible && (
           <Modal visible animationType="fade">
@@ -491,142 +597,211 @@ export default function Train() {
       {/* 배경은 safe area 패딩 바깥에 둬야 화면 끝까지 깔린다 */}
       {!isEnd && <CallBackground />}
       <View className="flex-1" style={safeArea}>
-
-      <View className="flex-row items-center justify-center mt-6 gap-x-2">
-        <Ionicons
-          name="call"
-          size={20}
-          color={isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral}
-          style={isEnd ? styles.rotatedIcon : undefined}
-        />
-        <Text
-          className="text-body font-medium"
-          style={{ color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral }}
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="grow"
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
         >
-          {formatTime(seconds)}
-          {isEnd ? " 훈련을 종료했습니다." : isAiSpeaking ? "  AI 발화 중..." : ""}
-        </Text>
-      </View>
-
-      <View className={`items-center ${isCompactScreen ? "pt-3" : "pt-10"}`}>
-        <CalleeProfile
-          name={roleName}
-          phoneNumber={generatedPhoneNumber}
-          isSpeaking={isAiSpeaking}
-          avatarSize={isCompactScreen ? 112 : 140}
-        />
-        {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
-        {!isConnected && step === "training" && (
-          <Text className="text-label text-label-alternative mt-2">연결 중...</Text>
-        )}
-      </View>
-
-      {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
-      <View className="flex-1 justify-center">
-      {!isEnd && !isScriptVisible && (
-        <View style={styles.gridContainer}>
-          {[
-            /* 워밍업에서는 스크립트 보기 비활성화 */
-            isWarmupSession
-              ? { label: "스크립트 보기", onPress: undefined, icon: "document-text", active: false, disabled: true }
-              : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: "document-text", active: false, disabled: false },
-            { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted, disabled: false },
-            /* 아래 버튼들은 UI만 제공하며 실제 동작하지 않아 비활성화 처리 */
-            { label: "녹음", onPress: undefined, icon: "radio-button-on", active: false, disabled: true },
-            { label: "스피커", onPress: undefined, icon: "volume-high", active: false, disabled: true },
-            { label: "영상통화", onPress: undefined, icon: "videocam", active: false, disabled: true },
-            { label: "키패드", onPress: undefined, icon: "keypad", active: false, disabled: true },
-          ].map((btn, index) => (
-            <View
-              key={index}
-              style={[styles.gridItem, isCompactScreen && styles.gridItemCompact]}
+          <View className="flex-row items-center justify-center mt-6 gap-x-2">
+            <Ionicons
+              name="call"
+              size={20}
+              color={isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral}
+              style={isEnd ? styles.rotatedIcon : undefined}
+            />
+            <Text
+              className="text-body font-medium"
+              style={{
+                color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral,
+              }}
             >
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={btn.disabled}
-                style={styles.gridButton}
-                onPress={btn.onPress}
-              >
-                <Ionicons
-                  name={btn.icon as any}
-                  size={32}
-                  color={
-                    btn.disabled
-                      ? SEMANTIC_COLORS.line.normal
-                      : btn.active
-                        ? PALETTE.red[40]
-                        : SEMANTIC_COLORS.label.normal
-                  }
-                />
-              </TouchableOpacity>
-              <Text
-                className={`text-label font-medium mt-2 ${
-                  btn.disabled ? "text-line-normal" : "text-label-normal"
-                }`}
-              >
-                {btn.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {!isEnd && isScriptVisible && (
-        <View className="flex-1 mx-[33px]">
-          <TouchableOpacity
-            onPress={() => setIsScriptVisible(false)}
-            activeOpacity={0.8}
-            style={styles.scriptHideButton}
-          >
-            <Text className="text-body font-medium text-label-neutral">스크립트 가리기</Text>
-          </TouchableOpacity>
-          <View style={styles.scriptContainer}>
-            {transcript.length === 0 ? (
-              <View className="items-center justify-center flex-1">
-                <Text className="text-label text-label-alternative">
-                  아직 대화 내용이 없어요.
-                </Text>
-              </View>
-            ) : (
-              <ScrollView
-                ref={scriptScrollRef}
-                showsVerticalScrollIndicator={false}
-                contentContainerClassName="gap-y-[10px]"
-                onContentSizeChange={() =>
-                  scriptScrollRef.current?.scrollToEnd({ animated: true })
-                }
-              >
-                {transcript.map((line, index) => (
-                  <Text
-                    key={index}
-                    className="text-body font-medium text-label-neutral"
-                  >
-                    {roleToSpeaker(line.role)} : {line.text}
-                  </Text>
-                ))}
-              </ScrollView>
-            )}
-            <ScriptHintBar hint={scriptHint} />
+              {formatTime(seconds)}
+              {isEnd
+                ? " 훈련을 종료했습니다."
+                : isAiSpeaking
+                  ? "  AI 발화 중..."
+                  : ""}
+            </Text>
           </View>
+
+          <View className={`items-center ${isCompactScreen ? "pt-3" : "pt-10"}`}>
+            <CalleeProfile
+              name={roleName}
+              phoneNumber={generatedPhoneNumber}
+              isSpeaking={isAiSpeaking}
+              avatarSize={isCompactScreen ? 112 : 140}
+            />
+            {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
+            {!isConnected && step === "training" && (
+              <Text className="text-label text-label-alternative mt-2">
+                연결 중...
+              </Text>
+            )}
+          </View>
+
+          {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
+          <View className="grow justify-center py-4">
+            {!isEnd && !isScriptVisible && (
+              <View style={styles.gridContainer}>
+                {[
+                  /* 워밍업에서는 스크립트 보기 비활성화 */
+                  isWarmupSession
+                    ? {
+                        label: "스크립트 보기",
+                        onPress: undefined,
+                        icon: "document-text",
+                        active: false,
+                        disabled: true,
+                      }
+                    : {
+                        label: "스크립트 보기",
+                        onPress: () => setIsScriptVisible(true),
+                        icon: "document-text",
+                        active: false,
+                        disabled: false,
+                      },
+                  {
+                    label: isMuted ? "음소거 해제" : "음소거",
+                    onPress: handleToggleMute,
+                    icon: isMuted ? "mic-off" : "mic",
+                    active: isMuted,
+                    disabled: false,
+                  },
+                  /* 아래 버튼들은 UI만 제공하며 실제 동작하지 않아 비활성화 처리 */
+                  {
+                    label: "녹음",
+                    onPress: undefined,
+                    icon: "radio-button-on",
+                    active: false,
+                    disabled: true,
+                  },
+                  {
+                    label: "스피커",
+                    onPress: undefined,
+                    icon: "volume-high",
+                    active: false,
+                    disabled: true,
+                  },
+                  {
+                    label: "영상통화",
+                    onPress: undefined,
+                    icon: "videocam",
+                    active: false,
+                    disabled: true,
+                  },
+                  {
+                    label: "키패드",
+                    onPress: undefined,
+                    icon: "keypad",
+                    active: false,
+                    disabled: true,
+                  },
+                ].map((btn, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.gridItem,
+                      isCompactScreen && styles.gridItemCompact,
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      disabled={btn.disabled}
+                      style={styles.gridButton}
+                      onPress={btn.onPress}
+                    >
+                      <Ionicons
+                        name={btn.icon as any}
+                        size={32}
+                        color={
+                          btn.disabled
+                            ? SEMANTIC_COLORS.line.normal
+                            : btn.active
+                              ? PALETTE.red[40]
+                              : SEMANTIC_COLORS.label.normal
+                        }
+                      />
+                    </TouchableOpacity>
+                    <Text
+                      className={`w-full text-center text-label font-medium mt-2 ${
+                        btn.disabled ? "text-line-normal" : "text-label-normal"
+                      }`}
+                    >
+                      {btn.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {!isEnd && isScriptVisible && (
+              <View
+                className="mx-[33px]"
+                style={{ height: Math.max(240, windowHeight * 0.35) }}
+              >
+                <TouchableOpacity
+                  onPress={() => setIsScriptVisible(false)}
+                  activeOpacity={0.8}
+                  style={styles.scriptHideButton}
+                >
+                  <Text className="text-body font-medium text-label-neutral">
+                    스크립트 가리기
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.scriptContainer}>
+                  {transcript.length === 0 ? (
+                    <View className="items-center justify-center flex-1">
+                      <Text className="text-label text-label-alternative">
+                        아직 대화 내용이 없어요.
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      ref={scriptScrollRef}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                      contentContainerClassName="gap-y-[10px]"
+                      onContentSizeChange={() =>
+                        scriptScrollRef.current?.scrollToEnd({ animated: true })
+                      }
+                    >
+                      {transcript.map((line, index) => (
+                        <Text
+                          key={index}
+                          className="text-body font-medium text-label-neutral"
+                        >
+                          {roleToSpeaker(line.role)} : {line.text}
+                        </Text>
+                      ))}
+                    </ScrollView>
+                  )}
+                  <ScriptHintBar hint={scriptHint} />
+                </View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        <View className="shrink-0 items-center pb-6">
+          <TouchableOpacity
+            onPress={handleEndCall}
+            activeOpacity={0.8}
+            disabled={isEnd}
+            style={[
+              styles.callButton,
+              { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
+            ]}
+          >
+            <Ionicons
+              name="call"
+              size={36}
+              color={PALETTE.common[0]}
+              style={styles.rotatedIcon}
+            />
+          </TouchableOpacity>
+          <ScenarioLabel title={scenarioTitle} />
         </View>
-      )}
-
-      </View>
-
-      <View className="items-center pb-6">
-        <TouchableOpacity
-          onPress={handleEndCall}
-          activeOpacity={0.8}
-          disabled={isEnd}
-          style={[
-            styles.callButton,
-            { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
-          ]}
-        >
-          <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
-        </TouchableOpacity>
-        <ScenarioLabel title={scenarioTitle} />
-      </View>
       </View>
     </View>
   );

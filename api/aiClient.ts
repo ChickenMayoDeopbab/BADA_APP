@@ -6,6 +6,7 @@ import {
   getAccessToken,
 } from '@/utils/authTokenStorage';
 import { refreshAuthTokens } from './tokenApi';
+import { AuthSessionExpiredError } from '@/utils/authSessionError';
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -48,12 +49,16 @@ aiApiClient.interceptors.response.use(
         const { accessToken } = await refreshAuthTokens();
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return aiApiClient(originalRequest);
-      } catch {
+      } catch (refreshError) {
+        if (!(refreshError instanceof AuthSessionExpiredError)) {
+          return Promise.reject(refreshError);
+        }
         await Promise.all([
           clearAuthTokens(),
           AsyncStorage.removeItem('autoLogin'),
         ]);
         router.replace('/auth/login');
+        return Promise.reject(refreshError);
       }
     }
 

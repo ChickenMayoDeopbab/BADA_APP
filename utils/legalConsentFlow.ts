@@ -12,12 +12,15 @@ export const getAuthenticatedAppPath = async (): Promise<AuthenticatedAppPath> =
   return needsDiagnosis ? "/diagnosis/welcome" : "/home";
 };
 
-export const getAuthenticatedPath = async (): Promise<AuthenticatedPath> => {
+export const getAuthenticatedPath = async (
+  options: { throwOnError?: boolean } = {},
+): Promise<AuthenticatedPath> => {
   try {
     const status = await getLegalConsentStatus();
     if (status.legalActionRequired) return "/auth/terms";
-    return getAuthenticatedAppPath();
-  } catch {
+    return await getAuthenticatedAppPath();
+  } catch (error) {
+    if (options.throwOnError) throw error;
     // 필수 동의 상태를 확인하지 못한 경우 동의하지 않은 사용자를
     // 앱으로 통과시키지 않고 약관 화면에서 다시 시도하게 한다.
     return "/auth/terms";

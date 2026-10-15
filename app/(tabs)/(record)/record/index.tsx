@@ -1,6 +1,6 @@
 import { TrainingRecordItem } from "@/api/types";
 import Top from "@/components/common/Top";
-import LoadingIndicator from "@/components/common/LoadingIndicator";
+import TrainingRecordListSkeleton from "@/components/record/TrainingRecordListSkeleton";
 import TrainingRecordCalendarModal from "@/components/record/TrainingRecordCalendarModal";
 import RecordCategoryIcon from "@/components/record/RecordCategoryIcon";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
@@ -324,10 +324,17 @@ export default function RecordScreen() {
 
       <View className="flex-1 bg-background-alternative">
         {isLoading ? (
-          <View className="items-center justify-center flex-1">
-            <LoadingIndicator />
-          </View>
-        ) : isError ? (
+          <ScrollView
+            className="flex-1"
+            contentContainerClassName="px-8 pt-[18px] pb-7"
+            showsVerticalScrollIndicator={false}
+          >
+            <PeriodTabs selected={period} onSelect={setPeriod} />
+            <View className="mt-2">
+              <TrainingRecordListSkeleton />
+            </View>
+          </ScrollView>
+        ) : isError && !data ? (
           <View className="items-center justify-center flex-1 px-8">
             <Ionicons
               name="alert-circle-outline"

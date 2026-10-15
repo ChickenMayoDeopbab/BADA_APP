@@ -76,6 +76,7 @@ export default function CustomButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(disabled) }}
       className={`w-full items-center justify-center ${radius} ${height} ${padding} ${toneClassName} ${pressedClassName} ${className ?? ""}`}
       style={
@@ -84,10 +85,13 @@ export default function CustomButton({
       disabled={disabled}
       {...props}
     >
-      <View className="flex-row items-center justify-center gap-x-2">
+      <View className="w-full min-w-0 flex-row items-center justify-center gap-x-2">
         {icon}
         <Text
-          className={`font-pretendard font-bold ${text} ${textClassName}`}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+          className={`min-w-0 shrink text-center font-pretendard font-bold ${text} ${textClassName}`}
           style={
             !resolvedTone && !disabled
               ? { color: color ?? SEMANTIC_COLORS.label.buttonText }

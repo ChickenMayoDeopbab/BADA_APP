@@ -75,7 +75,10 @@ export default function List() {
     const tabRight =
       tabHorizontalPadding + (index + 1) * tabWidth + index * SCENARIO_TAB_GAP;
     menuRef.current?.scrollTo({
-      x: index <= 0 ? 0 : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
+      x:
+        index <= 0
+          ? 0
+          : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
       animated: true,
     });
   }, [pageWidth, selectedTab, tabHorizontalPadding, tabWidth]);
@@ -88,10 +91,8 @@ export default function List() {
     isFetching,
     refetch,
   } = useScenarios();
-  const {
-    data: recommendedScenario,
-    isPending: isRecommendationPending,
-  } = useRecommendedScenario();
+  const { data: recommendedScenario, isPending: isRecommendationPending } =
+    useRecommendedScenario();
 
   const basicScenarios = useMemo(
     () => scenarios?.filter((scenario) => !scenario.is_custom) ?? [],
@@ -179,29 +180,42 @@ export default function List() {
 
       {/* 목록 로딩 중: 기본 제공 탭과 같은 배치로 자리만 채워 데이터 도착 시 레이아웃이 움직이지 않게 한다 */}
       {isPending && (
-        <ScrollView
-          className="flex-1"
-          scrollEnabled={false}
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
-          <View className="px-8 pb-5">
-            <RecommendScenarioCardSkeleton />
-          </View>
+        <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+          {selectedTab === "custom" ? (
+            <View className="px-8 pb-5">
+              <CustomScenarioBanner
+                onPress={() => router.push("/(tabs)/(train)/create")}
+              />
+            </View>
+          ) : selectedTab === "basic" && recommendedScenario ? (
+            <View className="px-8 pb-5">
+              <RecommendScenarioCard
+                scenario={recommendedScenario}
+                onPress={openScenarioDetail}
+              />
+            </View>
+          ) : selectedTab === "basic" && isRecommendationPending ? (
+            <View className="px-8 pb-5">
+              <RecommendScenarioCardSkeleton />
+            </View>
+          ) : null}
           <View className="flex-1 gap-y-3 rounded-t-component bg-background-normal px-8 py-6">
             <Text className="text-headline2 font-bold text-label-normal">
               시나리오
             </Text>
-            <CategoryChips
-              value={selectedCategory}
-              onChange={setSelectedCategory}
-            />
+            {selectedTab === "basic" && (
+              <CategoryChips
+                value={selectedCategory}
+                onChange={setSelectedCategory}
+              />
+            )}
             <ScenarioGridSkeleton />
           </View>
         </ScrollView>
       )}
 
       {/* 목록 조회 실패 */}
-      {isError && !isPending && (
+      {isError && !scenarios && !isPending && (
         <View className="flex-1 items-center justify-center gap-y-4 px-8">
           <Text className="text-body text-label-alternative text-center">
             시나리오 목록을 불러오지 못했어요.
@@ -219,7 +233,7 @@ export default function List() {
         </View>
       )}
 
-      {!isPending && !isError && (
+      {!isPending && (!isError || scenarios) && (
         <View className="flex-1">
           <Animated.FlatList
             ref={pagerRef}
@@ -305,7 +319,10 @@ export default function List() {
                     ) : (
                       <View className="gap-y-3">
                         {toGridRows(tabScenarios).map((row) => (
-                          <View key={row[0].scenario_id} className="flex-row gap-x-3">
+                          <View
+                            key={row[0].scenario_id}
+                            className="flex-row gap-x-3"
+                          >
                             {row.map((scenario) => (
                               <ScenarioGridCard
                                 key={scenario.scenario_id}
