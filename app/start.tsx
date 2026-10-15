@@ -146,7 +146,13 @@ export default function Start() {
         try {
           await saveTrainingCallScenario(schedule.scheduleId, scenarioId);
         } catch {
-          await cancelTrainingCallSchedule(schedule.scheduleId);
+          try {
+            await cancelTrainingCallSchedule(schedule.scheduleId);
+          } catch {
+            throw new Error(
+              "예약 정보 저장에 실패했고 취소 여부도 확인하지 못했어요. 예약이 남아 전화가 올 수 있어요.",
+            );
+          }
           throw new Error(
             "예약 정보를 기기에 저장하지 못해 예약을 취소했어요. 다시 시도해 주세요.",
           );
