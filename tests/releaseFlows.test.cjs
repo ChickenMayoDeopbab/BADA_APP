@@ -404,8 +404,10 @@ function watcherSetup({
   initialState = "active",
   token = "access",
   getRinging,
+  setInterval: registerInterval,
+  clearInterval: unregisterInterval,
 } = {}) {
-  let effect, appStateListener;
+  let effect, appStateListener, pushListener;
   const routes = [];
   const appState = {
     currentState: initialState,
@@ -421,6 +423,13 @@ function watcherSetup({
       "@/utils/authTokenStorage": { getAccessToken: async () => token },
       "@/utils/trainingCallScenario": {
         getTrainingCallScenario: async () => "17",
+        pruneExpiredTrainingCallScenarios: async () => {},
+      },
+      "@/utils/trainingCallEvents": {
+        subscribeTrainingCallUpdates: (listener) => {
+          pushListener = listener;
+          return () => { pushListener = undefined; };
+        },
       },
       "expo-router": {
         usePathname: () => "/home",
@@ -440,13 +449,31 @@ function watcherSetup({
     },
   );
   Watcher();
-  const cleanup = effect();
+  const originalSet = global.setInterval;
+  const originalClear = global.clearInterval;
+  if (registerInterval) global.setInterval = registerInterval;
+  if (unregisterInterval) global.clearInterval = unregisterInterval;
+  const runWithTimers = (operation) => {
+    const savedSet = global.setInterval, savedClear = global.clearInterval;
+    if (registerInterval) global.setInterval = registerInterval;
+    if (unregisterInterval) global.clearInterval = unregisterInterval;
+    try { return operation(); }
+    finally { global.setInterval = savedSet; global.clearInterval = savedClear; }
+  };
+  let unmount;
+  try { unmount = effect(); }
+  finally { global.setInterval = originalSet; global.clearInterval = originalClear; }
   return {
-    cleanup,
+    cleanup: () => runWithTimers(unmount),
     routes,
+    push: () => pushListener?.(),
+    background: () => {
+      appState.currentState = "background";
+      runWithTimers(() => appStateListener("background"));
+    },
     resume: () => {
       appState.currentState = "active";
-      appStateListener("active");
+      runWithTimers(() => appStateListener("active"));
     },
   };
 }
@@ -514,6 +541,10 @@ test("scheduled scenario IDs survive a fresh module load and are removed after u
       setItem: async (key, value) => stored.set(key, value),
       getItem: async (key) => stored.get(key) ?? null,
       removeItem: async (key) => stored.delete(key),
+      getAllKeys: async () => [...stored.keys()],
+      multiGet: async (keys) => keys.map((key) => [key, stored.get(key) ?? null]),
+      multiSet: async (pairs) => pairs.forEach(([key, value]) => stored.set(key, value)),
+      multiRemove: async (keys) => keys.forEach((key) => stored.delete(key)),
     },
   };
   const beforeRestart = loadTypeScript(
@@ -666,6 +697,7 @@ function authStorageSetup(platform = "web") {
       setItem: async (key, value) => stored.set(key, value),
       removeItem: async (key) => stored.delete(key),
       multiRemove: async (keys) => keys.forEach((key) => stored.delete(key)),
+      getAllKeys: async () => [...stored.keys()],
     },
     "expo-secure-store": {
       WHEN_UNLOCKED_THIS_DEVICE_ONLY: "device",
@@ -676,8 +708,11 @@ function authStorageSetup(platform = "web") {
     "react-native": { Platform: { OS: platform } },
     "jwt-decode": require("jwt-decode"),
   };
+  mocks["./trainingCallScenario"] = loadTypeScript("../utils/trainingCallScenario.ts", {
+    "@react-native-async-storage/async-storage": mocks["@react-native-async-storage/async-storage"],
+  });
   const reload = () => loadTypeScript("../utils/authTokenStorage.ts", mocks);
-  return { stored, secure, reload, api: reload() };
+  return { stored, secure, reload, api: reload(), driver: mocks["@react-native-async-storage/async-storage"] };
 }
 
 /** 테스트용 JWT에 계정 식별자를 넣는다. */
@@ -745,4 +780,163 @@ test("native login metadata contains no tokens and native logout removes secure 
   await storage.api.clearAuthTokens();
   assert.equal(storage.secure.size, 0);
   assert.equal(storage.stored.size, 0);
+});
+
+test('ringing fallback polls every 15s only in foreground, and push triggers an immediate check', async () => {
+  const timers = new Map();
+  let requests = 0, nextTimer = 0;
+  const watcher = watcherSetup({
+    getRinging: async () => { requests++; return null; },
+    setInterval: (callback, ms) => { const id = ++nextTimer; timers.set(id, { callback, ms }); return id; },
+    clearInterval: (id) => timers.delete(id),
+  });
+  try {
+    await flushAsync();
+    assert.equal(requests, 1);
+    assert.deepEqual([...timers.values()].map((timer) => timer.ms), [15000]);
+    watcher.push(); await flushAsync();
+    assert.equal(requests, 2);
+    watcher.background();
+    assert.equal(timers.size, 0);
+    watcher.push(); await flushAsync();
+    assert.equal(requests, 2);
+    watcher.resume(); await flushAsync();
+    assert.equal(requests, 3);
+    assert.equal(timers.size, 1);
+  } finally { watcher.cleanup(); }
+  assert.equal(timers.size, 0);
+  watcher.push(); await flushAsync();
+  assert.equal(requests, 3);
+});
+
+test('push bursts during a request coalesce into one fresh check without overlapping requests', async (t) => {
+  let requests = 0, resolve;
+  const watcher = watcherSetup({
+    getRinging: () => {
+      requests++;
+      return requests === 1 ? new Promise((done) => { resolve = done; }) : Promise.resolve(null);
+    },
+  });
+  t.after(watcher.cleanup);
+  await flushAsync();
+  watcher.push(); watcher.push(); watcher.push();
+  assert.equal(requests, 1);
+  resolve(null); await flushAsync();
+  assert.equal(requests, 2);
+});
+
+test('a ringing response cannot open a call after the app has moved to background', async (t) => {
+  let resolve;
+  const watcher = watcherSetup({ getRinging: () => new Promise((done) => { resolve = done; }) });
+  t.after(watcher.cleanup);
+  await flushAsync();
+  watcher.background();
+  resolve({ scheduleId: 7, status: 'RINGING' }); await flushAsync();
+  assert.equal(watcher.routes.length, 0);
+});
+
+/** Store operations run against real migration and cleanup code. */
+function scenarioStorageSetup(initial = []) {
+  const stored = new Map(initial);
+  const driver = {
+    getItem: async (key) => stored.get(key) ?? null,
+    setItem: async (key, value) => stored.set(key, value),
+    removeItem: async (key) => stored.delete(key),
+    getAllKeys: async () => [...stored.keys()],
+    multiGet: async (keys) => keys.map((key) => [key, stored.get(key) ?? null]),
+    multiRemove: async (keys) => keys.forEach((key) => stored.delete(key)),
+    multiSet: async (pairs) => pairs.forEach(([key, value]) => stored.set(key, value)),
+  };
+  const api = loadTypeScript('../utils/trainingCallScenario.ts', {
+    '@react-native-async-storage/async-storage': driver,
+  });
+  return { stored, driver, api };
+}
+
+test('scheduled metadata expires after scheduled time plus one day; unrelated settings survive', async (t) => {
+  let now = Date.UTC(2026, 9, 15);
+  t.mock.method(Date, 'now', () => now);
+  const s = scenarioStorageSetup([['ringtone', 'default']]);
+  await s.api.saveTrainingCallScenario(7, 17, new Date(now + 60000).toISOString());
+  assert.equal(await s.api.getTrainingCallScenario(7), '17');
+  now += 24 * 60 * 60 * 1000 + 60001;
+  await s.api.pruneExpiredTrainingCallScenarios();
+  assert.equal(s.stored.has('trainingCallScenario:7'), false);
+  assert.equal(s.stored.get('ringtone'), 'default');
+});
+
+test('legacy scenario values migrate once, retain a fixed grace period, then expire', async (t) => {
+  let now = Date.UTC(2026, 9, 15);
+  t.mock.method(Date, 'now', () => now);
+  const s = scenarioStorageSetup([['trainingCallScenario:7', '17'], ['trainingCallScenario:8', 'broken']]);
+  await s.api.pruneExpiredTrainingCallScenarios();
+  const migrated = s.stored.get('trainingCallScenario:7');
+  assert.equal(JSON.parse(migrated).scenarioId, 17);
+  assert.equal(s.stored.has('trainingCallScenario:8'), false);
+  now += 1000;
+  await s.api.pruneExpiredTrainingCallScenarios();
+  assert.equal(s.stored.get('trainingCallScenario:7'), migrated);
+  now += 7 * 24 * 60 * 60 * 1000;
+  assert.equal(await s.api.getTrainingCallScenario(7), undefined);
+  assert.equal(s.stored.has('trainingCallScenario:7'), false);
+});
+
+test('cleanup queued behind legacy migration does not leave recreated keys after logout', async () => {
+  const s = scenarioStorageSetup([['trainingCallScenario:7', '17'], ['pushNotifications:installationId', 'installation']]);
+  await Promise.all([s.api.pruneExpiredTrainingCallScenarios(), s.api.clearTrainingCallScenarios()]);
+  assert.deepEqual([...s.stored.entries()], [['pushNotifications:installationId', 'installation']]);
+});
+
+test('valid legacy lookup still works if writing its migrated format fails', async () => {
+  const s = scenarioStorageSetup([['trainingCallScenario:7', '17']]);
+  s.driver.setItem = async () => { throw new Error('storage full'); };
+  assert.equal(await s.api.getTrainingCallScenario(7), '17');
+});
+
+test('clearing auth also clears all reservation metadata while retaining device settings', async () => {
+  const s = authStorageSetup();
+  await s.api.setAuthTokens(tokensFor('101'), 'password');
+  s.stored.set('trainingCallScenario:7', '17');
+  s.stored.set('trainingCallScenario:8', 'broken');
+  s.stored.set('pushNotifications:installationId', 'installation');
+  await s.api.clearAuthTokens();
+  assert.deepEqual([...s.stored.entries()], [['pushNotifications:installationId', 'installation']]);
+});
+
+test('reservation cleanup failure never blocks credential removal', async () => {
+  const s = authStorageSetup('ios');
+  await s.api.setAuthTokens(tokensFor('101'), 'password');
+  s.driver.getAllKeys = async () => { throw new Error('cannot enumerate storage'); };
+  await s.api.clearAuthTokens();
+  assert.equal(s.secure.size, 0);
+  assert.equal(s.stored.has('auth:loginMethod'), false);
+});
+
+test('the existing push listener signals one immediate reservation check and unsubscribes on cleanup', () => {
+  const events = loadTypeScript('../utils/trainingCallEvents.ts');
+  const effects = [];
+  let callbacks, refreshes = 0, checks = 0, unsubscribed = false;
+  const unsubscribe = events.subscribeTrainingCallUpdates(() => { checks++; });
+  const { usePushNotifications } = loadTypeScript('../hooks/usePushNotifications.ts', {
+    '@/api/notificationApi': {},
+    '@/hooks/useNotifications': { notificationQueryKeys: { all: ['notifications'] } },
+    '@/services/pushNotifications': {
+      listenForPushNotifications: (listeners) => { callbacks = listeners; return () => { unsubscribed = true; }; },
+    },
+    '@/utils/authTokenStorage': {},
+    '@/utils/trainingCallEvents': events,
+    '@tanstack/react-query': { useQueryClient: () => ({ invalidateQueries: async () => { refreshes++; } }) },
+    'expo-router': { usePathname: () => '/home', useRootNavigationState: () => null },
+    'react': { useRef: (current) => ({ current }), useCallback: (callback) => callback, useEffect: (effect) => effects.push(effect) },
+    'react-native': {},
+  });
+  usePushNotifications();
+  const cleanup = effects[0]();
+  callbacks.onForegroundMessage({ messageId: 'reservation' });
+  assert.equal(refreshes, 1);
+  assert.equal(checks, 1);
+  cleanup(); unsubscribe();
+  events.notifyTrainingCallUpdate();
+  assert.equal(checks, 1);
+  assert.equal(unsubscribed, true);
 });
