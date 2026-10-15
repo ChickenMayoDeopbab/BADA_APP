@@ -26,15 +26,15 @@ interface MenuRowProps {
 }
 
 const menuRowClassName =
-  "h-[55px] w-full flex-row items-center justify-between px-[22px]";
+  "min-h-[55px] w-full flex-row items-center justify-between gap-3 px-[22px] py-4";
 function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
   const content = (
     <>
       <Text
         className={
           destructive
-            ? "text-headline2 font-medium text-status-error"
-            : "text-headline2 font-medium text-label-normal"
+            ? "min-w-0 flex-1 text-headline2 font-medium text-status-error"
+            : "min-w-0 flex-1 text-headline2 font-medium text-label-normal"
         }
       >
         {label}

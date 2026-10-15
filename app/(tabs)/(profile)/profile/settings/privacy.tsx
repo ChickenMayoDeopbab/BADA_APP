@@ -30,15 +30,16 @@ interface DocumentRowProps {
   onPress: () => void;
 }
 
+/** 큰 글자에서도 문서 제목과 화살표가 겹치지 않도록 충분한 여백을 둔다. */
 function DocumentRow({ expanded, label, onPress }: DocumentRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ expanded }}
-      className="min-h-14 flex-row items-center justify-between px-4"
+      className="min-h-[72px] flex-row items-center justify-between gap-3 px-4 py-5"
       onPress={onPress}
     >
-      <Text className="text-body font-medium text-label-normal">{label}</Text>
+      <Text className="min-w-0 flex-1 text-body font-medium text-label-normal">{label}</Text>
       <Ionicons
         name={expanded ? "chevron-up" : "chevron-down"}
         size={22}
