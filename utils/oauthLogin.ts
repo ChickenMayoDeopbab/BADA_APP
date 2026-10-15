@@ -23,7 +23,7 @@ const finishOAuthLogin = async (code: string): Promise<OAuthDestination> => {
   if (!accessToken || !refreshToken)
     throw new Error("소셜 로그인 인증 정보를 받지 못했어요.");
   try {
-    await setAuthTokens({ accessToken, refreshToken });
+    await setAuthTokens({ accessToken, refreshToken }, "oauth");
     await AsyncStorage.setItem("autoLogin", "true");
   } catch (error) {
     await Promise.allSettled([

@@ -11,7 +11,7 @@ import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
-import { clearAuthTokens } from "@/utils/authTokenStorage";
+import { clearAuthTokens, getAuthLoginMethod } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Href, router, useFocusEffect } from "expo-router";
@@ -64,6 +64,7 @@ function ProfileScreen() {
   const ensureSensitiveConsent = useSensitiveConsentGuard();
   const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [canChangePassword, setCanChangePassword] = useState(false);
   const [loadedImageUri, setLoadedImageUri] = useState("");
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const profileImage = useProfileImage(myPage?.s3Key);
@@ -72,14 +73,19 @@ function ProfileScreen() {
     useCallback(() => {
       let active = true;
       setIsProfileLoading(true);
+      setCanChangePassword(false);
 
       void (async () => {
         try {
-          const response = await getMyPage();
+          const [response, loginMethod] = await Promise.all([
+            getMyPage(),
+            getAuthLoginMethod(),
+          ]);
           const profile = response.data;
 
           if (!active) return;
           setMyPage(profile);
+          setCanChangePassword(loginMethod === "password");
         } catch {
           // 이전에 불러온 정보가 있다면 그대로 유지합니다.
         } finally {
@@ -309,12 +315,14 @@ function ProfileScreen() {
             style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
-              <MenuRow
-                label="비밀번호 변경"
-                onPress={() => router.push(
-                  "/(tabs)/(profile)/profile/settings/password" as Href,
-                )}
-              />
+              {canChangePassword ? (
+                <MenuRow
+                  label="비밀번호 변경"
+                  onPress={() => router.push(
+                    "/(tabs)/(profile)/profile/settings/password" as Href,
+                  )}
+                />
+              ) : null}
               <MenuRow
                 label="문의 및 피드백"
                 onPress={() => router.push(

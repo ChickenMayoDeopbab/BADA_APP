@@ -127,7 +127,7 @@ export default function LoginScreen() {
         "autoLogin",
         isChecked ? "true" : "false",
       );
-      await setAuthTokens(response.data);
+      await setAuthTokens(response.data, "password");
       await setAuthenticatedUsername(username);
 
       const pendingConsent = await getPendingLegalConsent();
