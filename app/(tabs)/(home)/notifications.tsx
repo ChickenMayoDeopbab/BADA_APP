@@ -180,21 +180,6 @@ export default function NotificationsScreen() {
       <StatusBar style="dark" backgroundColor={SEMANTIC_COLORS.background.normal} />
       <Top
         title="알림"
-        right={(
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="알림 전체 읽기"
-            accessibilityState={{ disabled: isMarkAllDisabled, busy: markAllMutation.isPending }}
-            disabled={isMarkAllDisabled}
-            className="py-3 disabled:opacity-40"
-            hitSlop={8}
-            onPress={handleMarkAllRead}
-          >
-            <Text className="text-label font-medium text-label-alternative">
-              {markAllMutation.isPending ? "처리 중" : "전체 읽기"}
-            </Text>
-          </Pressable>
-        )}
         back
         onBack={() =>
           router.canGoBack()
@@ -204,14 +189,29 @@ export default function NotificationsScreen() {
       />
 
       <View className="flex-1 bg-background-alternative">
-        <View className="flex-row gap-2 px-8 pt-[15px]">
-          <FilterChip label="전체" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
-          <FilterChip
-            label="안읽음"
-            count={unreadCount}
-            selected={filter === "UNREAD"}
-            onPress={() => setFilter("UNREAD")}
-          />
+        <View className="flex-row items-center justify-between gap-3 px-8 pt-[15px]">
+          <View className="flex-row items-center gap-2">
+            <FilterChip label="전체" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
+            <FilterChip
+              label="안읽음"
+              count={unreadCount}
+              selected={filter === "UNREAD"}
+              onPress={() => setFilter("UNREAD")}
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="알림 전체 읽기"
+            accessibilityState={{ disabled: isMarkAllDisabled, busy: markAllMutation.isPending }}
+            disabled={isMarkAllDisabled}
+            className="shrink-0 py-1.5 disabled:opacity-40"
+            hitSlop={8}
+            onPress={handleMarkAllRead}
+          >
+            <Text className="text-label font-medium text-label-alternative">
+              {markAllMutation.isPending ? "처리 중" : "전체 읽기"}
+            </Text>
+          </Pressable>
         </View>
 
       {notificationsQuery.isLoading ? (

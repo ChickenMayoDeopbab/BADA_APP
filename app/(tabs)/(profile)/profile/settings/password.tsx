@@ -1,6 +1,7 @@
 import { patchPassword } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
 import { getMyPage } from "@/api/userInfoApi";
+import { getAuthLoginMethod } from "@/utils/authTokenStorage";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
@@ -45,7 +46,10 @@ export default function PasswordSettingsScreen() {
   const { showAlert } = useAppAlert();
   const profileQuery = useQuery({
     queryKey: ["myPage", "password"],
-    queryFn: getMyPage,
+    queryFn: async () => {
+      if ((await getAuthLoginMethod()) !== "password") return null;
+      return getMyPage();
+    },
     staleTime: 0,
     gcTime: 0,
   });
@@ -79,6 +83,14 @@ export default function PasswordSettingsScreen() {
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
+      if ((await getAuthLoginMethod()) !== "password") {
+        showAlert({
+          title: "비밀번호를 변경할 수 없는 계정이에요",
+          description:
+            "아이디와 비밀번호로 로그인한 계정에서만 변경할 수 있어요.",
+        });
+        return;
+      }
       await patchPassword({
         email,
         oldPassword: values.oldPassword,
@@ -117,6 +129,14 @@ export default function PasswordSettingsScreen() {
         >
           {profileQuery.isPending ? (
             <LoadingIndicator />
+          ) : profileQuery.data === null ? (
+            <View className="gap-4">
+              <Text className="text-body text-label-alternative">
+                아이디와 비밀번호로 로그인한 계정에서만 비밀번호를 변경할 수
+                있어요.
+              </Text>
+              <CustomButton label="돌아가기" onPress={() => router.back()} />
+            </View>
           ) : profileQuery.isError || !profileQuery.data?.data.email ? (
             <View className="gap-4">
               <Text className="text-body text-status-error">
@@ -130,8 +150,7 @@ export default function PasswordSettingsScreen() {
           ) : (
             <>
               <Text className="mb-4 text-body text-label-alternative">
-                영문과 숫자를 포함한 8자 이상의 비밀번호를 입력해 주세요. 소셜
-                로그인 계정은 해당 서비스에서 비밀번호를 변경해 주세요.
+                영문과 숫자를 포함한 8자 이상의 비밀번호를 입력해 주세요.
               </Text>
               {passwordFields.map(({ name, label }) => (
                 <Controller

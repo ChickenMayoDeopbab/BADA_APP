@@ -350,7 +350,8 @@ test("duplicate OAuth callbacks share token exchange, persistence and profile sy
       },
     },
     "@/utils/authTokenStorage": {
-      setAuthTokens: async () => {
+      setAuthTokens: async (tokens, method) => {
+        assert.equal(method, "oauth");
         saves++;
       },
     },
@@ -653,4 +654,95 @@ test("startup authentication can restart after Strict Mode effect cleanup", asyn
   assert.equal(root.clears, 0);
   assert.deepEqual(root.routes, ["/home"]);
   cleanup();
+});
+
+/** 동일한 기기 저장소를 공유하여 로그인 방식의 계정별 보존과 삭제를 검증한다. */
+function authStorageSetup(platform = "web") {
+  const stored = new Map();
+  const secure = new Map();
+  const mocks = {
+    "@react-native-async-storage/async-storage": {
+      getItem: async (key) => stored.get(key) ?? null,
+      setItem: async (key, value) => stored.set(key, value),
+      removeItem: async (key) => stored.delete(key),
+      multiRemove: async (keys) => keys.forEach((key) => stored.delete(key)),
+    },
+    "expo-secure-store": {
+      WHEN_UNLOCKED_THIS_DEVICE_ONLY: "device",
+      getItemAsync: async (key) => secure.get(key) ?? null,
+      setItemAsync: async (key, value) => secure.set(key, value),
+      deleteItemAsync: async (key) => secure.delete(key),
+    },
+    "react-native": { Platform: { OS: platform } },
+    "jwt-decode": require("jwt-decode"),
+  };
+  const reload = () => loadTypeScript("../utils/authTokenStorage.ts", mocks);
+  return { stored, secure, reload, api: reload() };
+}
+
+/** 테스트용 JWT에 계정 식별자를 넣는다. */
+function tokensFor(subject, generation = 1) {
+  const payload = Buffer.from(
+    JSON.stringify({ sub: subject, generation }),
+  ).toString("base64url");
+  return {
+    accessToken: `eyJhbGciOiJub25lIn0.${payload}.test`,
+    refreshToken: `refresh-${subject}-${generation}`,
+  };
+}
+
+test("password login remains identifiable after restarting the app", async () => {
+  const storage = authStorageSetup();
+  await storage.api.setAuthTokens(tokensFor("101"), "password");
+  assert.equal(await storage.reload().getAuthLoginMethod(), "password");
+});
+
+test("OAuth login is preserved across token refresh and cleared on logout", async () => {
+  const storage = authStorageSetup();
+  await storage.api.setAuthTokens(tokensFor("101"), "oauth");
+  await storage.api.setAuthTokens(tokensFor("101", 2));
+  assert.equal(await storage.api.getAuthLoginMethod(), "oauth");
+  await storage.api.clearAuthTokens();
+  assert.equal(await storage.api.getAuthLoginMethod(), null);
+  assert.equal(storage.stored.has("auth:loginMethod"), false);
+});
+
+test("switching accounts cannot inherit password access from the previous account", async () => {
+  const storage = authStorageSetup();
+  await storage.api.setAuthTokens(tokensFor("101"), "password");
+  await storage.api.setAuthTokens(tokensFor("202"));
+  assert.equal(await storage.api.getAuthLoginMethod(), null);
+  await storage.api.setAuthTokens(tokensFor("202"), "oauth");
+  assert.equal(await storage.api.getAuthLoginMethod(), "oauth");
+});
+
+test("legacy sessions and malformed login metadata do not imply password login", async () => {
+  const storage = authStorageSetup();
+  await storage.api.setAuthTokens(tokensFor("101"));
+  assert.equal(await storage.api.getAuthLoginMethod(), null);
+  for (const value of [
+    "invalid-json",
+    "null",
+    '{"subject":"101","method":"google"}',
+    '{"subject":"202","method":"password"}',
+  ]) {
+    storage.stored.set("auth:loginMethod", value);
+    assert.equal(await storage.api.getAuthLoginMethod(), null);
+  }
+});
+
+test("native login metadata contains no tokens and native logout removes secure credentials", async () => {
+  const storage = authStorageSetup("ios");
+  const tokens = tokensFor("101");
+  await storage.api.setAuthTokens(tokens, "password");
+  assert.equal(await storage.api.getAuthLoginMethod(), "password");
+  assert.equal(storage.stored.has("accessToken"), false);
+  assert.equal(storage.stored.has("refreshToken"), false);
+  assert.deepEqual(JSON.parse(storage.stored.get("auth:loginMethod")), {
+    subject: "101",
+    method: "password",
+  });
+  await storage.api.clearAuthTokens();
+  assert.equal(storage.secure.size, 0);
+  assert.equal(storage.stored.size, 0);
 });
