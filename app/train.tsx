@@ -1,4 +1,9 @@
 import CallBackground from "@/components/train/CallBackground";
+import { acceptTrainingCallSchedule, cancelTrainingCallSchedule } from "@/api/trainingCallApi";
+import { getApiErrorMessage } from "@/api/error";
+import type { CreateSessionResponse } from "@/api/types";
+import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
+import { getTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
 import ScriptHintBar from "@/components/train/ScriptHintBar";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
@@ -163,9 +168,13 @@ function ScenarioLabel({ title }: { title?: string }) {
 
 export default function Train() {
   const { showAlert } = useAppAlert();
-  const { sessionId, wsUrl, isWarmup, scenarioId, title, content, isCustom, scenarioImage, category } = useLocalSearchParams<{
-    sessionId: string;
-    wsUrl: string;
+  const {
+    sessionId: initialSessionId, wsUrl: initialWsUrl, scheduleId,
+    isWarmup, scenarioId: initialScenarioId, title, content, isCustom, scenarioImage, category,
+  } = useLocalSearchParams<{
+    sessionId?: string;
+    wsUrl?: string;
+    scheduleId?: string;
     isWarmup?: string;
     scenarioId?: string;
     title?: string;
@@ -174,6 +183,14 @@ export default function Train() {
     scenarioImage?: string;
     category?: string;
   }>();
+  const [acceptedSession, setAcceptedSession] = useState<CreateSessionResponse | null>(null);
+  const sessionId = acceptedSession?.sessionId ?? initialSessionId;
+  const wsUrl = acceptedSession?.wsUrl ?? initialWsUrl;
+  const [recoveredScenarioId, setRecoveredScenarioId] = useState<string>();
+  const scenarioId = initialScenarioId ?? recoveredScenarioId;
+  const ensureSensitiveConsent = useSensitiveConsentGuard();
+  const isHandlingScheduleRef = useRef(false);
+  const [isHandlingSchedule, setIsHandlingSchedule] = useState(false);
 
   useAndroidBackHandler(() => {
     BackHandler.exitApp();
@@ -196,7 +213,7 @@ export default function Train() {
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
-   * 예약 발신(CallWatcher)은 params에 시나리오 정보를 싣지 않고 scenarioId만 넘긴다.
+   * 즉시 발신에서 시나리오 정보가 생략되어도 scenarioId로 조회한다.
    * 목록 캐시를 공유하는 useScenario로 조회해 두 경로 모두 이름이 뜨게 한다.
    */
   const { data: scenario } = useScenario(scenarioId);
@@ -359,11 +376,62 @@ export default function Train() {
 
   // 벨소리·진동은 벨이 울리는 동안만 — 전화를 받으면(명상 안내가 뜨면) 바로 멈춘다
   useIncomingCallRinging(
-    step === "receive" && !isMeditationVisible && !isMeditationVideoVisible,
+    step === "receive" && !isMeditationVisible &&
+      !isMeditationVideoVisible && !isHandlingSchedule,
   );
 
-  const handleAccept = () => setIsMeditationVisible(true);
-  const handleDecline = () => router.back();
+  /** 서버 예약은 사용자가 수락한 시점에 세션을 만들고 명상 안내로 이어간다. */
+  const handleAccept = async () => {
+    if (isHandlingScheduleRef.current) return;
+    if (!scheduleId || acceptedSession) {
+      setIsMeditationVisible(true);
+      return;
+    }
+    isHandlingScheduleRef.current = true;
+    setIsHandlingSchedule(true);
+    try {
+      if (!(await ensureSensitiveConsent())) return;
+      const session = await acceptTrainingCallSchedule(Number(scheduleId));
+      // 예약 생성 직후 수신 화면이 먼저 열려도 저장이 끝난 시나리오 ID를 복구한다.
+      if (!scenarioId) {
+        setRecoveredScenarioId(await getTrainingCallScenario(Number(scheduleId)));
+      }
+      setAcceptedSession(session);
+      setIsMeditationVisible(true);
+      void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
+    } catch (error) {
+      showAlert({
+        title: "전화를 받지 못했어요",
+        description: getApiErrorMessage(error, "예약 상태를 확인하고 다시 시도해 주세요."),
+      });
+    } finally {
+      isHandlingScheduleRef.current = false;
+      setIsHandlingSchedule(false);
+    }
+  };
+
+  /** 예약 수신을 거절할 때 서버 예약도 취소한다. */
+  const handleDecline = async () => {
+    if (isHandlingScheduleRef.current) return;
+    isHandlingScheduleRef.current = true;
+    setIsHandlingSchedule(true);
+    try {
+      if (scheduleId && !acceptedSession) {
+        await cancelTrainingCallSchedule(Number(scheduleId));
+        void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
+      }
+      if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)/(home)/home");
+    } catch (error) {
+      showAlert({
+        title: "전화를 거절하지 못했어요",
+        description: getApiErrorMessage(error, "잠시 후 다시 시도해 주세요."),
+      });
+    } finally {
+      isHandlingScheduleRef.current = false;
+      setIsHandlingSchedule(false);
+    }
+  };
   const handleToggleMute = useCallback(() => {
     const next = !isMuted;
     setIsMuted(next);
@@ -448,7 +516,9 @@ export default function Train() {
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="전화 받기"
-              onPress={handleAccept}
+              onPress={() => void handleAccept()}
+              disabled={isHandlingSchedule}
+              accessibilityState={{ disabled: isHandlingSchedule, busy: isHandlingSchedule }}
               activeOpacity={0.8}
               style={[styles.callButton, { backgroundColor: PALETTE.green[40] }]}
             >
@@ -457,7 +527,8 @@ export default function Train() {
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="전화 거절하기"
-              onPress={handleDecline}
+              onPress={() => void handleDecline()}
+              disabled={isHandlingSchedule}
               activeOpacity={0.8}
               style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
             >

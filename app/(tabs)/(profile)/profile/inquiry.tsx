@@ -1,0 +1,129 @@
+import { getApiErrorMessage } from "@/api/error";
+import { sendInquiry } from "@/api/supportApi";
+import CustomButton from "@/components/common/CustomButton";
+import CustomInput from "@/components/common/CustomInput";
+import Top from "@/components/common/Top";
+import { useMutation } from "@tanstack/react-query";
+import { router } from "expo-router";
+import { useRef, useState } from "react";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+/** 문의와 피드백을 접수하고 전송 실패 시 작성 내용을 보존한다. */
+export default function InquiryScreen() {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const isSendingRef = useRef(false);
+  const mutation = useMutation({ mutationFn: sendInquiry, retry: false });
+  const canSubmit =
+    title.trim().length > 0 &&
+    title.trim().length <= 100 &&
+    content.trim().length > 0 &&
+    content.trim().length <= 3000;
+
+  /** 유효한 문의를 한 번만 전송한다. */
+  const handleSubmit = async () => {
+    if (!canSubmit || isSendingRef.current || mutation.isSuccess) return;
+    isSendingRef.current = true;
+    Keyboard.dismiss();
+    try {
+      await mutation.mutateAsync({
+        title: title.trim(),
+        content: content.trim(),
+      });
+    } catch {
+      // 오류 메시지는 mutation 상태로 표시하고 입력 내용은 유지한다.
+    } finally {
+      isSendingRef.current = false;
+    }
+  };
+
+  return (
+    <SafeAreaView edges={["bottom"]} className="flex-1 bg-background-normal">
+      <Top title="문의 및 피드백" back />
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="grow gap-5 px-8 py-6"
+        >
+          {mutation.isSuccess ? (
+            <View className="gap-5">
+              <Text
+                accessibilityRole="header"
+                className="text-title2 font-bold text-label-normal"
+              >
+                문의를 접수했어요.
+              </Text>
+              <Text className="text-body text-label-alternative">
+                보내주신 문의와 피드백을 확인하겠습니다.
+              </Text>
+              <CustomButton
+                label="마이페이지로 돌아가기"
+                tone="primary"
+                onPress={() => router.back()}
+              />
+            </View>
+          ) : (
+            <>
+              <Text className="text-body text-label-alternative">
+                불편한 점이나 개선 의견을 알려 주세요. 비밀번호 등 민감한 정보는
+                입력하지 마세요.
+              </Text>
+              <CustomInput
+                label="제목"
+                accessibilityLabel="문의 제목"
+                value={title}
+                onChangeText={setTitle}
+                maxLength={100}
+                editable={!mutation.isPending}
+              />
+              <View className="gap-2">
+                <CustomInput
+                  label="문의 및 피드백 내용"
+                  accessibilityLabel="문의 및 피드백 내용"
+                  value={content}
+                  onChangeText={setContent}
+                  multiline
+                  textAlignVertical="top"
+                  style={{ minHeight: 200 }}
+                  maxLength={3000}
+                  editable={!mutation.isPending}
+                />
+                <Text className="text-right text-caption text-label-alternative">
+                  {content.length}/3000
+                </Text>
+              </View>
+              {mutation.isError ? (
+                <Text
+                  accessibilityRole="alert"
+                  className="text-body text-status-error"
+                >
+                  {getApiErrorMessage(
+                    mutation.error,
+                    "문의를 전송하지 못했어요. 잠시 후 다시 시도해 주세요.",
+                  )}
+                </Text>
+              ) : null}
+              <CustomButton
+                label={mutation.isPending ? "전송 중" : "보내기"}
+                tone="primary"
+                disabled={!canSubmit || mutation.isPending}
+                onPress={() => void handleSubmit()}
+              />
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}

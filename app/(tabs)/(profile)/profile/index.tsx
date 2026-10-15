@@ -309,6 +309,18 @@ function ProfileScreen() {
             style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
+              <MenuRow
+                label="비밀번호 변경"
+                onPress={() => router.push(
+                  "/(tabs)/(profile)/profile/settings/password" as Href,
+                )}
+              />
+              <MenuRow
+                label="문의 및 피드백"
+                onPress={() => router.push(
+                  "/(tabs)/(profile)/profile/inquiry" as Href,
+                )}
+              />
               <MenuRow label="로그아웃" destructive onPress={handleSignOut} />
               <MenuRow
                 label="회원 탈퇴"
