@@ -1,6 +1,4 @@
 import { deleteSignout } from "@/api/authApi";
-import { MyPageResponse } from "@/api/types";
-import { getMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
 import { Skeleton, SkeletonGroup } from "@/components/common/skeleton";
 import StyledImage from "@/components/common/StyledImage";
@@ -11,6 +9,8 @@ import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
+import { useMyPage, myPageQueryKeys } from "@/hooks/useMyPage";
+import { useQueryClient } from "@tanstack/react-query";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens, getAuthLoginMethod } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
@@ -63,8 +63,9 @@ function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
 
 function ProfileScreen() {
   const ensureSensitiveConsent = useSensitiveConsentGuard();
-  const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data, isPending: isProfileLoading, refetch } = useMyPage();
+  const myPage = data?.data;
   const [canChangePassword, setCanChangePassword] = useState(false);
   const [loadedImageUri, setLoadedImageUri] = useState("");
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -73,30 +74,15 @@ function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      setIsProfileLoading(true);
-
-      void (async () => {
-        try {
-          const [response, loginMethod] = await Promise.all([
-            getMyPage(),
-            getAuthLoginMethod(),
-          ]);
-          const profile = response.data;
-
-          if (!active) return;
-          setMyPage(profile);
-          setCanChangePassword(loginMethod === "password");
-        } catch {
-          // 이전에 불러온 정보가 있다면 그대로 유지합니다.
-        } finally {
-          if (active) setIsProfileLoading(false);
-        }
-      })();
+      void refetch();
+      void getAuthLoginMethod().then((method) => {
+        if (active) setCanChangePassword(method === "password");
+      });
 
       return () => {
         active = false;
       };
-    }, []),
+    }, [refetch]),
   );
 
   const handleSignOut = async () => {
@@ -116,6 +102,7 @@ function ProfileScreen() {
         "diagnosisResult",
       ]),
     ]);
+    queryClient.removeQueries({ queryKey: myPageQueryKeys.all });
     router.replace("/auth");
   };
 
