@@ -36,7 +36,7 @@ const readToken = async (key: string): Promise<string | null> => {
 
   const secureToken = await SecureStore.getItemAsync(key, secureStoreOptions);
   if (secureToken) {
-    await AsyncStorage.removeItem(key);
+    await AsyncStorage.removeItem(key).catch(() => {});
     return secureToken;
   }
 
@@ -45,7 +45,7 @@ const readToken = async (key: string): Promise<string | null> => {
   if (!legacyToken) return null;
 
   await SecureStore.setItemAsync(key, legacyToken, secureStoreOptions);
-  await AsyncStorage.removeItem(key);
+  await AsyncStorage.removeItem(key).catch(() => {});
 
   return legacyToken;
 };
@@ -57,7 +57,7 @@ const writeToken = async (key: string, value: string): Promise<void> => {
   }
 
   await SecureStore.setItemAsync(key, value, secureStoreOptions);
-  await AsyncStorage.removeItem(key);
+  await AsyncStorage.removeItem(key).catch(() => {});
 };
 
 export const getAccessToken = (): Promise<string | null> =>

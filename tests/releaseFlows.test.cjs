@@ -565,21 +565,25 @@ test("scheduled scenario IDs survive a fresh module load and are removed after u
 });
 
 /** 앱 시작 인증 검사의 중단과 재실행을 실제 effect로 검증한다. */
-function rootSetup() {
+function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } = {}) {
   let pathname = "/";
   let refIndex = 0;
   const refs = [];
   let effects = [];
   const tokenResolvers = [];
+  const tokenRejecters = [];
   const routes = [];
+  const state = [];
+  let stateIndex = 0, tree;
   let clears = 0;
-  const jsxRuntime = { jsx: () => null, jsxs: () => null };
+  const jsx = (type, props) => ({ type, props });
+  const jsxRuntime = { jsx, jsxs: jsx };
   const mocks = {
     "@/design-system": { SEMANTIC_COLORS: { background: { normal: "white" } } },
     "@/global.css": {},
     "@/design-system/setupDefaultFont": {},
     "@react-native-async-storage/async-storage": {
-      getItem: async () => "true",
+      getItem: async () => autoLogin,
     },
     "@tanstack/react-query": {
       QueryClient: class {},
@@ -604,14 +608,21 @@ function rootSetup() {
         const index = refIndex++;
         return (refs[index] ??= { current: initial });
       },
-      useState: (initial) => [initial, () => {}],
+      useState: (initial) => {
+        const index = stateIndex++;
+        if (!(index in state)) state[index] = initial;
+        return [state[index], (value) => { state[index] = typeof value === "function" ? value(state[index]) : value; }];
+      },
       createElement: () => null,
     },
     "react-native-safe-area-context": {},
-    "@/utils/legalConsentFlow": { getAuthenticatedPath: async () => "/home" },
+    "@/utils/legalConsentFlow": { getAuthenticatedPath: getDestination },
+    "@/utils/authSessionError": loadTypeScript("../utils/authSessionError.ts"),
+    "@/components/common/CustomButton": { default: "Button" },
+    "react-native": { View: "View", Text: "Text" },
     "@/utils/authTokenStorage": {
       getAccessToken: () =>
-        new Promise((resolve) => tokenResolvers.push(resolve)),
+        new Promise((resolve, reject) => { tokenResolvers.push(resolve); tokenRejecters.push(reject); }),
       clearAuthTokens: async () => {
         clears++;
       },
@@ -641,12 +652,15 @@ function rootSetup() {
     render: (nextPath) => {
       pathname = nextPath;
       refIndex = 0;
+      stateIndex = 0;
       effects = [];
-      loaded.exports.default();
+      tree = loaded.exports.default();
       return effects[1];
     },
     tokenResolvers,
+    tokenRejecters,
     routes,
+    get tree() { return tree; },
     get clears() {
       return clears;
     },
@@ -939,4 +953,73 @@ test('the existing push listener signals one immediate reservation check and uns
   events.notifyTrainingCallUpdate();
   assert.equal(checks, 1);
   assert.equal(unsubscribed, true);
+});
+
+/** Read the retry button from the actual root layout tree. */
+function findStartupRetry(tree) {
+  if (!tree || typeof tree !== 'object') return undefined;
+  if (Array.isArray(tree)) return tree.map(findStartupRetry).find(Boolean);
+  if (tree.props?.label === '다시 확인') return tree;
+  return findStartupRetry(tree.props?.children);
+}
+
+test('cold launch with remember-login preserves credentials on a temporary error and retries successfully', async () => {
+  let isOffline = true;
+  const root = rootSetup({ getDestination: async (options) => {
+    assert.equal(options.throwOnError, true);
+    if (isOffline) throw new Error('network unavailable');
+    return '/home';
+  } });
+  const cleanup = root.render('/')();
+  root.tokenResolvers[0]('saved-access-token');
+  await flushAsync();
+  assert.equal(root.clears, 0);
+  assert.deepEqual(root.routes, []);
+  root.render('/');
+  const retry = findStartupRetry(root.tree);
+  assert.ok(retry);
+  retry.props.onPress();
+  cleanup();
+  isOffline = false;
+  const retryCleanup = root.render('/')();
+  root.tokenResolvers[1]('saved-access-token');
+  await flushAsync();
+  assert.equal(root.clears, 0);
+  assert.deepEqual(root.routes, ['/home']);
+  retryCleanup();
+});
+
+test('temporary secure-storage failure at cold launch does not delete login tokens', async () => {
+  const root = rootSetup();
+  const cleanup = root.render('/')();
+  root.tokenRejecters[0](new Error('device keychain temporarily unavailable'));
+  await flushAsync();
+  assert.equal(root.clears, 0);
+  assert.deepEqual(root.routes, []);
+  root.render('/');
+  assert.ok(findStartupRetry(root.tree));
+  cleanup();
+});
+
+test('cold launch still signs out deliberately when remember-login was not selected', async () => {
+  const root = rootSetup({ autoLogin: 'false' });
+  const cleanup = root.render('/')();
+  root.tokenResolvers[0]('saved-access-token');
+  await flushAsync();
+  assert.equal(root.clears, 1);
+  assert.deepEqual(root.routes, ['/auth']);
+  cleanup();
+});
+
+test('legacy cleanup errors cannot hide a valid secure token or undo a successful refresh write', async () => {
+  const s = authStorageSetup('ios');
+  const tokens = tokensFor('101');
+  await s.api.setAuthTokens(tokens, 'password');
+  s.driver.removeItem = async () => { throw new Error('legacy cleanup failed'); };
+  assert.equal(await s.api.getAccessToken(), tokens.accessToken);
+  assert.equal(await s.api.getRefreshToken(), tokens.refreshToken);
+  const refreshed = tokensFor('101', 2);
+  await s.api.setAuthTokens(refreshed);
+  assert.equal(await s.api.getAccessToken(), refreshed.accessToken);
+  assert.equal(await s.api.getAuthLoginMethod(), 'password');
 });
