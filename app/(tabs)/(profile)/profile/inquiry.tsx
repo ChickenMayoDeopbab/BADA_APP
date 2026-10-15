@@ -96,12 +96,15 @@ export default function InquiryScreen() {
                 onChangeText={setTitle}
                 placeholder="문의 제목을 입력해주세요."
                 placeholderTextColor={SEMANTIC_COLORS.line.normal}
-                className="h-12 px-3 font-medium rounded-component bg-background-alternative text-body text-label-normal"
+                className="h-14 px-3 font-medium rounded-component bg-background-alternative text-body text-label-normal"
                 maxLength={100}
                 editable={!mutation.isPending}
               />
+              <Text className="mt-6 mb-1.5 text-label text-label-alternative">
+                문의 본문
+              </Text>
               <TextInput
-                accessibilityLabel="문의 및 피드백 내용"
+                accessibilityLabel="문의 본문"
                 value={content}
                 onChangeText={setContent}
                 placeholder="문의 및 피드백 내용을 입력해주세요."
@@ -109,7 +112,7 @@ export default function InquiryScreen() {
                 multiline
                 scrollEnabled={false}
                 textAlignVertical="top"
-                className="mt-3 min-h-[275px] rounded-component bg-background-alternative px-3 py-3 text-body font-medium text-label-normal"
+                className="min-h-[275px] rounded-component bg-background-alternative px-3 py-3 text-body font-medium text-label-normal"
                 maxLength={3000}
                 editable={!mutation.isPending}
               />
