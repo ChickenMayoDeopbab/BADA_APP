@@ -1,4 +1,5 @@
-import { StyleProp, ViewStyle } from "react-native";
+import { SEMANTIC_COLORS } from "@/design-system/colors";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSkeletonPulse } from "./SkeletonGroup";
 
@@ -18,9 +19,15 @@ export default function Skeleton({ className = "", style }: SkeletonProps) {
   }));
 
   return (
-    <Animated.View
-      className={`bg-fill-neutral ${className}`}
-      style={[pulseStyle, style]}
-    />
+    <View className={`overflow-hidden ${className}`} style={style}>
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, styles.fill, pulseStyle]}
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  fill: { backgroundColor: SEMANTIC_COLORS.fill.neutral },
+});
