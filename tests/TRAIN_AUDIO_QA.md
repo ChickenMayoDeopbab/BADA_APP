@@ -27,3 +27,29 @@ The client advertises `playback_capabilities.completion_ack` when the WebSocket 
 - `npx expo prebuild --no-install` then rebuild native apps. A Metro reload alone cannot add the new native dependency. FFmpeg and background-service support are disabled in the Expo plugin.
 
 Device acceptance still requires a live call on iOS and Android: short and long replies, 5-minute speaker call, wired/Bluetooth route changes, interrupt during playback, background/foreground, repeated calls, and lost socket. Confirm no clipped tails, no AI echo sent back, microphone return after the tail, one statistics message per turn, and one `playback_done` only for fully played turns. Compare CPU/memory and audible gaps against the original branch; no measured performance percentage is claimed by this change.
+
+## Frontend microphone noise gate (#196)
+
+`utils/trainMicrophone.ts` runs on the existing 16 kHz mono PCM16 input on iOS, Android and web. This adds no native module, model download, server endpoint, or server configuration. It is an **energy-based noise gate**, not Silero, a learned speech detector, background speaker separation, or full-duplex echo cancellation. Existing Android optional audio effects and the iOS VoiceChat route are retained. Web requests `noiseSuppression`, `echoCancellation`, and `autoGainControl` as preferences; actual support is browser/device dependent ([media constraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints)).
+
+Input is classified in 20 ms frames using DC-corrected RMS. The opening threshold is at least 0.003 of full scale (about -50.5 dBFS), follows quiet-frame RMS by a factor of 2.5, and is capped at 0.012 (about -38.4 dBFS). An open gate uses a 60% threshold and a 400 ms hangover. There is no startup calibration period that discards the first sentence. A fixed 100 ms lookahead retains a quiet word onset before a louder vowel. This delay is in addition to capture, network and server latency. Web capture buffers were reduced from 256 ms to 20 ms to avoid stacking the old capture delay on top of lookahead.
+
+Frames classified as quiet become equal-length zero PCM. They are **still sent**, so server silence detection receives silence and recording timestamps keep the existing duration. Speech samples are passed byte-for-byte; the gate does not normalize, filter or compress them. Ordinary capture callback boundaries, including split PCM samples, are reconstructed. Local call end flushes the gate's remaining complete samples **before** sending `end`; a partial buffer still inside the native recorder/worklet is not available to JS. This does not guarantee a server transcription final will arrive before server shutdown.
+
+AI playback/tail, user mute, background, disconnect, screen cleanup and a new call discard pending microphone sound. User mute also applies locally before sending the existing server mute message. Capture starts/stops are serialized and stale async web permission/worklet completion cannot restart an ended call. Microphone startup failures now show an error and end the call instead of leaving a silently nonfunctional call screen. Unexpected web capture sample rates fail explicitly instead of sending PCM with incorrect timing.
+
+### Automated checks
+
+`npm run test:audio` runs the real gate, capture hook with mocked hardware, AudioWorklet conversion, and playback lifecycle tests. Cases include quiet noise, DC offset, a 20 ms utterance, quiet speech, clipping, arbitrary/odd chunk boundaries, exact sample duration, long silence with bounded lookahead, local-end ordering, mute/playback/background transitions, repeated calls, permission/load cancellation, driver errors and sample-rate mismatch. These tests do not measure real STT accuracy or physical microphone suppression.
+
+### Exhibition device acceptance (pending)
+
+On each actual demo iPhone/Android phone, test the current app build with the intended microphone/earbuds:
+
+- In quiet and with fan/crowd noise, say “네”, “아니요”, and a full reservation sentence at a normal and soft speaking volume. Check both the server transcript and recorded audio for word onset/ending loss.
+- Repeat with a nearby person talking. Loud nearby speech may pass this gate; use a close headset microphone for the demo if needed. No speaker-isolation claim is made.
+- Wait silently after a sentence and confirm the server replies; confirm pauses and report timestamps remain plausible.
+- Mute while speaking, unmute, play an AI response, switch apps, reconnect the socket, end immediately after a word, and repeat calls. Check for stale audio or capture continuing after end.
+- Compare CPU, battery, microphone route and recognition quality against the previous app on the same phone. Thresholds are conservative defaults and have not been calibrated at EXCO.
+
+A simulator cannot establish these live-call acceptance results. No server deployment or new native dependency is required by this change.

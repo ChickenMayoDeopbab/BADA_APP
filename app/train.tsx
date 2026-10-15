@@ -238,6 +238,7 @@ export default function Train() {
     requestPermission,
     startSendingAudio,
     stopSendingAudio,
+    setMicrophoneMuted,
     beginPlayback,
     streamPcmChunk,
     flushPlayback,
@@ -249,6 +250,13 @@ export default function Train() {
       sendJson({ type: "playback_done", turn_id: turnId });
     },
     onPlaybackError: () => handleEndCall(),
+    onRecordingError: () => {
+      showAlert({
+        title: "마이크 연결에 실패했어요",
+        description: "마이크 권한과 연결 상태를 확인한 뒤 다시 시도해 주세요.",
+      });
+      handleEndCall();
+    },
   });
 
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
@@ -289,8 +297,9 @@ export default function Train() {
   useEffect(() => {
     if (isConnected && step === "training" && isAudioReady) {
       void startSendingAudio(sendBinary).catch(() => {});
+      return () => { void stopSendingAudio().catch(() => {}); };
     }
-  }, [isAudioReady, isConnected, step, startSendingAudio, sendBinary]);
+  }, [isAudioReady, isConnected, step, startSendingAudio, stopSendingAudio, sendBinary]);
 
   useEffect(() => {
     if (step !== "training" || !isConnected || !isAudioReady || endHandledRef.current) return;
@@ -361,6 +370,7 @@ export default function Train() {
       setSeconds(0);
       setCalleeName(null);
       setIsMuted(false);
+      setMicrophoneMuted(false);
       setIsAudioReady(false);
       callStartedAtRef.current = null;
       completedCallDurationRef.current = null;
@@ -369,9 +379,9 @@ export default function Train() {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      stopSendingAudio();
+      void stopSendingAudio().catch(() => {});
       resetStream();
-    }, [stopSendingAudio, resetStream])
+    }, [stopSendingAudio, resetStream, setMicrophoneMuted])
   );
 
   // 벨소리·진동은 벨이 울리는 동안만 — 전화를 받으면(명상 안내가 뜨면) 바로 멈춘다
@@ -435,8 +445,9 @@ export default function Train() {
   const handleToggleMute = useCallback(() => {
     const next = !isMuted;
     setIsMuted(next);
+    setMicrophoneMuted(next);
     sendMute(next);
-  }, [isMuted, sendMute]);
+  }, [isMuted, sendMute, setMicrophoneMuted]);
 
   /**
    * 훈련 시작: WS는 즉시 연결하고 오디오 권한/세션은 병렬로 준비한다.
@@ -447,6 +458,7 @@ export default function Train() {
     setStep("training");
 
     const granted = await requestPermission();
+    if (endHandledRef.current) return;
     if (!granted) {
       showAlert({
         title: "마이크를 사용할 수 없어요",
@@ -484,9 +496,10 @@ export default function Train() {
     completedCallDurationRef.current = callDurationSeconds;
     setSeconds(callDurationSeconds);
     if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
+    // Release the microphone lookahead synchronously before the end message.
+    void stopSendingAudio(true).catch(() => {});
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
     sendEndCall();
-    void stopSendingAudio().catch(() => {});
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
