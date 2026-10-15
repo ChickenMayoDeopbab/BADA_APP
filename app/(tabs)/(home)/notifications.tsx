@@ -82,7 +82,7 @@ const NotificationCard = memo(function NotificationCard({
         accessibilityRole="button"
         accessibilityLabel={`${item.title}, ${item.message}`}
         onPress={() => onPress(item)}
-        className="h-[82px] w-full justify-center overflow-hidden rounded-component bg-background-normal px-6 py-2.5"
+        className="min-h-[82px] w-full justify-center overflow-hidden rounded-component bg-background-normal px-6 py-3"
       >
       <View className="flex-row items-center gap-2.5">
         <StyledImage
@@ -98,8 +98,8 @@ const NotificationCard = memo(function NotificationCard({
         />
         <View className="flex-1 gap-1">
           <View className="flex-row items-center justify-between w-full">
-            <Text className="font-bold text-body text-label-normal">{item.title}</Text>
-            <Text className={`text-label font-medium ${item.read ? "text-line-normal" : "text-primary-normal"}`}>
+            <Text className="min-w-0 flex-1 pr-2 font-bold text-body text-label-normal">{item.title}</Text>
+            <Text className={`shrink text-right text-label font-medium ${item.read ? "text-line-normal" : "text-primary-normal"}`}>
               {time}
             </Text>
           </View>
@@ -189,8 +189,8 @@ export default function NotificationsScreen() {
       />
 
       <View className="flex-1 bg-background-alternative">
-        <View className="flex-row items-center justify-between gap-3 px-8 pt-[15px]">
-          <View className="flex-row items-center gap-2">
+        <View className="flex-row flex-wrap items-center justify-between gap-3 px-8 pt-[15px]">
+          <View className="flex-row flex-wrap items-center gap-2">
             <FilterChip label="전체" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
             <FilterChip
               label="안읽음"

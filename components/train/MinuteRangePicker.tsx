@@ -75,6 +75,7 @@ function MinuteWheel({ label, value, onChange }: MinuteWheelProps) {
       </Text>
       <ScrollView
         ref={scrollRef}
+        nestedScrollEnabled
         style={{ height: WHEEL_HEIGHT }}
         showsVerticalScrollIndicator={false}
         snapToOffsets={SNAP_OFFSETS}

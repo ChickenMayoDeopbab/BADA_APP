@@ -135,10 +135,10 @@ function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
   avatarSize?: number;
 }) {
   return (
-    <View className="items-center gap-y-6">
-      <View className="items-center">
-        <Text className="text-title1 font-bold text-label-normal">{name}</Text>
-        <Text className="text-body text-label-neutral">폰 {phoneNumber}</Text>
+    <View className="w-full items-center gap-y-6 px-4">
+      <View className="w-full items-center">
+        <Text className="w-full text-center text-title1 font-bold text-label-normal">{name}</Text>
+        <Text className="w-full text-center text-body text-label-neutral">폰 {phoneNumber}</Text>
       </View>
       <View
         style={{ width: avatarSize, height: avatarSize }}
@@ -160,7 +160,7 @@ function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
 function ScenarioLabel({ title }: { title?: string }) {
   if (!title) return null;
   return (
-    <Text className="mt-[26px] text-caption font-medium text-label-alternative text-center opacity-60">
+    <Text className="mt-[26px] px-4 text-caption font-medium text-label-alternative text-center opacity-60">
       {title}
     </Text>
   );
@@ -219,8 +219,8 @@ export default function Train() {
   const { data: scenario } = useScenario(scenarioId);
   const scenarioTitle = title ?? scenario?.title;
   /** iPhone SE·8처럼 세로가 짧은 기기에서 통화 버튼이 잘리지 않도록 값을 줄인다 */
-  const { height: windowHeight } = useWindowDimensions();
-  const isCompactScreen = windowHeight < 700;
+  const { height: windowHeight, fontScale } = useWindowDimensions();
+  const isCompactScreen = windowHeight < 700 || fontScale > 1.2;
 
   const [isMuted, setIsMuted] = useState(false);
   const isWarmupSession = isWarmup === "true";
@@ -503,44 +503,66 @@ export default function Train() {
         <View className="flex-1">
           <CallBackground />
           <View className="flex-1" style={safeArea}>
-          <View className="items-center flex-1 pt-[22px]">
-            <Text className="text-body font-medium text-label-alternative">
-              바다 시나리오 훈련
-            </Text>
-            <View className="mt-10">
-              <CalleeProfile name={roleName} phoneNumber={generatedPhoneNumber} />
-            </View>
-          </View>
-          <View className="items-center pb-6">
-            <View className="flex-row items-center justify-between w-[300px]">
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="전화 받기"
-              onPress={() => void handleAccept()}
-              disabled={isHandlingSchedule}
-              accessibilityState={{ disabled: isHandlingSchedule, busy: isHandlingSchedule }}
-              activeOpacity={0.8}
-              style={[styles.callButton, { backgroundColor: PALETTE.green[40] }]}
+            <ScrollView
+              className="flex-1"
+              contentContainerClassName="grow items-center pt-[22px] pb-6"
+              showsVerticalScrollIndicator={false}
             >
-              <Ionicons name="call" size={36} color={PALETTE.common[0]} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="전화 거절하기"
-              onPress={() => void handleDecline()}
-              disabled={isHandlingSchedule}
-              activeOpacity={0.8}
-              style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
-            >
-              <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
-            </TouchableOpacity>
+              <Text className="text-body font-medium text-label-alternative">
+                바다 시나리오 훈련
+              </Text>
+              <View className="mt-10 w-full">
+                <CalleeProfile
+                  name={roleName}
+                  phoneNumber={generatedPhoneNumber}
+                  avatarSize={isCompactScreen ? 112 : 140}
+                />
+              </View>
+            </ScrollView>
+            <View className="shrink-0 items-center pb-6">
+              <View className="w-full max-w-[300px] flex-row items-center justify-between px-4">
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="전화 받기"
+                  onPress={() => void handleAccept()}
+                  disabled={isHandlingSchedule}
+                  accessibilityState={{
+                    disabled: isHandlingSchedule,
+                    busy: isHandlingSchedule,
+                  }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.callButton,
+                    { backgroundColor: PALETTE.green[40] },
+                  ]}
+                >
+                  <Ionicons name="call" size={36} color={PALETTE.common[0]} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="전화 거절하기"
+                  onPress={() => void handleDecline()}
+                  disabled={isHandlingSchedule}
+                  activeOpacity={0.8}
+                  style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
+                >
+                  <Ionicons
+                    name="call"
+                    size={36}
+                    color={PALETTE.common[0]}
+                    style={styles.rotatedIcon}
+                  />
+                </TouchableOpacity>
+              </View>
+              <ScenarioLabel title={scenarioTitle} />
             </View>
-            <ScenarioLabel title={scenarioTitle} />
-          </View>
           </View>
         </View>
         <Modal visible={isMeditationVisible} transparent animationType="fade">
-          <MeditationDialog onSkip={handleMeditationSkip} onMeditate={handleMeditationStart} />
+          <MeditationDialog
+            onSkip={handleMeditationSkip}
+            onMeditate={handleMeditationStart}
+          />
         </Modal>
         {isMeditationVideoVisible && (
           <Modal visible animationType="fade">
@@ -562,142 +584,211 @@ export default function Train() {
       {/* 배경은 safe area 패딩 바깥에 둬야 화면 끝까지 깔린다 */}
       {!isEnd && <CallBackground />}
       <View className="flex-1" style={safeArea}>
-
-      <View className="flex-row items-center justify-center mt-6 gap-x-2">
-        <Ionicons
-          name="call"
-          size={20}
-          color={isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral}
-          style={isEnd ? styles.rotatedIcon : undefined}
-        />
-        <Text
-          className="text-body font-medium"
-          style={{ color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral }}
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="grow"
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
         >
-          {formatTime(seconds)}
-          {isEnd ? " 훈련을 종료했습니다." : isAiSpeaking ? "  AI 발화 중..." : ""}
-        </Text>
-      </View>
-
-      <View className={`items-center ${isCompactScreen ? "pt-3" : "pt-10"}`}>
-        <CalleeProfile
-          name={roleName}
-          phoneNumber={generatedPhoneNumber}
-          isSpeaking={isAiSpeaking}
-          avatarSize={isCompactScreen ? 112 : 140}
-        />
-        {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
-        {!isConnected && step === "training" && (
-          <Text className="text-label text-label-alternative mt-2">연결 중...</Text>
-        )}
-      </View>
-
-      {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
-      <View className="flex-1 justify-center">
-      {!isEnd && !isScriptVisible && (
-        <View style={styles.gridContainer}>
-          {[
-            /* 워밍업에서는 스크립트 보기 비활성화 */
-            isWarmupSession
-              ? { label: "스크립트 보기", onPress: undefined, icon: "document-text", active: false, disabled: true }
-              : { label: "스크립트 보기", onPress: () => setIsScriptVisible(true), icon: "document-text", active: false, disabled: false },
-            { label: isMuted ? "음소거 해제" : "음소거", onPress: handleToggleMute, icon: isMuted ? "mic-off" : "mic", active: isMuted, disabled: false },
-            /* 아래 버튼들은 UI만 제공하며 실제 동작하지 않아 비활성화 처리 */
-            { label: "녹음", onPress: undefined, icon: "radio-button-on", active: false, disabled: true },
-            { label: "스피커", onPress: undefined, icon: "volume-high", active: false, disabled: true },
-            { label: "영상통화", onPress: undefined, icon: "videocam", active: false, disabled: true },
-            { label: "키패드", onPress: undefined, icon: "keypad", active: false, disabled: true },
-          ].map((btn, index) => (
-            <View
-              key={index}
-              style={[styles.gridItem, isCompactScreen && styles.gridItemCompact]}
+          <View className="flex-row items-center justify-center mt-6 gap-x-2">
+            <Ionicons
+              name="call"
+              size={20}
+              color={isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral}
+              style={isEnd ? styles.rotatedIcon : undefined}
+            />
+            <Text
+              className="text-body font-medium"
+              style={{
+                color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral,
+              }}
             >
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={btn.disabled}
-                style={styles.gridButton}
-                onPress={btn.onPress}
-              >
-                <Ionicons
-                  name={btn.icon as any}
-                  size={32}
-                  color={
-                    btn.disabled
-                      ? SEMANTIC_COLORS.line.normal
-                      : btn.active
-                        ? PALETTE.red[40]
-                        : SEMANTIC_COLORS.label.normal
-                  }
-                />
-              </TouchableOpacity>
-              <Text
-                className={`text-label font-medium mt-2 ${
-                  btn.disabled ? "text-line-normal" : "text-label-normal"
-                }`}
-              >
-                {btn.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {!isEnd && isScriptVisible && (
-        <View className="flex-1 mx-[33px]">
-          <TouchableOpacity
-            onPress={() => setIsScriptVisible(false)}
-            activeOpacity={0.8}
-            style={styles.scriptHideButton}
-          >
-            <Text className="text-body font-medium text-label-neutral">스크립트 가리기</Text>
-          </TouchableOpacity>
-          <View style={styles.scriptContainer}>
-            {transcript.length === 0 ? (
-              <View className="items-center justify-center flex-1">
-                <Text className="text-label text-label-alternative">
-                  아직 대화 내용이 없어요.
-                </Text>
-              </View>
-            ) : (
-              <ScrollView
-                ref={scriptScrollRef}
-                showsVerticalScrollIndicator={false}
-                contentContainerClassName="gap-y-[10px]"
-                onContentSizeChange={() =>
-                  scriptScrollRef.current?.scrollToEnd({ animated: true })
-                }
-              >
-                {transcript.map((line, index) => (
-                  <Text
-                    key={index}
-                    className="text-body font-medium text-label-neutral"
-                  >
-                    {roleToSpeaker(line.role)} : {line.text}
-                  </Text>
-                ))}
-              </ScrollView>
-            )}
-            <ScriptHintBar hint={scriptHint} />
+              {formatTime(seconds)}
+              {isEnd
+                ? " 훈련을 종료했습니다."
+                : isAiSpeaking
+                  ? "  AI 발화 중..."
+                  : ""}
+            </Text>
           </View>
+
+          <View className={`items-center ${isCompactScreen ? "pt-3" : "pt-10"}`}>
+            <CalleeProfile
+              name={roleName}
+              phoneNumber={generatedPhoneNumber}
+              isSpeaking={isAiSpeaking}
+              avatarSize={isCompactScreen ? 112 : 140}
+            />
+            {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
+            {!isConnected && step === "training" && (
+              <Text className="text-label text-label-alternative mt-2">
+                연결 중...
+              </Text>
+            )}
+          </View>
+
+          {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
+          <View className="grow justify-center py-4">
+            {!isEnd && !isScriptVisible && (
+              <View style={styles.gridContainer}>
+                {[
+                  /* 워밍업에서는 스크립트 보기 비활성화 */
+                  isWarmupSession
+                    ? {
+                        label: "스크립트 보기",
+                        onPress: undefined,
+                        icon: "document-text",
+                        active: false,
+                        disabled: true,
+                      }
+                    : {
+                        label: "스크립트 보기",
+                        onPress: () => setIsScriptVisible(true),
+                        icon: "document-text",
+                        active: false,
+                        disabled: false,
+                      },
+                  {
+                    label: isMuted ? "음소거 해제" : "음소거",
+                    onPress: handleToggleMute,
+                    icon: isMuted ? "mic-off" : "mic",
+                    active: isMuted,
+                    disabled: false,
+                  },
+                  /* 아래 버튼들은 UI만 제공하며 실제 동작하지 않아 비활성화 처리 */
+                  {
+                    label: "녹음",
+                    onPress: undefined,
+                    icon: "radio-button-on",
+                    active: false,
+                    disabled: true,
+                  },
+                  {
+                    label: "스피커",
+                    onPress: undefined,
+                    icon: "volume-high",
+                    active: false,
+                    disabled: true,
+                  },
+                  {
+                    label: "영상통화",
+                    onPress: undefined,
+                    icon: "videocam",
+                    active: false,
+                    disabled: true,
+                  },
+                  {
+                    label: "키패드",
+                    onPress: undefined,
+                    icon: "keypad",
+                    active: false,
+                    disabled: true,
+                  },
+                ].map((btn, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.gridItem,
+                      isCompactScreen && styles.gridItemCompact,
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      disabled={btn.disabled}
+                      style={styles.gridButton}
+                      onPress={btn.onPress}
+                    >
+                      <Ionicons
+                        name={btn.icon as any}
+                        size={32}
+                        color={
+                          btn.disabled
+                            ? SEMANTIC_COLORS.line.normal
+                            : btn.active
+                              ? PALETTE.red[40]
+                              : SEMANTIC_COLORS.label.normal
+                        }
+                      />
+                    </TouchableOpacity>
+                    <Text
+                      className={`w-full text-center text-label font-medium mt-2 ${
+                        btn.disabled ? "text-line-normal" : "text-label-normal"
+                      }`}
+                    >
+                      {btn.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {!isEnd && isScriptVisible && (
+              <View
+                className="mx-[33px]"
+                style={{ height: Math.max(240, windowHeight * 0.35) }}
+              >
+                <TouchableOpacity
+                  onPress={() => setIsScriptVisible(false)}
+                  activeOpacity={0.8}
+                  style={styles.scriptHideButton}
+                >
+                  <Text className="text-body font-medium text-label-neutral">
+                    스크립트 가리기
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.scriptContainer}>
+                  {transcript.length === 0 ? (
+                    <View className="items-center justify-center flex-1">
+                      <Text className="text-label text-label-alternative">
+                        아직 대화 내용이 없어요.
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      ref={scriptScrollRef}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                      contentContainerClassName="gap-y-[10px]"
+                      onContentSizeChange={() =>
+                        scriptScrollRef.current?.scrollToEnd({ animated: true })
+                      }
+                    >
+                      {transcript.map((line, index) => (
+                        <Text
+                          key={index}
+                          className="text-body font-medium text-label-neutral"
+                        >
+                          {roleToSpeaker(line.role)} : {line.text}
+                        </Text>
+                      ))}
+                    </ScrollView>
+                  )}
+                  <ScriptHintBar hint={scriptHint} />
+                </View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        <View className="shrink-0 items-center pb-6">
+          <TouchableOpacity
+            onPress={handleEndCall}
+            activeOpacity={0.8}
+            disabled={isEnd}
+            style={[
+              styles.callButton,
+              { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
+            ]}
+          >
+            <Ionicons
+              name="call"
+              size={36}
+              color={PALETTE.common[0]}
+              style={styles.rotatedIcon}
+            />
+          </TouchableOpacity>
+          <ScenarioLabel title={scenarioTitle} />
         </View>
-      )}
-
-      </View>
-
-      <View className="items-center pb-6">
-        <TouchableOpacity
-          onPress={handleEndCall}
-          activeOpacity={0.8}
-          disabled={isEnd}
-          style={[
-            styles.callButton,
-            { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
-          ]}
-        >
-          <Ionicons name="call" size={36} color={PALETTE.common[0]} style={styles.rotatedIcon} />
-        </TouchableOpacity>
-        <ScenarioLabel title={scenarioTitle} />
-      </View>
       </View>
     </View>
   );

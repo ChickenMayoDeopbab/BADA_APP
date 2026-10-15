@@ -229,73 +229,8 @@ export default function RecordDetailScreen() {
           </View>
         ) : (
           <View className="flex-1">
-            <View
-              className="h-[124px] mx-4 mt-[15px] rounded-component"
-              style={SUBTLE_CARD_SHADOW}
-            >
-              <View className="relative flex-1 overflow-hidden rounded-component">
-                <SummaryBackground />
-                <View className="flex-row items-start justify-between flex-1 px-[17px] py-4">
-                  <View className="justify-between flex-1 h-full min-w-0 pr-4">
-                    <View>
-                      <Text
-                        className="font-medium text-body"
-                        style={{ color: `${PALETTE.common[0]}99` }}
-                      >
-                        시나리오명
-                      </Text>
-                      <Text
-                        className="font-bold text-body text-common-0"
-                        numberOfLines={1}
-                      >
-                        {data.scenarioName}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text
-                        className="font-medium text-body"
-                        style={{ color: `${PALETTE.common[0]}99` }}
-                      >
-                        훈련시간
-                      </Text>
-                      <Text className="font-bold text-body text-common-0">
-                        {formatDuration(data.durationSeconds)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="items-end shrink-0">
-                    <Text
-                      allowFontScaling={false}
-                      className="font-medium font-pretendard text-body"
-                      numberOfLines={1}
-                      style={{
-                        color: `${PALETTE.common[0]}99`,
-                        includeFontPadding: false,
-                      }}
-                    >
-                      불안 점수
-                    </Text>
-                    <Text
-                      allowFontScaling={false}
-                      className="font-bold font-pretendard text-common-0"
-                      style={{
-                        fontSize: 48,
-                        lineHeight: 52,
-                        letterSpacing: -0.96,
-                        includeFontPadding: false,
-                      }}
-                    >
-                      {Number.isFinite(data.anxietyScore)
-                        ? data.anxietyScore
-                        : "-"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
             <ScrollView
-              className="flex-1 mt-5"
+              className="flex-1"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
               refreshControl={
@@ -307,7 +242,71 @@ export default function RecordDetailScreen() {
               }
               onScrollBeginDrag={() => setIsMenuVisible(false)}
             >
-              <View className="px-[33px]">
+              <View
+                className="min-h-[124px] mx-4 mt-[15px] rounded-component"
+                style={SUBTLE_CARD_SHADOW}
+              >
+                <View className="relative overflow-hidden rounded-component">
+                  <SummaryBackground />
+                  <View className="flex-row items-start justify-between gap-4 px-[17px] py-4">
+                    <View className="min-w-0 flex-1 gap-4">
+                      <View>
+                        <Text
+                          className="font-medium text-body"
+                          style={{ color: `${PALETTE.common[0]}99` }}
+                        >
+                          시나리오명
+                        </Text>
+                        <Text
+                          className="font-bold text-body text-common-0"
+                        >
+                          {data.scenarioName}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text
+                          className="font-medium text-body"
+                          style={{ color: `${PALETTE.common[0]}99` }}
+                        >
+                          훈련시간
+                        </Text>
+                        <Text className="font-bold text-body text-common-0">
+                          {formatDuration(data.durationSeconds)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="items-end shrink-0">
+                      <Text
+                        allowFontScaling={false}
+                        className="font-medium font-pretendard text-body"
+                        numberOfLines={1}
+                        style={{
+                          color: `${PALETTE.common[0]}99`,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        불안 점수
+                      </Text>
+                      <Text
+                        allowFontScaling={false}
+                        className="font-bold font-pretendard text-common-0"
+                        style={{
+                          fontSize: 48,
+                          lineHeight: 52,
+                          letterSpacing: -0.96,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        {Number.isFinite(data.anxietyScore)
+                          ? data.anxietyScore
+                          : "-"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              <View className="mt-5 px-[33px]">
                 <Text className="font-medium text-label text-label-alternative">
                   통화 타임라인
                 </Text>
