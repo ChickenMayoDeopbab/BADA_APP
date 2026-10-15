@@ -14,7 +14,14 @@ import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -40,9 +47,15 @@ type AnxietyParams = {
 const FACE_SIZE = 68;
 
 /** 안내 메시지에 붙는 이모지 얼굴 */
-function MessageFace({ face }: { face: (typeof TRAIN_END_MESSAGES)[number]["face"] }) {
-  if (face === "thinking") return <ThinkingFace width={FACE_SIZE} height={FACE_SIZE} />;
-  if (face === "grinning") return <GrinningFace width={FACE_SIZE} height={FACE_SIZE} />;
+function MessageFace({
+  face,
+}: {
+  face: (typeof TRAIN_END_MESSAGES)[number]["face"];
+}) {
+  if (face === "thinking")
+    return <ThinkingFace width={FACE_SIZE} height={FACE_SIZE} />;
+  if (face === "grinning")
+    return <GrinningFace width={FACE_SIZE} height={FACE_SIZE} />;
   return <WinkingFace width={FACE_SIZE} height={FACE_SIZE} />;
 }
 
@@ -56,6 +69,10 @@ const SCORE_HEADER_TOP = 105;
 const HEADER_RISE_MS = 500;
 
 export default function Anxiety() {
+  const { height, fontScale } = useWindowDimensions();
+  const isCompactLayout = height < 700 || fontScale > 1.2;
+  const messageHeaderTop = isCompactLayout ? 64 : MESSAGE_HEADER_TOP;
+  const scoreHeaderTop = isCompactLayout ? 24 : SCORE_HEADER_TOP;
   const params = useLocalSearchParams<AnxietyParams>();
   const { sessionId } = params;
 
@@ -69,15 +86,15 @@ export default function Anxiety() {
   useAndroidBackHandler(() => true);
 
   // 점수 입력이 열리면 이모지·문구가 위로 올라간다
-  const headerTop = useSharedValue(MESSAGE_HEADER_TOP);
+  const headerTop = useSharedValue(messageHeaderTop);
   const headerStyle = useAnimatedStyle(() => ({ paddingTop: headerTop.value }));
 
   useEffect(() => {
     headerTop.value = withTiming(
-      isScoreVisible ? SCORE_HEADER_TOP : MESSAGE_HEADER_TOP,
+      isScoreVisible ? scoreHeaderTop : messageHeaderTop,
       { duration: HEADER_RISE_MS, easing: Easing.out(Easing.cubic) },
     );
-  }, [isScoreVisible, headerTop]);
+  }, [isScoreVisible, headerTop, messageHeaderTop, scoreHeaderTop]);
 
   const message = TRAIN_END_MESSAGES[messageIndex];
   const isTypingDone = typedLength >= message.text.length;
@@ -139,7 +156,11 @@ export default function Anxiety() {
 
   return (
     <SafeAreaView className="flex-1 bg-background-normal">
-      <View className="flex-1 px-[33px]">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="grow px-[33px]"
+        showsVerticalScrollIndicator={false}
+      >
         {/*
           이모지와 문구는 두 화면에서 같은 요소다.
           점수 입력이 열릴 때 다시 그리지 않고 위치만 옮겨 자연스럽게 올라가게 한다.
@@ -174,7 +195,7 @@ export default function Anxiety() {
 
             <Animated.View
               entering={FadeIn.duration(300).delay(HEADER_RISE_MS - 150)}
-              className="pt-[82px] pb-4"
+              className={isCompactLayout ? "pt-6 pb-4" : "pt-[82px] pb-4"}
             >
               <CustomButton
                 label={isSubmitting ? "기록 중..." : "훈련 마치기"}
@@ -204,7 +225,7 @@ export default function Anxiety() {
             </Pressable>
           )
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

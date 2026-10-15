@@ -10,14 +10,20 @@ import {
   DIFFICULTY_MAP,
   SPRING_PERSONALITY_MAP,
 } from "@/constants/train";
-import { usePendingCall } from "@/context/PendingCallContext";
+import {
+  cancelTrainingCallSchedule,
+  createTrainingCallSchedule,
+} from "@/api/trainingCallApi";
+import { saveTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
+import { getApiErrorMessage } from "@/api/error";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type FlowStep = "difficulty" | "time";
@@ -32,7 +38,9 @@ interface SectionTitleProps {
 function SectionTitle({ title }: SectionTitleProps) {
   return (
     <View className="flex-row items-center gap-x-1">
-      <Text className="text-headline1 font-bold text-label-normal">{title}</Text>
+      <Text className="text-headline1 font-bold text-label-normal">
+        {title}
+      </Text>
       <Ionicons
         name="help-circle"
         size={20}
@@ -54,7 +62,9 @@ export default function Start() {
       scenarioImage?: string;
       category?: string;
     }>();
-  const { schedule } = usePendingCall();
+  const { showAlert } = useAppAlert();
+  const isSubmittingRef = useRef(false);
+  const pendingCancellationRef = useRef<number | null>(null);
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
@@ -71,7 +81,7 @@ export default function Start() {
       setTimeFrom(0);
       setTimeTo(0);
       setIsCreatingSession(false);
-    }, [])
+    }, []),
   );
 
   /** 뒤로 가기: 시간 단계면 난이도 단계로, 난이도 단계면 이전 화면으로 */
@@ -91,21 +101,66 @@ export default function Start() {
     return true;
   });
 
+  /** 취소 응답을 받지 못한 예약에 재시도와 수신 시 거절하는 복구 경로를 제공한다. */
+  const showCancellationRecovery = (scheduleId: number): void => {
+    showAlert({
+      title: "예약 취소를 확인하지 못했어요",
+      description:
+        "네트워크 연결을 확인하고 취소를 다시 시도해 주세요. 홈으로 돌아간 뒤 예약 전화가 오면 수신 화면에서 거절할 수도 있어요.",
+      confirmLabel: "취소 다시 시도",
+      onConfirm: () => void retryScheduleCancellation(scheduleId),
+      cancelLabel: "홈으로",
+      onCancel: () => router.replace("/(tabs)/(home)/home"),
+      closeOnBackdrop: false,
+    });
+  };
+
+  /** 새 예약을 만들지 않고 실패했던 동일한 예약의 취소만 다시 요청한다. */
+  const retryScheduleCancellation = async (scheduleId: number): Promise<void> => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsCreatingSession(true);
+    try {
+      await cancelTrainingCallSchedule(scheduleId);
+      pendingCancellationRef.current = null;
+      await removeTrainingCallScenario(scheduleId).catch(() => {});
+      showAlert({
+        title: "예약을 취소했어요",
+        onConfirm: () => router.replace("/(tabs)/(home)/home"),
+      });
+    } catch {
+      showCancellationRecovery(scheduleId);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsCreatingSession(false);
+    }
+  };
+
+  /** 즉시 발신은 세션을 생성하고 예약 발신은 서버에 시간 범위를 등록한다. */
   const handleComplete = async () => {
-    if (!id) return;
-    if (!(await ensureSensitiveConsent())) return;
-
-    const sessionConfig = {
-      scenarioId: parseInt(id, 10),
-      type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
-      aiPersonality: SPRING_PERSONALITY_MAP[attitude],
-      difficulty: DIFFICULTY_MAP[difficulty],
-    } as const;
-
-    // 발신 시간이 모두 0이면 즉시 세션 생성 후 훈련 시작
-    if (timeFrom === 0 && timeTo === 0) {
-      setIsCreatingSession(true);
-      try {
+    if (pendingCancellationRef.current !== null) {
+      showCancellationRecovery(pendingCancellationRef.current);
+      return;
+    }
+    const scenarioId = Number(id);
+    if (
+      !Number.isSafeInteger(scenarioId) ||
+      scenarioId <= 0 ||
+      timeFrom > timeTo ||
+      isSubmittingRef.current
+    )
+      return;
+    isSubmittingRef.current = true;
+    setIsCreatingSession(true);
+    try {
+      if (!(await ensureSensitiveConsent())) return;
+      const sessionConfig = {
+        scenarioId,
+        type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
+        aiPersonality: SPRING_PERSONALITY_MAP[attitude],
+        difficulty: DIFFICULTY_MAP[difficulty],
+      } as const;
+      if (timeFrom === 0 && timeTo === 0) {
         const session = await createSession(sessionConfig);
         router.push({
           pathname: "/train",
@@ -120,21 +175,46 @@ export default function Start() {
             category,
           },
         });
-      } catch {
-        // 세션 생성 실패 시 버튼 재활성화
-        setIsCreatingSession(false);
+      } else {
+        const schedule = await createTrainingCallSchedule({
+          scenarioId,
+          type: sessionConfig.type,
+          aiPersonality: sessionConfig.aiPersonality,
+          minDelayMinutes: timeFrom,
+          maxDelayMinutes: timeTo,
+        });
+        try {
+          await saveTrainingCallScenario(schedule.scheduleId, scenarioId, schedule.scheduledAt);
+        } catch {
+          try {
+            await cancelTrainingCallSchedule(schedule.scheduleId);
+          } catch {
+            pendingCancellationRef.current = schedule.scheduleId;
+            showCancellationRecovery(schedule.scheduleId);
+            return;
+          }
+          throw new Error(
+            "예약 정보를 기기에 저장하지 못해 예약을 취소했어요. 다시 시도해 주세요.",
+          );
+        }
+        router.replace("/(tabs)/(home)/home");
+        showAlert({
+          title: "발신을 예약했어요",
+          description: `${timeFrom}분~${timeTo}분 사이에 전화가 와요. 앱을 다시 열어도 수신 중인 예약을 확인할 수 있어요.`,
+        });
       }
-      return;
+    } catch (error) {
+      showAlert({
+        title: "훈련을 시작하지 못했어요",
+        description: getApiErrorMessage(
+          error,
+          "네트워크 상태를 확인하고 다시 시도해 주세요.",
+        ),
+      });
+    } finally {
+      isSubmittingRef.current = false;
+      setIsCreatingSession(false);
     }
-
-    // 발신 대기: timeFrom~timeTo 사이 랜덤 시간 후 발신 예약 후 홈으로 이동
-    const from = Math.min(timeFrom, timeTo);
-    const to = Math.max(timeFrom, timeTo);
-    const delayMinutes = from + Math.random() * (to - from);
-    const delayMs = Math.round(delayMinutes * 60 * 1000);
-
-    schedule(sessionConfig, delayMs);
-    router.push("/(tabs)/(home)/home");
   };
 
   const currentStep = FLOW_STEPS.indexOf(flowStep) + 1;
@@ -144,7 +224,7 @@ export default function Start() {
     ? "최대 시간은 최소 시간보다 작을 수 없어요."
     : timeFrom === 0 && timeTo === 0
       ? "바로 훈련이 시작돼요!"
-      : `${timeFrom}분~${timeTo}분 사이에 훈련이 시작돼요!`;
+      : `${timeFrom}분~${timeTo}분 사이에 전화가 와요. 예약 전화는 기본 난이도로 진행돼요.`;
 
   return (
     <View className="flex-1 bg-background-normal">
@@ -154,7 +234,11 @@ export default function Start() {
       </View>
 
       {flowStep === "difficulty" ? (
-        <View className="flex-1 px-[33px] pt-[70px] gap-y-[74px]">
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-[33px] pt-8 pb-6 gap-y-10"
+          showsVerticalScrollIndicator={false}
+        >
           <View className="gap-y-8">
             <SectionTitle title="난이도" />
             <StepSlider
@@ -172,9 +256,14 @@ export default function Start() {
               onChange={setAttitude}
             />
           </View>
-        </View>
+        </ScrollView>
       ) : (
-        <View className="flex-1 px-[33px] pt-[60px]">
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-[33px] pt-6 pb-6"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+        >
           <MinuteRangePicker
             from={timeFrom}
             to={timeTo}
@@ -187,10 +276,13 @@ export default function Start() {
               • 설정한 시간 범위 안에서 무작위로 전화가 걸려와요.
             </Text>
           </View>
-        </View>
+        </ScrollView>
       )}
 
-      <View className="px-[33px] pt-4 gap-y-3" style={{ paddingBottom: insets.bottom + 40 }}>
+      <View
+        className="shrink-0 px-[33px] pt-4 gap-y-3"
+        style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+      >
         {/* 발신 설정 단계에서만 언제 훈련이 시작되는지 미리 알려준다 */}
         {flowStep === "time" && (
           <Text

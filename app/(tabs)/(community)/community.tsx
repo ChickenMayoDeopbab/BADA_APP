@@ -4,6 +4,7 @@ import SearchIconButton from "@/components/common/SearchIconButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import CommunityPostCard from "@/components/community/CommunityPostCard";
+import CommunityPostListSkeleton from "@/components/community/CommunityPostListSkeleton";
 import {
   CommunityPostListMode,
   useCommunityPosts,
@@ -90,9 +91,14 @@ function CommunityFeed({
 
   if (postsQuery.isPending) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ width: pageWidth }}>
-        <LoadingIndicator />
-      </View>
+      <ScrollView
+        className="flex-1"
+        style={{ width: pageWidth }}
+        contentContainerClassName="px-8 pb-3"
+        showsVerticalScrollIndicator={false}
+      >
+        <CommunityPostListSkeleton />
+      </ScrollView>
     );
   }
 
@@ -122,9 +128,7 @@ function CommunityFeed({
             <LoadingIndicator size="small" className="py-5" />
           ) : null
         }
-        refreshing={
-          postsQuery.isRefetching && !postsQuery.isFetchingNextPage
-        }
+        refreshing={postsQuery.isRefetching && !postsQuery.isFetchingNextPage}
         onRefresh={() => void postsQuery.refetch()}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
@@ -154,7 +158,10 @@ export default function Community() {
     const tabRight =
       tabHorizontalPadding + (index + 1) * tabWidth + index * TAB_GAP;
     menuRef.current?.scrollTo({
-      x: index <= 0 ? 0 : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
+      x:
+        index <= 0
+          ? 0
+          : Math.max(0, tabRight - pageWidth + tabHorizontalPadding),
       animated: true,
     });
   }, [pageWidth, selectedTab, tabHorizontalPadding, tabWidth]);
@@ -163,9 +170,7 @@ export default function Community() {
   const allPostsQuery = useCommunityPosts({ mode: "all" });
   const myPostsQuery = useCommunityPosts({ mode: "mine" });
 
-  const tabLabelWidths = TABS.map(
-    (tab) => tabLabelSizes[tab.key]?.width ?? 0,
-  );
+  const tabLabelWidths = TABS.map((tab) => tabLabelSizes[tab.key]?.width ?? 0);
   const hasMeasuredTabLabels = tabLabelWidths.every((width) => width > 0);
   const indicatorTranslateX = pagerScrollX.interpolate({
     inputRange: [0, pageWidth],
@@ -178,9 +183,7 @@ export default function Community() {
     extrapolate: "clamp",
   });
   const indicatorTop =
-    Math.max(
-      ...TABS.map((tab) => tabLabelSizes[tab.key]?.height ?? 0),
-    ) + 2;
+    Math.max(...TABS.map((tab) => tabLabelSizes[tab.key]?.height ?? 0)) + 2;
 
   /** 커뮤니티 탭 글자의 실제 크기를 저장해 밑줄 애니메이션에 사용한다. */
   const handleTabLabelLayout = (
@@ -219,9 +222,7 @@ export default function Community() {
   const handlePageSettled = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
-    const tabIndex = Math.round(
-      event.nativeEvent.contentOffset.x / pageWidth,
-    );
+    const tabIndex = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
     const nextTab = TABS[tabIndex];
     if (nextTab) setSelectedTab(nextTab.key);
   };
@@ -274,9 +275,7 @@ export default function Community() {
                     <Text
                       numberOfLines={1}
                       className="text-center text-headline2 font-medium text-line-normal"
-                      onLayout={(event) =>
-                        handleTabLabelLayout(tab.key, event)
-                      }
+                      onLayout={(event) => handleTabLabelLayout(tab.key, event)}
                     >
                       {tab.label}
                     </Text>
@@ -316,9 +315,7 @@ export default function Community() {
         accessibilityRole="button"
         accessibilityLabel="커뮤니티 운영정책 및 개발자 문의"
         className="mx-8 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
-        onPress={() =>
-          router.push("/(tabs)/(community)/policy" as Href)
-        }
+        onPress={() => router.push("/(tabs)/(community)/policy" as Href)}
       >
         <Ionicons
           name="shield-checkmark-outline"

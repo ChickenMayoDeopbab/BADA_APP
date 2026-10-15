@@ -1,17 +1,18 @@
 import { deleteSignout } from "@/api/authApi";
-import { MyPageResponse } from "@/api/types";
-import { getMyPage } from "@/api/userInfoApi";
 import CustomButton from "@/components/common/CustomButton";
-import LoadingIndicator from "@/components/common/LoadingIndicator";
+import { Skeleton, SkeletonGroup } from "@/components/common/skeleton";
 import StyledImage from "@/components/common/StyledImage";
 import Top from "@/components/common/Top";
 import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
+import ProfileSummarySkeleton from "@/components/profile/ProfileSummarySkeleton";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
+import { useMyPage, myPageQueryKeys } from "@/hooks/useMyPage";
+import { useQueryClient } from "@tanstack/react-query";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
-import { clearAuthTokens } from "@/utils/authTokenStorage";
+import { clearAuthTokens, getAuthLoginMethod } from "@/utils/authTokenStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Href, router, useFocusEffect } from "expo-router";
@@ -26,15 +27,15 @@ interface MenuRowProps {
 }
 
 const menuRowClassName =
-  "h-[55px] w-full flex-row items-center justify-between px-[22px]";
+  "min-h-[55px] w-full flex-row items-center justify-between gap-3 px-[22px] py-4";
 function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
   const content = (
     <>
       <Text
         className={
           destructive
-            ? "text-headline2 font-medium text-status-error"
-            : "text-headline2 font-medium text-label-normal"
+            ? "min-w-0 flex-1 text-headline2 font-medium text-status-error"
+            : "min-w-0 flex-1 text-headline2 font-medium text-label-normal"
         }
       >
         {label}
@@ -62,8 +63,10 @@ function MenuRow({ label, destructive = false, onPress }: MenuRowProps) {
 
 function ProfileScreen() {
   const ensureSensitiveConsent = useSensitiveConsentGuard();
-  const [myPage, setMyPage] = useState<MyPageResponse | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data, isPending: isProfileLoading, refetch } = useMyPage();
+  const myPage = data?.data;
+  const [canChangePassword, setCanChangePassword] = useState(false);
   const [loadedImageUri, setLoadedImageUri] = useState("");
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const profileImage = useProfileImage(myPage?.s3Key);
@@ -71,26 +74,15 @@ function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      setIsProfileLoading(true);
-
-      void (async () => {
-        try {
-          const response = await getMyPage();
-          const profile = response.data;
-
-          if (!active) return;
-          setMyPage(profile);
-        } catch {
-          // 이전에 불러온 정보가 있다면 그대로 유지합니다.
-        } finally {
-          if (active) setIsProfileLoading(false);
-        }
-      })();
+      void refetch();
+      void getAuthLoginMethod().then((method) => {
+        if (active) setCanChangePassword(method === "password");
+      });
 
       return () => {
         active = false;
       };
-    }, []),
+    }, [refetch]),
   );
 
   const handleSignOut = async () => {
@@ -110,10 +102,12 @@ function ProfileScreen() {
         "diagnosisResult",
       ]),
     ]);
+    queryClient.removeQueries({ queryKey: myPageQueryKeys.all });
     router.replace("/auth");
   };
 
   const displayName = myPage?.name?.trim() ?? "";
+  const isInitialProfileLoading = isProfileLoading && !myPage;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
@@ -128,129 +122,145 @@ function ProfileScreen() {
           className="w-full items-center gap-6 rounded-component bg-background-normal px-[22px] py-[14px]"
           style={SURFACE_CARD_SHADOW}
         >
-          <View className="items-center gap-4">
-            <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
-              {profileImage.uri ? (
-                <>
-                  <StyledImage
-                    source={{ uri: profileImage.uri }}
-                    contentFit="cover"
-                    className="absolute inset-0 size-full"
-                    onLoad={() => setLoadedImageUri(profileImage.uri)}
-                    onError={profileImage.onError}
-                  />
-                  {loadedImageUri !== profileImage.uri ? (
-                    <View className="absolute inset-0 items-center justify-center bg-fill-neutral">
-                      <LoadingIndicator
-                        size="small"
-                        accessibilityLabel="프로필 사진 로딩 중"
+          {isInitialProfileLoading ? (
+            <ProfileSummarySkeleton />
+          ) : (
+            <>
+              <View className="w-full items-center gap-4">
+                <View className="size-[90px] items-center justify-center overflow-hidden rounded-[32px] bg-fill-neutral">
+                  {profileImage.uri ? (
+                    <>
+                      <StyledImage
+                        source={{ uri: profileImage.uri }}
+                        contentFit="cover"
+                        className="absolute inset-0 size-full"
+                        onLoad={() => setLoadedImageUri(profileImage.uri)}
+                        onError={profileImage.onError}
                       />
+                      {loadedImageUri !== profileImage.uri ? (
+                        <SkeletonGroup
+                          className="absolute inset-0 bg-background-normal"
+                          accessibilityLabel="프로필 사진 불러오는 중"
+                        >
+                          <Skeleton className="size-full rounded-[32px]" />
+                        </SkeletonGroup>
+                      ) : null}
+                    </>
+                  ) : profileImage.isLoading ? (
+                    <SkeletonGroup
+                      className="size-full bg-background-normal"
+                      accessibilityLabel="프로필 사진 불러오는 중"
+                    >
+                      <Skeleton className="size-full rounded-[32px]" />
+                    </SkeletonGroup>
+                  ) : (
+                    <Ionicons
+                      name="person"
+                      size={52}
+                      color={SEMANTIC_COLORS.line.normal}
+                    />
+                  )}
+                </View>
+                {profileImage.error ? (
+                  <Pressable
+                    onPress={profileImage.retry}
+                    accessibilityRole="button"
+                    accessibilityLabel="프로필 사진 다시 불러오기"
+                  >
+                    <Text className="text-center text-caption text-status-error">
+                      {profileImage.error}
+                    </Text>
+                  </Pressable>
+                ) : null}
+
+                <View className="items-center w-full gap-2">
+                  <Text
+                    numberOfLines={1}
+                    className="max-w-[282px] text-title2 font-bold text-label-normal"
+                  >
+                    {displayName}
+                  </Text>
+                  {myPage?.levelName ? (
+                    <View className="flex-row items-center gap-1 rounded-pill bg-primary-normal px-2.5 py-1">
+                      <Ionicons
+                        name="sparkles"
+                        size={14}
+                        color={SEMANTIC_COLORS.label.buttonText}
+                      />
+                      <Text className="font-bold text-caption text-label-buttonText">
+                        자가진단 · {myPage.levelName}
+                      </Text>
                     </View>
                   ) : null}
-                </>
-              ) : isProfileLoading || profileImage.isLoading ? (
-                <LoadingIndicator
-                  size="small"
-                  accessibilityLabel="프로필 사진 로딩 중"
-                />
-              ) : (
-                <Ionicons
-                  name="person"
-                  size={52}
-                  color={SEMANTIC_COLORS.line.normal}
-                />
-              )}
-            </View>
-            {profileImage.error ? (
-              <Pressable onPress={profileImage.retry} accessibilityRole="button" accessibilityLabel="프로필 사진 다시 불러오기">
-                <Text className="text-center text-caption text-status-error">{profileImage.error}</Text>
-              </Pressable>
-            ) : null}
-
-            <View className="items-center w-full gap-2">
-              <Text
-                numberOfLines={1}
-                className="max-w-[282px] text-title2 font-bold text-label-normal"
-              >
-                {displayName}
-              </Text>
-              {myPage?.levelName ? (
-                <View className="flex-row items-center gap-1 rounded-pill bg-primary-normal px-2.5 py-1">
-                  <Ionicons
-                    name="sparkles"
-                    size={14}
-                    color={SEMANTIC_COLORS.label.buttonText}
-                  />
-                  <Text className="font-bold text-caption text-label-buttonText">
-                    자가진단 · {myPage.levelName}
-                  </Text>
-                </View>
-              ) : null}
-              <View className="min-h-[18px] w-full flex-row items-center justify-center gap-[10px]">
-                <View className="min-w-0 flex-row items-center gap-0.5">
-                  <Ionicons
-                    name="person"
-                    size={18}
-                    color={SEMANTIC_COLORS.label.alternative}
-                  />
-                  <Text
-                    numberOfLines={1}
-                    className="max-w-[84px] text-label text-label-alternative"
-                  >
-                    {myPage?.username ?? ""}
-                  </Text>
-                </View>
-                <View className="w-px h-3 bg-line-neutral" />
-                <View className="min-w-0 shrink flex-row items-center gap-0.5">
-                  <Ionicons
-                    name="mail"
-                    size={18}
-                    color={SEMANTIC_COLORS.label.alternative}
-                  />
-                  <Text
-                    numberOfLines={1}
-                    className="max-w-[158px] shrink text-label text-label-alternative"
-                  >
-                    {myPage?.email ?? ""}
-                  </Text>
+                  <View className="w-full items-center">
+                    <View className="min-h-[18px] max-w-full flex-row items-center justify-center gap-[10px]">
+                      <View className="min-w-0 shrink flex-row items-center gap-0.5">
+                        <Ionicons
+                          name="person"
+                          size={18}
+                          color={SEMANTIC_COLORS.label.alternative}
+                        />
+                        <Text
+                          numberOfLines={1}
+                          className="min-w-0 max-w-[84px] shrink text-label text-label-alternative"
+                        >
+                          {myPage?.username ?? ""}
+                        </Text>
+                      </View>
+                      <View className="w-px h-3 bg-line-neutral" />
+                      <View className="min-w-0 shrink flex-row items-center gap-0.5">
+                        <Ionicons
+                          name="mail"
+                          size={18}
+                          color={SEMANTIC_COLORS.label.alternative}
+                        />
+                        <Text
+                          numberOfLines={1}
+                          className="min-w-0 max-w-[158px] shrink text-label text-label-alternative"
+                        >
+                          {myPage?.email ?? ""}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
               </View>
-            </View>
-          </View>
 
-          <View className="w-full gap-2">
-            <CustomButton
-              label="프로필 수정하기"
-              variant="md"
-              backgroundColor={SEMANTIC_COLORS.background.alternative}
-              color={SEMANTIC_COLORS.label.neutral}
-              onPress={() => router.push("/(tabs)/(profile)/profile/edit")}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                myPage?.levelName
-                  ? "자가진단 다시 하기"
-                  : "자가진단 시작하기"
-              }
-              className="items-center justify-center py-1 active:opacity-60"
-              onPress={() =>
-                void ensureSensitiveConsent().then((allowed) => {
-                  if (!allowed) return;
-                  router.push({
-                    pathname: "/diagnosis/question",
-                    params: { from: "profile" },
-                  });
-                })
-              }
-            >
-              <Text className="font-medium text-caption text-label-alternative">
-                {myPage?.levelName
-                  ? "자가진단 다시 하기"
-                  : "자가진단 시작하기"}
-              </Text>
-            </Pressable>
-          </View>
+              <View className="w-full gap-2">
+                <CustomButton
+                  label="프로필 수정하기"
+                  variant="md"
+                  backgroundColor={SEMANTIC_COLORS.background.alternative}
+                  color={SEMANTIC_COLORS.label.neutral}
+                  onPress={() => router.push("/(tabs)/(profile)/profile/edit")}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    myPage?.levelName
+                      ? "자가진단 다시 하기"
+                      : "자가진단 시작하기"
+                  }
+                  className="items-center justify-center py-1 active:opacity-60"
+                  onPress={() =>
+                    void ensureSensitiveConsent().then((allowed) => {
+                      if (!allowed) return;
+                      router.push({
+                        pathname: "/diagnosis/question",
+                        params: { from: "profile" },
+                      });
+                    })
+                  }
+                >
+                  <Text className="font-medium text-caption text-label-alternative">
+                    {myPage?.levelName
+                      ? "자가진단 다시 하기"
+                      : "자가진단 시작하기"}
+                  </Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </View>
 
         <View className="w-full gap-1.5">
@@ -309,6 +319,22 @@ function ProfileScreen() {
             style={SURFACE_CARD_SHADOW}
           >
             <View className="w-full overflow-hidden rounded-component">
+              {canChangePassword ? (
+                <MenuRow
+                  label="비밀번호 변경"
+                  onPress={() =>
+                    router.push(
+                      "/(tabs)/(profile)/profile/settings/password" as Href,
+                    )
+                  }
+                />
+              ) : null}
+              <MenuRow
+                label="문의 및 피드백"
+                onPress={() =>
+                  router.push("/(tabs)/(profile)/profile/inquiry" as Href)
+                }
+              />
               <MenuRow label="로그아웃" destructive onPress={handleSignOut} />
               <MenuRow
                 label="회원 탈퇴"
