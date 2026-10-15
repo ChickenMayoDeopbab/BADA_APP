@@ -139,4 +139,324 @@ test('local stop flushes speech once before end; disposal discards and repeated 
   assert.deepEqual(Buffer.concat(sent), tone(27));
 });
 
-module.exports = { loadSource, tone, arrayBuffer };
+
+
+/** Mount the real capture hook with deterministic React refs and capture drivers. */
+function mountAudio(platform = 'android') {
+  const effects = [], stateListeners = [], sent = [], errors = [], events = [];
+  let playbackOptions, nativeListener;
+  const recorder = {
+    init: () => events.push('init'),
+    start: () => events.push('start'),
+    stop: async () => { events.push('stop'); },
+    on: (_, callback) => {
+      nativeListener = callback;
+      return { remove: () => events.push('remove') };
+    },
+  };
+  const appState = {
+    currentState: 'active',
+    addEventListener: (_, callback) => {
+      stateListeners.push(callback);
+      return { remove: () => {} };
+    },
+  };
+  const { useAudio } = loadSource('../hooks/useAudio.ts', {
+    '@/utils/trainMicrophone': { TrainMicrophone },
+    './useTrainPlayback': { useTrainPlayback: (options) => {
+      playbackOptions = options;
+      return { preparePlayback() {} };
+    } },
+    'react': {
+      useRef: (value) => ({ current: value }),
+      useCallback: (callback) => callback,
+      useEffect: (callback) => effects.push(callback),
+    },
+    'react-native': { Platform: { OS: platform }, AppState: appState },
+    'expo-audio': {},
+    'react-native-audio-record': { default: recorder },
+  });
+  const hook = useAudio({ onRecordingError: (error) => errors.push(error) });
+  const cleanups = effects.map((effect) => effect());
+  return {
+    hook, recorder, events, errors, sent,
+    send: (data) => { append(sent, data); events.push('pcm'); },
+    emit: (bytes) => nativeListener(bytes.toString('base64')),
+    playbackBlocked: (value) => playbackOptions.onPlaybackBlocked(value),
+    setState: (state) => { appState.currentState = state; stateListeners.forEach((listener) => listener(state)); },
+    unmount: () => cleanups.forEach((cleanup) => cleanup?.()),
+  };
+}
+
+/** Yield through queued capture operations without time-based sleeps. */
+const nextTick = () => new Promise((resolve) => setImmediate(resolve));
+
+/** Control an in-progress permission/load operation. */
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+test('native hook starts once, delivers filtered PCM, then flushes synchronously before end', async () => {
+  const s = mountAudio();
+  const first = s.hook.startSendingAudio(s.send);
+  assert.equal(first, s.hook.startSendingAudio(s.send));
+  await first;
+  await s.hook.startSendingAudio(s.send);
+  s.emit(tone(27));
+  assert.equal(s.sent.length, 0);
+  const stopped = s.hook.stopSendingAudio(true);
+  s.events.push('end');
+  assert.deepEqual(Buffer.concat(s.sent), tone(27));
+  assert.ok(s.events.indexOf('pcm') < s.events.indexOf('end'));
+  await stopped;
+  s.emit(tone(1000));
+  assert.equal(s.events.filter((event) => event === 'start').length, 1);
+  assert.equal(s.events.filter((event) => event === 'stop').length, 1);
+  assert.equal(Buffer.concat(s.sent).length, 27 * 32);
+  s.unmount();
+});
+
+test('native hook discards buffered input on playback, mute and background with no callbacks between', async () => {
+  const s = mountAudio();
+  for (const block of [s.playbackBlocked, s.hook.setMicrophoneMuted, (value) => s.setState(value ? 'background' : 'active')]) {
+    await s.hook.startSendingAudio(s.send);
+    s.emit(tone(80));
+    block(true); block(false);
+    s.emit(tone(500, 0.001));
+    await s.hook.stopSendingAudio(true);
+  }
+  assert.ok(Buffer.concat(s.sent).every((byte) => byte === 0));
+  s.unmount();
+});
+
+test('native stop and restart serialize hardware cleanup; callbacks from old sessions are ignored', async () => {
+  const s = mountAudio();
+  await s.hook.startSendingAudio(s.send);
+  const stop = deferred();
+  s.recorder.stop = () => { s.events.push('stop'); return stop.promise; };
+  const stopped = s.hook.stopSendingAudio();
+  const restarted = s.hook.startSendingAudio(s.send);
+  await nextTick();
+  s.emit(tone(200));
+  assert.equal(s.sent.length, 0);
+  assert.equal(s.events.filter((event) => event === 'start').length, 1);
+  stop.resolve(); await stopped; await restarted;
+  assert.equal(s.events.filter((event) => event === 'start').length, 2);
+  s.emit(tone(27));
+  await s.hook.stopSendingAudio(true);
+  assert.deepEqual(Buffer.concat(s.sent), tone(27));
+  s.unmount();
+});
+
+test('native capture failure removes its listener and reports a recoverable error', async () => {
+  const s = mountAudio();
+  s.recorder.start = () => { throw new Error('recording failed'); };
+  await assert.rejects(s.hook.startSendingAudio(s.send), /recording failed/);
+  assert.equal(s.errors.length, 1);
+  assert.ok(s.events.includes('remove'));
+  s.emit(tone(200));
+  assert.equal(s.sent.length, 0);
+  s.recorder.start = () => {};
+  await s.hook.startSendingAudio(s.send);
+  s.emit(tone(27));
+  await s.hook.stopSendingAudio(true);
+  assert.deepEqual(Buffer.concat(s.sent), tone(27));
+  s.unmount();
+});
+
+/** Install and restore a minimal browser audio environment for the real hook. */
+function fakeWeb(t) {
+  const requests = [], tracks = [], contexts = [], nodes = [];
+  const environment = {
+    getUserMedia: async (constraints) => {
+      requests.push(constraints);
+      const track = { stopped: false, stop() { this.stopped = true; } };
+      tracks.push(track);
+      return { getTracks: () => [track] };
+    },
+    loadModule: async () => {},
+    sampleRate: 16000,
+  };
+  class Context {
+    constructor() {
+      contexts.push(this);
+      this.sampleRate = environment.sampleRate;
+      this.state = 'suspended';
+      this.audioWorklet = { addModule: () => environment.loadModule() };
+      this.destination = {};
+    }
+    async resume() { this.state = 'running'; }
+    async close() { this.state = 'closed'; }
+    createMediaStreamSource() { return { connect() {}, disconnect() {} }; }
+  }
+  class Worklet {
+    constructor() {
+      nodes.push(this);
+      this.port = { close() {}, onmessage: null };
+    }
+    connect() {} disconnect() {}
+  }
+  for (const [key, value] of Object.entries({
+    navigator: { mediaDevices: { getUserMedia: (constraints) => environment.getUserMedia(constraints) } },
+    window: { AudioContext: Context },
+    AudioWorkletNode: Worklet,
+  })) {
+    const original = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+      if (original) Object.defineProperty(globalThis, key, original);
+      else delete globalThis[key];
+    });
+  }
+  return { environment, requests, tracks, contexts, nodes };
+}
+
+test('web requests built-in suppression and sends the same filtered PCM as native', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web');
+  await s.hook.startSendingAudio(s.send);
+  const constraints = browser.requests[0].audio;
+  assert.equal(constraints.noiseSuppression, true);
+  assert.equal(constraints.echoCancellation, true);
+  assert.equal(constraints.autoGainControl, true);
+  browser.nodes[0].port.onmessage({ data: arrayBuffer(tone(27)) });
+  await s.hook.stopSendingAudio(true);
+  assert.deepEqual(Buffer.concat(s.sent), tone(27));
+  assert.ok(browser.tracks.every((track) => track.stopped));
+  assert.ok(browser.contexts.every((ctx) => ctx.state === 'closed'));
+  s.unmount();
+});
+
+test('stop during pending web permission never creates a worklet or transmits late audio', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web'), permission = deferred();
+  const getUserMedia = browser.environment.getUserMedia;
+  browser.environment.getUserMedia = async (constraints) => {
+    await permission.promise;
+    return getUserMedia(constraints);
+  };
+  const started = s.hook.startSendingAudio(s.send);
+  await nextTick();
+  const stopped = s.hook.stopSendingAudio();
+  permission.resolve(); await started; await stopped;
+  assert.equal(browser.nodes.length, 0);
+  assert.equal(s.sent.length, 0);
+  assert.ok(browser.tracks.every((track) => track.stopped));
+  s.unmount();
+});
+
+test('stop during web worklet loading closes capture before the next call can start', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web'), moduleLoad = deferred();
+  browser.environment.loadModule = () => moduleLoad.promise;
+  const started = s.hook.startSendingAudio(s.send);
+  await nextTick();
+  const stopped = s.hook.stopSendingAudio();
+  const restarted = s.hook.startSendingAudio(s.send);
+  moduleLoad.resolve(); await started; await stopped; await restarted;
+  assert.equal(browser.nodes.length, 1);
+  assert.equal(browser.tracks[0].stopped, true);
+  assert.equal(browser.contexts[0].state, 'closed');
+  browser.nodes[0].port.onmessage({ data: arrayBuffer(tone(27)) });
+  await s.hook.stopSendingAudio(true);
+  assert.deepEqual(Buffer.concat(s.sent), tone(27));
+  s.unmount();
+});
+
+test('web initialization failure cleans hardware, surfaces the error, and permits retry', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web');
+  browser.environment.loadModule = async () => { throw new Error('worklet unavailable'); };
+  await assert.rejects(s.hook.startSendingAudio(s.send), /worklet unavailable/);
+  assert.equal(s.errors.length, 1);
+  assert.ok(browser.tracks[0].stopped);
+  assert.equal(browser.contexts[0].state, 'closed');
+  browser.environment.loadModule = async () => {};
+  await s.hook.startSendingAudio(s.send);
+  await s.hook.stopSendingAudio();
+  s.unmount();
+});
+
+test('web rejects unexpected sample rate rather than mislabelling PCM as 16 kHz', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web');
+  browser.environment.sampleRate = 48000;
+  await assert.rejects(s.hook.startSendingAudio(s.send), /sample rate/);
+  assert.ok(browser.tracks[0].stopped);
+  assert.equal(browser.contexts[0].state, 'closed');
+  s.unmount();
+});
+
+test('unmount during web permission loading discards resources without an error alert', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web'), permission = deferred();
+  const getUserMedia = browser.environment.getUserMedia;
+  browser.environment.getUserMedia = async (constraints) => {
+    await permission.promise;
+    return getUserMedia(constraints);
+  };
+  const started = s.hook.startSendingAudio(s.send);
+  await nextTick(); s.unmount(); permission.resolve(); await started; await nextTick();
+  assert.ok(browser.tracks.every((track) => track.stopped));
+  assert.equal(browser.nodes.length, 0);
+  assert.equal(s.errors.length, 0);
+});
+
+test('worklet emits 20ms PCM16 frames across render quanta, clips safely, and produces no speaker audio', () => {
+  const vm = require('node:vm');
+  let Processor;
+  const posted = [];
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../public/pcm-processor.js'), 'utf8'), {
+    AudioWorkletProcessor: class { constructor() { this.port = { postMessage: (data) => posted.push(data) }; } },
+    registerProcessor: (_, implementation) => { Processor = implementation; },
+  });
+  const worklet = new Processor();
+  const output = new Float32Array(128);
+  for (let i = 0; i < 5; i++) {
+    const input = new Float32Array(128);
+    for (let j = 0; j < input.length; j++) input[j] = j % 2 ? -2 : 2;
+    assert.equal(worklet.process([[input]], [[output]]), true);
+  }
+  assert.equal(posted.length, 2);
+  for (const data of posted) {
+    assert.equal(data.byteLength, 640);
+    const view = new DataView(data);
+    for (let i = 0; i < 320; i++) assert.equal(view.getInt16(i * 2, true), i % 2 ? -32768 : 32767);
+  }
+  assert.ok(output.every((value) => value === 0));
+  assert.equal(worklet.process([]), true);
+});
+
+test('a transport failure during final flush still closes capture hardware', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web');
+  await s.hook.startSendingAudio(() => { throw new Error('socket closed'); });
+  browser.nodes[0].port.onmessage({ data: arrayBuffer(tone(27)) });
+  await assert.rejects(s.hook.stopSendingAudio(true), /socket closed/);
+  assert.ok(browser.tracks[0].stopped);
+  assert.equal(browser.contexts[0].state, 'closed');
+  s.unmount();
+});
+
+test('web reuses the capture context prepared during the permission gesture', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web');
+  assert.equal(await s.hook.requestPermission(), true);
+  assert.equal(browser.contexts.length, 1);
+  await s.hook.startSendingAudio(s.send);
+  assert.equal(browser.contexts.length, 1);
+  assert.equal(browser.tracks[0].stopped, true);
+  await s.hook.stopSendingAudio();
+  assert.ok(browser.tracks.every((track) => track.stopped));
+  s.unmount();
+});
+
+test('end during the initial permission request never prepares capture after the call', async (t) => {
+  const browser = fakeWeb(t), s = mountAudio('web'), permission = deferred();
+  const getUserMedia = browser.environment.getUserMedia;
+  browser.environment.getUserMedia = async (constraints) => {
+    await permission.promise;
+    return getUserMedia(constraints);
+  };
+  const requested = s.hook.requestPermission();
+  await s.hook.stopSendingAudio();
+  permission.resolve();
+  assert.equal(await requested, false);
+  assert.ok(browser.tracks.every((track) => track.stopped));
+  assert.equal(browser.contexts.length, 0);
+  s.unmount();
+});
