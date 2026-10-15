@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { jwtDecode } from "jwt-decode";
+import { clearTrainingCallScenarios } from "./trainingCallScenario";
 
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
@@ -120,6 +121,8 @@ export const getAuthLoginMethod = async (): Promise<AuthLoginMethod | null> => {
 
 export const clearAuthTokens = async (): Promise<void> => {
   const deletions: Promise<void>[] = [
+    // 예약 정리 실패가 토큰 폐기까지 막지 않도록 독립적으로 처리한다.
+    clearTrainingCallScenarios().catch(() => {}),
     // 웹 저장소와 이전 버전의 잔여 토큰을 함께 제거합니다.
     AsyncStorage.multiRemove([
       ACCESS_TOKEN_KEY,
