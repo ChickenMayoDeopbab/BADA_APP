@@ -14,7 +14,7 @@ import {
   cancelTrainingCallSchedule,
   createTrainingCallSchedule,
 } from "@/api/trainingCallApi";
-import { saveTrainingCallScenario } from "@/utils/trainingCallScenario";
+import { saveTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
 import { getApiErrorMessage } from "@/api/error";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
@@ -64,6 +64,7 @@ export default function Start() {
     }>();
   const { showAlert } = useAppAlert();
   const isSubmittingRef = useRef(false);
+  const pendingCancellationRef = useRef<number | null>(null);
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
@@ -100,8 +101,47 @@ export default function Start() {
     return true;
   });
 
+  /** 취소 응답을 받지 못한 예약에 재시도와 수신 시 거절하는 복구 경로를 제공한다. */
+  const showCancellationRecovery = (scheduleId: number): void => {
+    showAlert({
+      title: "예약 취소를 확인하지 못했어요",
+      description:
+        "네트워크 연결을 확인하고 취소를 다시 시도해 주세요. 홈으로 돌아간 뒤 예약 전화가 오면 수신 화면에서 거절할 수도 있어요.",
+      confirmLabel: "취소 다시 시도",
+      onConfirm: () => void retryScheduleCancellation(scheduleId),
+      cancelLabel: "홈으로",
+      onCancel: () => router.replace("/(tabs)/(home)/home"),
+      closeOnBackdrop: false,
+    });
+  };
+
+  /** 새 예약을 만들지 않고 실패했던 동일한 예약의 취소만 다시 요청한다. */
+  const retryScheduleCancellation = async (scheduleId: number): Promise<void> => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsCreatingSession(true);
+    try {
+      await cancelTrainingCallSchedule(scheduleId);
+      pendingCancellationRef.current = null;
+      await removeTrainingCallScenario(scheduleId).catch(() => {});
+      showAlert({
+        title: "예약을 취소했어요",
+        onConfirm: () => router.replace("/(tabs)/(home)/home"),
+      });
+    } catch {
+      showCancellationRecovery(scheduleId);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsCreatingSession(false);
+    }
+  };
+
   /** 즉시 발신은 세션을 생성하고 예약 발신은 서버에 시간 범위를 등록한다. */
   const handleComplete = async () => {
+    if (pendingCancellationRef.current !== null) {
+      showCancellationRecovery(pendingCancellationRef.current);
+      return;
+    }
     const scenarioId = Number(id);
     if (
       !Number.isSafeInteger(scenarioId) ||
@@ -144,14 +184,14 @@ export default function Start() {
           maxDelayMinutes: timeTo,
         });
         try {
-          await saveTrainingCallScenario(schedule.scheduleId, scenarioId);
+          await saveTrainingCallScenario(schedule.scheduleId, scenarioId, schedule.scheduledAt);
         } catch {
           try {
             await cancelTrainingCallSchedule(schedule.scheduleId);
           } catch {
-            throw new Error(
-              "예약 정보 저장에 실패했고 취소 여부도 확인하지 못했어요. 예약이 남아 전화가 올 수 있어요.",
-            );
+            pendingCancellationRef.current = schedule.scheduleId;
+            showCancellationRecovery(schedule.scheduleId);
+            return;
           }
           throw new Error(
             "예약 정보를 기기에 저장하지 못해 예약을 취소했어요. 다시 시도해 주세요.",

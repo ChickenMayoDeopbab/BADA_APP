@@ -1,6 +1,6 @@
 import { patchPassword } from "@/api/authApi";
 import { getApiErrorMessage } from "@/api/error";
-import { getMyPage } from "@/api/userInfoApi";
+import { useMyPage, myPageQueryKeys } from "@/hooks/useMyPage";
 import { getAuthLoginMethod } from "@/utils/authTokenStorage";
 import CustomButton from "@/components/common/CustomButton";
 import CustomInput from "@/components/common/CustomInput";
@@ -14,7 +14,7 @@ import {
 import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -44,15 +44,14 @@ const passwordFields = [
 /** 로그인한 계정의 이메일로 현재 비밀번호를 확인하고 비밀번호를 변경한다. */
 export default function PasswordSettingsScreen() {
   const { showAlert } = useAppAlert();
-  const profileQuery = useQuery({
-    queryKey: ["myPage", "password"],
-    queryFn: async () => {
-      if ((await getAuthLoginMethod()) !== "password") return null;
-      return getMyPage();
-    },
+  const queryClient = useQueryClient();
+  const loginMethodQuery = useQuery({
+    queryKey: ["auth", "loginMethod"],
+    queryFn: getAuthLoginMethod,
     staleTime: 0,
     gcTime: 0,
   });
+  const profileQuery = useMyPage(loginMethodQuery.data === "password");
   const isSubmittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visibleFields, setVisibleFields] = useState<
@@ -96,6 +95,7 @@ export default function PasswordSettingsScreen() {
         oldPassword: values.oldPassword,
         newPassword: values.newPassword,
       });
+      void queryClient.invalidateQueries({ queryKey: myPageQueryKeys.all });
       Keyboard.dismiss();
       reset();
       showAlert({
@@ -127,9 +127,9 @@ export default function PasswordSettingsScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="grow gap-4 px-8 py-6"
         >
-          {profileQuery.isPending ? (
+          {loginMethodQuery.isPending ? (
             <LoadingIndicator />
-          ) : profileQuery.data === null ? (
+          ) : loginMethodQuery.data !== "password" ? (
             <View className="gap-4">
               <Text className="text-body text-label-alternative">
                 아이디와 비밀번호로 로그인한 계정에서만 비밀번호를 변경할 수
@@ -137,6 +137,8 @@ export default function PasswordSettingsScreen() {
               </Text>
               <CustomButton label="돌아가기" onPress={() => router.back()} />
             </View>
+          ) : profileQuery.isPending ? (
+            <LoadingIndicator />
           ) : profileQuery.isError || !profileQuery.data?.data.email ? (
             <View className="gap-4">
               <Text className="text-body text-status-error">
