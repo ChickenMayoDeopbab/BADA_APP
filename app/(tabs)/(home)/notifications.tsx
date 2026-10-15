@@ -5,7 +5,13 @@ import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { SURFACE_CARD_SHADOW } from "@/design-system/effects";
-import { useMarkNotificationRead, useNotifications } from "@/hooks/useNotifications";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+} from "@/hooks/useNotifications";
+import { getApiErrorMessage } from "@/api/error";
+import { useAppAlert } from "@/context/AppAlertContext";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -76,7 +82,7 @@ const NotificationCard = memo(function NotificationCard({
         accessibilityRole="button"
         accessibilityLabel={`${item.title}, ${item.message}`}
         onPress={() => onPress(item)}
-        className="h-[82px] w-full justify-center overflow-hidden rounded-component bg-background-normal px-6 py-2.5"
+        className="min-h-[82px] w-full justify-center overflow-hidden rounded-component bg-background-normal px-6 py-3"
       >
       <View className="flex-row items-center gap-2.5">
         <StyledImage
@@ -92,8 +98,8 @@ const NotificationCard = memo(function NotificationCard({
         />
         <View className="flex-1 gap-1">
           <View className="flex-row items-center justify-between w-full">
-            <Text className="font-bold text-body text-label-normal">{item.title}</Text>
-            <Text className={`text-label font-medium ${item.read ? "text-line-normal" : "text-primary-normal"}`}>
+            <Text className="min-w-0 flex-1 pr-2 font-bold text-body text-label-normal">{item.title}</Text>
+            <Text className={`shrink text-right text-label font-medium ${item.read ? "text-line-normal" : "text-primary-normal"}`}>
               {time}
             </Text>
           </View>
@@ -108,9 +114,12 @@ const NotificationCard = memo(function NotificationCard({
 });
 
 export default function NotificationsScreen() {
+  const { showAlert } = useAppAlert();
   const [filter, setFilter] = useState<NotificationFilter>("ALL");
+  const markAllMutation = useMarkAllNotificationsRead();
   const notificationsQuery = useNotifications(filter);
-  const { mutate: markNotificationRead } = useMarkNotificationRead();
+  const { mutate: markNotificationRead, isPending: isMarkingRead } =
+    useMarkNotificationRead();
   const notifications = useMemo(
     () =>
       notificationsQuery.data?.pages.flatMap(
@@ -119,8 +128,25 @@ export default function NotificationsScreen() {
     [notificationsQuery.data],
   );
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
+  const isMarkAllDisabled = unreadCount === 0 || isMarkingRead ||
+    markAllMutation.isPending || notificationsQuery.isError;
+
+  /** 전체 읽음 처리 실패를 안내하고 재시도할 수 있게 한다. */
+  const handleMarkAllRead = () => {
+    if (isMarkAllDisabled) return;
+    markAllMutation.mutate(undefined, {
+      onError: (error) => showAlert({
+        title: "읽음 처리 실패",
+        description: getApiErrorMessage(
+          error,
+          "알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.",
+        ),
+      }),
+    });
+  };
   const openNotification = useCallback(
     (item: InAppNotificationResponse) => {
+      if (markAllMutation.isPending) return;
       const openPost = () => {
         if (!item.postId) return;
 
@@ -139,7 +165,7 @@ export default function NotificationsScreen() {
         onSuccess: openPost,
       });
     },
-    [markNotificationRead],
+    [markNotificationRead, markAllMutation.isPending],
   );
 
   const renderNotification = useCallback(
@@ -163,14 +189,29 @@ export default function NotificationsScreen() {
       />
 
       <View className="flex-1 bg-background-alternative">
-        <View className="flex-row gap-2 px-8 pt-[15px]">
-          <FilterChip label="전체" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
-          <FilterChip
-            label="안읽음"
-            count={unreadCount}
-            selected={filter === "UNREAD"}
-            onPress={() => setFilter("UNREAD")}
-          />
+        <View className="flex-row flex-wrap items-center justify-between gap-3 px-8 pt-[15px]">
+          <View className="flex-row flex-wrap items-center gap-2">
+            <FilterChip label="전체" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
+            <FilterChip
+              label="안읽음"
+              count={unreadCount}
+              selected={filter === "UNREAD"}
+              onPress={() => setFilter("UNREAD")}
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="알림 전체 읽기"
+            accessibilityState={{ disabled: isMarkAllDisabled, busy: markAllMutation.isPending }}
+            disabled={isMarkAllDisabled}
+            className="shrink-0 py-1.5 disabled:opacity-40"
+            hitSlop={8}
+            onPress={handleMarkAllRead}
+          >
+            <Text className="text-label font-medium text-label-alternative">
+              {markAllMutation.isPending ? "처리 중" : "전체 읽기"}
+            </Text>
+          </Pressable>
         </View>
 
       {notificationsQuery.isLoading ? (

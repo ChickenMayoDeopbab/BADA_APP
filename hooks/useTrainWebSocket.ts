@@ -21,6 +21,12 @@ export interface TranscriptTurn {
   text: string;
 }
 
+/** AI 턴마다 오는 다음 대답 힌트 (level 1=추천 문장, 2=조언, 3=힌트 없음) */
+export interface ScriptHint {
+  level: number;
+  text: string;
+}
+
 interface UseTrainWebSocketProps {
   sessionId: string | null;
   wsUrl: string | null; // Spring이 반환한 WS URL (토큰 미포함)
@@ -32,6 +38,7 @@ interface UseTrainWebSocketProps {
   onError?: (code: string) => void;
   onBinaryMessage?: (data: ArrayBuffer) => void;
   onTranscript?: (turn: TranscriptTurn) => void; // 실시간 대화 스크립트 수신
+  onScriptHint?: (hint: ScriptHint) => void; // 연습 횟수별 대답 힌트 수신
 }
 
 export interface UseTrainWebSocketReturn {
@@ -57,6 +64,7 @@ export function useTrainWebSocket({
   onError,
   onBinaryMessage,
   onTranscript,
+  onScriptHint,
 }: UseTrainWebSocketProps): UseTrainWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -71,6 +79,7 @@ export function useTrainWebSocket({
   const onErrorRef = useRef(onError);
   const onBinaryMessageRef = useRef(onBinaryMessage);
   const onTranscriptRef = useRef(onTranscript);
+  const onScriptHintRef = useRef(onScriptHint);
   const aiSpeakingRef = useRef(false);
   onEmotionRef.current = onEmotion;
   onSpeakingEndRef.current = onSpeakingEnd;
@@ -79,6 +88,7 @@ export function useTrainWebSocket({
   onErrorRef.current = onError;
   onBinaryMessageRef.current = onBinaryMessage;
   onTranscriptRef.current = onTranscript;
+  onScriptHintRef.current = onScriptHint;
 
   const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
@@ -103,13 +113,16 @@ export function useTrainWebSocket({
     if (!token) return;
 
     // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
-    const url = `${getWsBaseUrl()}/ws/voice/${sessionId}?token=${token}`;
+    // 토큰은 URL에 싣지 않는다(접속 로그에 남는다). 연결 직후 첫 프레임으로 보낸다.
+    const url = `${getWsBaseUrl()}/ws/voice/${sessionId}`;
     const ws = new WebSocket(url);
     // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
+      // 서버는 첫 프레임을 인증으로 읽는다 — 마이크 PCM 등 어떤 프레임보다 먼저 보낸다.
+      ws.send(JSON.stringify({ type: "auth", token }));
       setIsConnected(true);
       ws.send(JSON.stringify({ type: "playback_capabilities", completion_ack: true }));
       // keep-alive ping 30초마다
@@ -149,6 +162,14 @@ export function useTrainWebSocket({
                 onTranscriptRef.current?.({
                   role: typeof msg.role === "string" ? msg.role : "",
                   text: msg.text,
+                });
+              }
+              break;
+            case "script_hint":
+              if (typeof msg.level === "number") {
+                onScriptHintRef.current?.({
+                  level: msg.level,
+                  text: typeof msg.text === "string" ? msg.text.trim() : "",
                 });
               }
               break;

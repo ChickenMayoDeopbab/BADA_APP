@@ -1,6 +1,7 @@
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
+import { OAUTH_CALLBACK_URL, parseOAuthCallback } from "@/utils/oauthCallback";
 import apiClient from "./client";
 import {
   ApiResponse,
@@ -24,7 +25,7 @@ const OAUTH_LOGIN_PATHS: Record<OAuthProvider, string> = {
   apple: "/api/v1/auth/apple",
 };
 
-const ANDROID_CALLBACK_GRACE_PERIOD_MS = 1_000;
+const ANDROID_CALLBACK_GRACE_PERIOD_MS = 3_000;
 
 /** Android 브라우저가 앱을 먼저 활성화한 뒤 보내는 늦은 딥 링크를 기다린다. */
 const waitForAndroidOAuthCallback = async (
@@ -37,7 +38,11 @@ const waitForAndroidOAuthCallback = async (
     resolveCallback = resolve;
   });
   const subscription = Linking.addEventListener("url", ({ url }) => {
-    if (url !== redirectUrl && !url.startsWith(`${redirectUrl}?`)) return;
+    try {
+      parseOAuthCallback(url);
+    } catch {
+      return;
+    }
 
     receivedCallbackUrl = url;
     resolveCallback(url);
@@ -66,9 +71,15 @@ const waitForAndroidOAuthCallback = async (
   }
 };
 
+/** 로그인 서버에 앱으로 돌아올 주소를 명시한다. */
 export const getOAuthLoginUrl = (provider: OAuthProvider): string => {
   const url = apiClient.getUri({
     url: OAUTH_LOGIN_PATHS[provider],
+    params: {
+      redirectUri: Platform.OS === "web"
+        ? Linking.createURL("auth/callback")
+        : OAUTH_CALLBACK_URL,
+    },
   });
 
   if (!/^https?:\/\//i.test(url)) {
@@ -88,18 +99,17 @@ export const openOAuthLogin = async (
     return;
   }
 
-  // iOS 심사에서는 앱 안에서 표시되는 Safari View Controller를 사용한다.
-  // bada://auth/callback 딥 링크는 Expo Router가 콜백 화면으로 전달한다.
+  // ASWebAuthenticationSession이 인증 쿠키와 앱 복귀, 브라우저 닫기를 관리한다.
   if (Platform.OS === "ios") {
-    await WebBrowser.openBrowserAsync(url);
-    return;
+    const result = await WebBrowser.openAuthSessionAsync(url, OAUTH_CALLBACK_URL);
+    return result.type === "success" ? result.url : undefined;
   }
 
   // Android는 Custom Tabs 인증 세션을 사용한다.
   // 브라우저별 앱 활성화/딥 링크 순서 차이까지 처리한 콜백 URL을 반환한다.
   return waitForAndroidOAuthCallback(
     url,
-    Linking.createURL("auth/callback", { scheme: "bada" }),
+    OAUTH_CALLBACK_URL,
   );
 };
 

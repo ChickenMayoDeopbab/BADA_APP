@@ -1,4 +1,5 @@
-import { File } from "expo-file-system";
+import { requireOptionalNativeModule } from "expo";
+import { Platform } from "react-native";
 
 const MAX_UPLOAD_BYTES = 850 * 1024;
 
@@ -12,14 +13,24 @@ const jpegName = (fileName?: string) => {
   return `${baseName}.jpg`;
 };
 
+/** 사진을 저장할 때만 네이티브 모듈을 불러와 업로드 용량을 줄인다. */
 export async function prepareProfileImageForUpload(
   uri: string,
   fileName?: string,
 ) {
   let imageManipulatorModule: typeof import("expo-image-manipulator");
+  let fileSystemModule: typeof import("expo-file-system");
 
   try {
+    if (
+      Platform.OS !== "web" &&
+      (!requireOptionalNativeModule("FileSystem") ||
+        !requireOptionalNativeModule("ExpoImageManipulator"))
+    ) {
+      throw new Error("Profile image processing is unavailable");
+    }
     imageManipulatorModule = await import("expo-image-manipulator");
+    fileSystemModule = await import("expo-file-system");
   } catch {
     throw new Error(
       "프로필 사진 기능을 사용하려면 앱을 최신 개발 빌드로 다시 설치해주세요.",
@@ -27,6 +38,7 @@ export async function prepareProfileImageForUpload(
   }
 
   const { ImageManipulator, SaveFormat } = imageManipulatorModule;
+  const { File } = fileSystemModule;
   const source = await ImageManipulator.manipulate(uri).renderAsync();
 
   for (const pass of OUTPUT_PASSES) {

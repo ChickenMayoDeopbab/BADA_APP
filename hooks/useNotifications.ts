@@ -2,6 +2,7 @@ import {
   getNotifications,
   getNotificationSettings,
   markNotificationRead,
+  markAllNotificationsRead,
   updateNotificationSettings,
 } from "@/api/notificationApi";
 import {
@@ -54,6 +55,18 @@ export const useNotificationSettings = () =>
     queryFn: ({ signal }) =>
       getNotificationSettings(signal).then(({ data }) => data),
   });
+
+/** 성공하거나 일부만 처리되어도 전체·안읽음 목록과 배지 개수를 다시 조회한다. */
+export const useMarkAllNotificationsRead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: markAllNotificationsRead,
+    retry: false,
+    onSettled: () => queryClient.invalidateQueries({
+      queryKey: notificationQueryKeys.all,
+    }),
+  });
+};
 
 export const useUpdateNotificationSettings = () => {
   const queryClient = useQueryClient();

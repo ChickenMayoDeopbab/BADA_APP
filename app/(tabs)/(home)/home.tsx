@@ -4,6 +4,11 @@ import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
 import StyledImage from "@/components/common/StyledImage";
+import { Skeleton, SkeletonGroup } from "@/components/common/skeleton";
+import {
+  HomeAttendanceSkeleton,
+  HomeRecommendationSkeleton,
+} from "@/components/home/HomeContentSkeleton";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { ELEVATED_CARD_SHADOW } from "@/design-system/effects";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
@@ -12,11 +17,7 @@ import { openScenarioDetail } from "@/utils/scenarioNavigation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { Href, router, useFocusEffect } from "expo-router";
-import {
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -46,7 +47,15 @@ const formatDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-function CardGradient({ id, colors, descending = false }: { id: string; colors: [string, string]; descending?: boolean }) {
+function CardGradient({
+  id,
+  colors,
+  descending = false,
+}: {
+  id: string;
+  colors: [string, string];
+  descending?: boolean;
+}) {
   return (
     <Svg
       width={400}
@@ -82,7 +91,8 @@ export default function Home() {
   });
   const recommendedScenario = recommendationQuery.data?.scenario;
   const recommendationImageUrl =
-    recommendedScenario?.scenario_image ?? recommendationQuery.data?.category_icon_url;
+    recommendedScenario?.scenario_image ??
+    recommendationQuery.data?.category_icon_url;
   const [failedRecommendationImageUrl, setFailedRecommendationImageUrl] =
     useState<string | null>(null);
   const showRecommendationImage = Boolean(
@@ -91,16 +101,22 @@ export default function Home() {
   );
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
+  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const today = useMemo(() => new Date(), []);
   const [displayedMonth, setDisplayedMonth] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
-  const week = useMemo(() => Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - 6 + index);
-    return date;
-  }), [today]);
+  const week = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(today);
+        date.setDate(today.getDate() - 6 + index);
+        return date;
+      }),
+    [today],
+  );
   const calendarWeeks = useMemo(() => {
     const year = displayedMonth.getFullYear();
     const month = displayedMonth.getMonth();
@@ -108,41 +124,54 @@ export default function Home() {
     const lastDate = new Date(year, month + 1, 0).getDate();
     const cells: (Date | null)[] = [
       ...Array.from({ length: firstDay }, () => null),
-      ...Array.from({ length: lastDate }, (_, index) => new Date(year, month, index + 1)),
+      ...Array.from(
+        { length: lastDate },
+        (_, index) => new Date(year, month, index + 1),
+      ),
     ];
 
     while (cells.length % 7 !== 0) cells.push(null);
 
-    return Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
+    return Array.from({ length: cells.length / 7 }, (_, index) =>
+      cells.slice(index * 7, index * 7 + 7),
+    );
   }, [displayedMonth]);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
-      const loadHome = async () => {
-        const attendanceMonths = week.reduce<{ year: number; month: number }[]>((months, date) => {
-          const year = date.getFullYear();
-          const month = date.getMonth() + 1;
-          const isIncluded = months.some((item) => item.year === year && item.month === month);
+      /** 출석과 프로필을 따로 기다려 먼저 도착한 영역부터 표시한다. */
+      const loadAttendance = async () => {
+        const attendanceMonths = week.reduce<{ year: number; month: number }[]>(
+          (months, date) => {
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const isIncluded = months.some(
+              (item) => item.year === year && item.month === month,
+            );
 
-          if (!isIncluded) months.push({ year, month });
-          return months;
-        }, []);
+            if (!isIncluded) months.push({ year, month });
+            return months;
+          },
+          [],
+        );
         const displayedYear = displayedMonth.getFullYear();
         const displayedMonthNumber = displayedMonth.getMonth() + 1;
         const includesDisplayedMonth = attendanceMonths.some(
-          (item) => item.year === displayedYear && item.month === displayedMonthNumber,
+          (item) =>
+            item.year === displayedYear && item.month === displayedMonthNumber,
         );
         if (!includesDisplayedMonth) {
-          attendanceMonths.push({ year: displayedYear, month: displayedMonthNumber });
+          attendanceMonths.push({
+            year: displayedYear,
+            month: displayedMonthNumber,
+          });
         }
-        const [attendanceResults, myPageResult] = await Promise.all([
-          Promise.allSettled(attendanceMonths.map(({ year, month }) => getAttendantDays(year, month))),
-          getMyPage().then(
-            (value) => ({ status: "fulfilled" as const, value }),
-            () => ({ status: "rejected" as const }),
+        const attendanceResults = await Promise.allSettled(
+          attendanceMonths.map(({ year, month }) =>
+            getAttendantDays(year, month),
           ),
-        ]);
+        );
         if (!isActive) return;
         const dates = attendanceResults.flatMap((result) => {
           if (result.status === "rejected") return [];
@@ -151,10 +180,22 @@ export default function Home() {
         if (attendanceResults.some((result) => result.status === "fulfilled")) {
           setAttendedDates([...new Set(dates)]);
         }
-        if (myPageResult.status === "fulfilled") setName(myPageResult.value.data.name ?? "");
+        setIsAttendanceLoading(false);
       };
-      loadHome();
-      return () => { isActive = false; };
+      void loadAttendance();
+      void getMyPage()
+        .then(
+          (response) => {
+            if (isActive) setName(response.data.name ?? "");
+          },
+          () => {},
+        )
+        .finally(() => {
+          if (isActive) setIsUserLoading(false);
+        });
+      return () => {
+        isActive = false;
+      };
     }, [displayedMonth, week]),
   );
 
@@ -175,206 +216,320 @@ export default function Home() {
     displayedMonth.getMonth() === today.getMonth();
 
   const moveMonth = (offset: number) => {
-    setDisplayedMonth((current) => (
-      new Date(current.getFullYear(), current.getMonth() + offset, 1)
-    ));
+    setDisplayedMonth(
+      (current) =>
+        new Date(current.getFullYear(), current.getMonth() + offset, 1),
+    );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-background-alternative" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-8 pb-6">
-        <View className="pt-[13px]">
-        <Pressable
-          accessibilityLabel="알림 보기"
-          hitSlop={8}
-          onPress={() => router.push("/(tabs)/(home)/notifications" as Href)}
-          className="relative h-[38px] items-end"
-        >
-          <Ionicons name="notifications" size={30} color={SEMANTIC_COLORS.line.normal} />
-          {unreadNotificationCount > 0 && (
-            <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
-          )}
-        </Pressable>
-        <View className="flex-row items-center gap-0.5">
-          <Text className="font-medium text-body text-label-normal">다시 만나서 반가워요{name ? `, ${name}님!` : "!"}</Text>
-          <SmileIllustration width={26} height={26} />
-        </View>
-        <Text className="mt-0.5 text-headline1 font-bold text-label-normal">오늘은 어떤 시나리오로 연습할까요?</Text>
-        </View>
-
-        <Animated.View
-          layout={calendarLayoutTransition}
-          className="gap-4 px-3 py-4 mt-4 bg-background-normal rounded-component"
-          style={ELEVATED_CARD_SHADOW}
-        >
-        <View className="flex-row items-center justify-between">
-          <Text className="font-bold text-body text-label-normal">이번 주 훈련</Text>
-          <Text className="font-medium text-caption text-label-alternative">{streak}일 연속 훈련</Text>
-        </View>
-        <View className="flex-row justify-between">
-          {week.map((date, index) => {
-            const isToday = index === week.length - 1;
-            const isAttended = attendedDates.includes(formatDate(date));
-            return (
-              <View key={formatDate(date)} className="w-10 items-center gap-0.5">
-                <View className={`size-10 items-center justify-center rounded-control ${isAttended ? "bg-primary-normal" : "bg-background-alternative"}`}>
-                  <Ionicons
-                    name="call"
-                    size={23}
-                    color={isAttended ? PALETTE.common[0] : SEMANTIC_COLORS.line.neutral}
-                  />
-                </View>
-                <Text className={`text-caption ${isToday ? "font-bold text-label-strong" : "font-medium text-label-alternative"}`}>
-                  {isToday ? "오늘" : DAY_LABELS[date.getDay()]}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-
-        {isCalendarOpen && (
-          <Animated.View
-            entering={FadeIn.duration(180)}
-            exiting={FadeOut.duration(120)}
-            className="gap-1 pt-5 border-t border-line-normal"
-          >
-              <View className="flex-row items-center justify-between px-7 mb-3">
-                <Pressable accessibilityLabel="이전 달 보기" hitSlop={10} onPress={() => moveMonth(-1)}>
-                  <Ionicons name="caret-back" size={18} color={PALETTE.blue[40]} />
-                </Pressable>
-                <Text className="font-bold text-headline2 text-label-normal">
-                  {displayedMonth.getFullYear() === today.getFullYear()
-                    ? `${displayedMonth.getMonth() + 1}월`
-                    : `${displayedMonth.getFullYear()}년 ${displayedMonth.getMonth() + 1}월`}
-                </Text>
-                <Pressable
-                  accessibilityLabel="다음 달 보기"
-                  disabled={isCurrentMonth}
-                  hitSlop={10}
-                  onPress={() => moveMonth(1)}
-                  style={{ opacity: isCurrentMonth ? 0 : 1 }}
-                >
-                  <Ionicons name="caret-forward" size={18} color={PALETTE.blue[40]} />
-                </Pressable>
-              </View>
-              <View className="flex-row">
-                {DAY_LABELS.map((label) => (
-                  <Text key={label} className="flex-1 text-center text-[13px] font-semibold text-label-alternative">
-                    {label}
-                  </Text>
-                ))}
-              </View>
-              {calendarWeeks.map((weekDates, weekIndex) => (
-                <View key={weekIndex} className="flex-row">
-                  {weekDates.map((date, dayIndex) => {
-                    if (!date) return <View key={`empty-${dayIndex}`} className="flex-1 h-12" />;
-                    const dateString = formatDate(date);
-                    const isAttended = attendedDates.includes(dateString);
-                    return (
-                      <View key={dateString} className="items-center justify-center flex-1 h-12">
-                        <TouchableOpacity
-                          disabled
-                          activeOpacity={1}
-                          className="items-center justify-center"
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            overflow: "hidden",
-                            backgroundColor: isAttended
-                              ? SEMANTIC_COLORS.primary.normal
-                              : "transparent",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 15,
-                              fontWeight: "600",
-                              color: isAttended
-                                ? PALETTE.common[0]
-                                : SEMANTIC_COLORS.label.neutral,
-                            }}
-                          >
-                            {date.getDate()}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              ))}
-          </Animated.View>
-        )}
-
-        <Animated.View layout={calendarLayoutTransition}>
-          <Pressable
-            accessibilityLabel={isCalendarOpen ? "월간 출석 내역 접기" : "월간 출석 내역 펼치기"}
-            hitSlop={10}
-            onPress={() => setIsCalendarOpen((previous) => !previous)}
-            className="items-center justify-center -my-2 h-7"
-          >
-            <Ionicons name={isCalendarOpen ? "chevron-up" : "chevron-down"} size={22} color={SEMANTIC_COLORS.label.alternative} />
-          </Pressable>
-        </Animated.View>
-        </Animated.View>
-
-        <Animated.View
-          layout={calendarLayoutTransition}
-          className="flex-row gap-3 mt-3"
-        >
-        <Pressable
-          disabled={!recommendedScenario}
-          onPress={() => recommendedScenario && openScenarioDetail(recommendedScenario)}
-          className="h-[148px] w-[59%] rounded-component"
-          style={ELEVATED_CARD_SHADOW}
-        >
-            <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
-              <CardGradient id="scenarioGradient" colors={["#FF8645", "#FFD8BF"]} descending />
-              <Text className="font-medium text-caption text-white/80">추천 시나리오</Text>
-              <Text className="mt-1 font-bold text-white text-headline1" numberOfLines={2}>
-                {recommendedScenario?.title ?? "추천 시나리오를\n불러오는 중이에요"}
-              </Text>
-              <View className="absolute bottom-4 left-3 z-10 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
-                <Ionicons name="call" size={14} color={PALETTE.common[0]} />
-                <Text className="font-medium text-white text-label">훈련 하러가기</Text>
-              </View>
-              {showRecommendationImage ? (
-                <StyledImage
-                  source={recommendationImageUrl}
-                  className="absolute -bottom-1.5 -right-4 h-[90px] w-[90px]"
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                  onError={() =>
-                    setFailedRecommendationImageUrl(
-                      recommendationImageUrl ?? null,
-                    )
-                  }
-                />
-              ) : (
-                <Ionicons
-                  name="call-outline"
-                  size={58}
-                  color="rgba(255, 255, 255, 0.5)"
-                  style={{ position: "absolute", right: 12, bottom: 12 }}
-                />
+          <View className="pt-[13px]">
+            <Pressable
+              accessibilityLabel="알림 보기"
+              hitSlop={8}
+              onPress={() =>
+                router.push("/(tabs)/(home)/notifications" as Href)
+              }
+              className="relative h-[38px] items-end"
+            >
+              <Ionicons
+                name="notifications"
+                size={30}
+                color={SEMANTIC_COLORS.line.normal}
+              />
+              {unreadNotificationCount > 0 && (
+                <View className="absolute right-1 top-px size-2 rounded-full bg-status-error" />
               )}
+            </Pressable>
+            {isUserLoading ? (
+              <SkeletonGroup
+                className="h-[26px] justify-center"
+                accessibilityLabel="사용자 정보 불러오는 중"
+              >
+                <Skeleton className="h-5 w-3/4 rounded-control" />
+              </SkeletonGroup>
+            ) : (
+              <View className="flex-row items-center gap-0.5">
+                <Text className="font-medium text-body text-label-normal">
+                  다시 만나서 반가워요{name ? `, ${name}님!` : "!"}
+                </Text>
+                <SmileIllustration width={26} height={26} />
+              </View>
+            )}
+            <Text className="mt-0.5 text-headline1 font-bold text-label-normal">
+              오늘은 어떤 시나리오로 연습할까요?
+            </Text>
+          </View>
+
+          <Animated.View layout={calendarLayoutTransition}>
+            <View
+              className="gap-4 px-3 py-4 mt-4 bg-background-normal rounded-component"
+              style={ELEVATED_CARD_SHADOW}
+            >
+              {isAttendanceLoading ? (
+                <HomeAttendanceSkeleton />
+              ) : (
+                <>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="font-bold text-body text-label-normal">
+                      이번 주 훈련
+                    </Text>
+                    <Text className="font-medium text-caption text-label-alternative">
+                      {streak}일 연속 훈련
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    {week.map((date, index) => {
+                      const isToday = index === week.length - 1;
+                      const isAttended = attendedDates.includes(
+                        formatDate(date),
+                      );
+                      return (
+                        <View
+                          key={formatDate(date)}
+                          className="min-w-0 flex-1 items-center gap-0.5"
+                        >
+                          <View
+                            className={`aspect-square w-full max-w-10 items-center justify-center rounded-control ${isAttended ? "bg-primary-normal" : "bg-background-alternative"}`}
+                          >
+                            <Ionicons
+                              name="call"
+                              size={23}
+                              color={
+                                isAttended
+                                  ? PALETTE.common[0]
+                                  : SEMANTIC_COLORS.line.neutral
+                              }
+                            />
+                          </View>
+                          <Text
+                            className={`text-caption ${isToday ? "font-bold text-label-strong" : "font-medium text-label-alternative"}`}
+                          >
+                            {isToday ? "오늘" : DAY_LABELS[date.getDay()]}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+              {isCalendarOpen && (
+                <Animated.View
+                  entering={FadeIn.duration(180)}
+                  exiting={FadeOut.duration(120)}
+                >
+                  <View className="gap-1 pt-5 border-t border-line-normal">
+                    <View className="flex-row items-center justify-between px-7 mb-3">
+                      <Pressable
+                        accessibilityLabel="이전 달 보기"
+                        hitSlop={10}
+                        onPress={() => moveMonth(-1)}
+                      >
+                        <Ionicons
+                          name="caret-back"
+                          size={18}
+                          color={PALETTE.blue[40]}
+                        />
+                      </Pressable>
+                      <Text className="font-bold text-headline2 text-label-normal">
+                        {displayedMonth.getFullYear() === today.getFullYear()
+                          ? `${displayedMonth.getMonth() + 1}월`
+                          : `${displayedMonth.getFullYear()}년 ${displayedMonth.getMonth() + 1}월`}
+                      </Text>
+                      <Pressable
+                        accessibilityLabel="다음 달 보기"
+                        disabled={isCurrentMonth}
+                        hitSlop={10}
+                        onPress={() => moveMonth(1)}
+                        style={{ opacity: isCurrentMonth ? 0 : 1 }}
+                      >
+                        <Ionicons
+                          name="caret-forward"
+                          size={18}
+                          color={PALETTE.blue[40]}
+                        />
+                      </Pressable>
+                    </View>
+                    <View className="flex-row">
+                      {DAY_LABELS.map((label) => (
+                        <Text
+                          key={label}
+                          className="flex-1 text-center text-[13px] font-semibold text-label-alternative"
+                        >
+                          {label}
+                        </Text>
+                      ))}
+                    </View>
+                    {calendarWeeks.map((weekDates, weekIndex) => (
+                      <View key={weekIndex} className="flex-row">
+                        {weekDates.map((date, dayIndex) => {
+                          if (!date)
+                            return (
+                              <View
+                                key={`empty-${dayIndex}`}
+                                className="flex-1 h-12"
+                              />
+                            );
+                          const dateString = formatDate(date);
+                          const isAttended = attendedDates.includes(dateString);
+                          return (
+                            <View
+                              key={dateString}
+                              className="items-center justify-center flex-1 h-12"
+                            >
+                              <TouchableOpacity
+                                disabled
+                                activeOpacity={1}
+                                className="items-center justify-center"
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 18,
+                                  overflow: "hidden",
+                                  backgroundColor: isAttended
+                                    ? SEMANTIC_COLORS.primary.normal
+                                    : "transparent",
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 15,
+                                    fontWeight: "600",
+                                    color: isAttended
+                                      ? PALETTE.common[0]
+                                      : SEMANTIC_COLORS.label.neutral,
+                                  }}
+                                >
+                                  {date.getDate()}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ))}
+                  </View>
+                </Animated.View>
+              )}
+
+              <Animated.View layout={calendarLayoutTransition}>
+                <Pressable
+                  disabled={isAttendanceLoading}
+                  accessibilityLabel={
+                    isCalendarOpen
+                      ? "월간 출석 내역 접기"
+                      : "월간 출석 내역 펼치기"
+                  }
+                  hitSlop={10}
+                  onPress={() => setIsCalendarOpen((previous) => !previous)}
+                  className="items-center justify-center -my-2 h-7"
+                >
+                  <Ionicons
+                    name={isCalendarOpen ? "chevron-up" : "chevron-down"}
+                    size={22}
+                    color={SEMANTIC_COLORS.label.alternative}
+                  />
+                </Pressable>
+              </Animated.View>
             </View>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push("/(tabs)/(train)/warmup")}
-          className="h-[148px] flex-1 rounded-component"
-          style={ELEVATED_CARD_SHADOW}
-        >
-            <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#DCE6FF] px-3 py-3.5">
-              <CardGradient id="warmupGradient" colors={["#4992FF", "#DCE6FF"]} />
-              <FireIllustration width={52} height={52} />
-              <Text numberOfLines={2} adjustsFontSizeToFit className="mt-2 font-bold text-white text-body">
-                통화 전 워밍업{"\n"}시작하기
-              </Text>
+          </Animated.View>
+
+          <Animated.View layout={calendarLayoutTransition}>
+            <View className="flex-row gap-3 mt-3">
+              {recommendationQuery.isPending ? (
+                <HomeRecommendationSkeleton />
+              ) : (
+                <Pressable
+                  disabled={
+                    !recommendedScenario && !recommendationQuery.isError
+                  }
+                  onPress={() => {
+                    if (recommendedScenario)
+                      openScenarioDetail(recommendedScenario);
+                    else if (recommendationQuery.isError)
+                      void recommendationQuery.refetch();
+                  }}
+                  className="h-[148px] w-[59%] rounded-component"
+                  style={ELEVATED_CARD_SHADOW}
+                >
+                  <View className="flex-1 overflow-hidden rounded-component bg-[#FFD8BF] px-3 py-4">
+                    <CardGradient
+                      id="scenarioGradient"
+                      colors={["#FF8645", "#FFD8BF"]}
+                      descending
+                    />
+                    <Text className="font-medium text-caption text-white/80">
+                      추천 시나리오
+                    </Text>
+                    <Text
+                      className="mt-1 font-bold text-white text-headline1"
+                      numberOfLines={2}
+                    >
+                      {recommendedScenario?.title ??
+                        (recommendationQuery.isError
+                          ? "추천을 불러오지\n못했어요"
+                          : "추천 시나리오가\n아직 없어요")}
+                    </Text>
+                    <View className="absolute bottom-4 left-3 z-10 flex-row items-center gap-2 rounded-control border border-white/30 bg-black/10 px-2.5 py-1.5">
+                      <Ionicons
+                        name="call"
+                        size={14}
+                        color={PALETTE.common[0]}
+                      />
+                      <Text className="font-medium text-white text-label">
+                        {recommendationQuery.isError && !recommendedScenario
+                          ? "다시 불러오기"
+                          : "훈련 하러가기"}
+                      </Text>
+                    </View>
+                    {showRecommendationImage ? (
+                      <StyledImage
+                        source={recommendationImageUrl}
+                        className="absolute -bottom-1.5 -right-4 h-[90px] w-[90px]"
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                        onError={() =>
+                          setFailedRecommendationImageUrl(
+                            recommendationImageUrl ?? null,
+                          )
+                        }
+                      />
+                    ) : (
+                      <Ionicons
+                        name="call-outline"
+                        size={58}
+                        color="rgba(255, 255, 255, 0.5)"
+                        style={{ position: "absolute", right: 12, bottom: 12 }}
+                      />
+                    )}
+                  </View>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => router.push("/(tabs)/(train)/warmup")}
+                className="h-[148px] flex-1 rounded-component"
+                style={ELEVATED_CARD_SHADOW}
+              >
+                <View className="flex-1 justify-end overflow-hidden rounded-component bg-[#DCE6FF] px-3 py-3.5">
+                  <CardGradient
+                    id="warmupGradient"
+                    colors={["#4992FF", "#DCE6FF"]}
+                  />
+                  <FireIllustration width={52} height={52} />
+                  <Text
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    className="mt-2 font-bold text-white text-body"
+                  >
+                    통화 전 워밍업{"\n"}시작하기
+                  </Text>
+                </View>
+              </Pressable>
             </View>
-        </Pressable>
-        </Animated.View>
+          </Animated.View>
         </View>
       </ScrollView>
     </SafeAreaView>

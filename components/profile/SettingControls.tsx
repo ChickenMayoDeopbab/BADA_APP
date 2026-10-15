@@ -33,7 +33,7 @@ interface SettingRowProps {
 export function SettingRow({ label, children, onPress }: SettingRowProps) {
   const content = (
     <>
-      <Text className="font-medium text-headline2 text-label-normal">
+      <Text className="min-w-0 flex-1 font-medium text-headline2 text-label-normal">
         {label}
       </Text>
       {children}
@@ -42,7 +42,7 @@ export function SettingRow({ label, children, onPress }: SettingRowProps) {
 
   if (!onPress) {
     return (
-      <View className="h-14 w-full flex-row items-center justify-between px-[22px]">
+      <View className="min-h-14 w-full flex-row items-center justify-between gap-3 px-[22px] py-4">
         {content}
       </View>
     );
@@ -52,7 +52,7 @@ export function SettingRow({ label, children, onPress }: SettingRowProps) {
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="h-14 w-full flex-row items-center justify-between px-[22px] active:bg-fill-pressed"
+      className="min-h-14 w-full flex-row items-center justify-between gap-3 px-[22px] py-4 active:bg-fill-pressed"
     >
       {content}
     </Pressable>

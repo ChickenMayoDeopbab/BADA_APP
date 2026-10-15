@@ -2,10 +2,10 @@ import { SEMANTIC_COLORS } from "@/design-system";
 import { getScenarioExample } from "@/api/trainApi";
 import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
-import Top from "@/components/common/Top";
 import { useAppAlert } from "@/context/AppAlertContext";
 import GlassChip from "@/components/train/GlassChip";
 import GradientOverlay from "@/components/train/GradientOverlay";
+import ScenarioImage from "@/components/train/ScenarioImage";
 import TrainingCountLabel from "@/components/train/TrainingCountLabel";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
@@ -18,15 +18,22 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Detail() {
+  const { width, height, fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const maxSheetHeight = Math.max(200, height - insets.top - insets.bottom - 88);
+  const shouldStackDetails = width < 380 || fontScale > 1.2;
+  const imageSize = shouldStackDetails ? 163 : Math.min(163, (width - 82) * 0.48);
   const { showAlert } = useAppAlert();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: scenario, isPending, isError, refetch } = useScenario(id);
@@ -272,11 +279,10 @@ export default function Detail() {
       </Animated.View>
 
       {/*
-        NativeWind는 Animated.View에 className을 적용하지 않는다.
-        애니메이션 래퍼(style만)와 실제 스타일을 입히는 View를 분리한다.
-      */}
+          NativeWind는 Animated.View에 className을 적용하지 않는다.
+          애니메이션 래퍼(style만)와 실제 스타일을 입히는 View를 분리한다.
+        */}
       <Animated.View
-        {...panResponder.panHandlers}
         onLayout={({ nativeEvent }) => {
           sheetHeightRef.current = nativeEvent.layout.height;
         }}
@@ -296,106 +302,119 @@ export default function Detail() {
             elevation: 12,
           }}
         >
-        <View className="h-3 items-center justify-center">
-          <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
-        </View>
-        <Top title="훈련 자세히 보기" back onBack={handleDismiss} safeArea={false} />
+          <View
+            {...panResponder.panHandlers}
+            className="h-6 items-center justify-center"
+          >
+            <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
+          </View>
 
-        {/* 시나리오 정보를 아직 못 받았을 때 */}
-        {isPending ? (
-          <View className="h-[163px] items-center justify-center">
-            <LoadingIndicator />
-          </View>
-        ) : isError ? (
-          /* 목록 조회 자체가 실패한 경우 — 재시도를 제공한다 */
-          <View className="h-[163px] items-center justify-center gap-y-3">
-            <Text className="text-body text-label-alternative">
-              시나리오를 불러오지 못했습니다.
-            </Text>
-            <CustomButton
-              label="다시 시도"
-              tone="primary"
-              variant="md"
-              onPress={() => refetch()}
-            />
-          </View>
-        ) : !scenario ? (
-          <View className="h-[163px] items-center justify-center">
-            <Text className="text-body text-label-alternative">
-              시나리오를 찾을 수 없습니다.
-            </Text>
-          </View>
-        ) : (
-          <>
-            <View className="flex-row gap-x-4">
-              <View className="h-[163px] w-[163px] overflow-hidden rounded-control border border-line-alternative">
-                <Image
-                  source={getScenarioThumbnail(
-                    scenario.scenario_image,
-                    scenario.category,
-                  )}
-                  // require() 에셋은 원본 크기가 인라인 스타일로 새어 컨테이너를 벗어난다.
-                  // 크기를 명시해 컨테이너를 정확히 채운다(여백 없음, 넘치는 부분은 cover가 잘라냄).
-                  style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
-                  resizeMode="cover"
-                />
-                <GradientOverlay direction="bottom" style={{ top: "32%" }} />
-                {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
-                <View className="flex-1 items-end justify-end p-3">
-                  <GlassChip onPress={handleExamplePress}>
-                    <View className="size-4 items-center justify-center">
-                      {isExampleLoading ? (
-                        <LoadingIndicator
-                          size="small"
-                          tone="inverse"
-                          style={{ transform: [{ scale: 0.7 }] }}
-                        />
-                      ) : (
-                        <Ionicons
-                          name={isExamplePlaying ? "pause" : "play"}
-                          size={12}
-                          color="white"
-                        />
-                      )}
-                    </View>
-                    <Text className="text-label font-medium text-white">
-                      예시 대화 듣기
-                    </Text>
-                  </GlassChip>
-                </View>
+          <ScrollView
+            style={{ maxHeight: maxSheetHeight - 64 }}
+            contentContainerClassName="gap-y-2 pb-1"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* 시나리오 정보를 아직 못 받았을 때 */}
+            {isPending ? (
+              <View className="h-[163px] items-center justify-center">
+                <LoadingIndicator />
               </View>
-
-              <View className="flex-1 gap-y-3">
-                <View className="gap-y-[2px]">
-                  <Text className="text-caption font-medium text-label-alternative">
-                    {scenario.is_copied
-                      ? "공유받은 시나리오"
-                      : scenario.is_custom
-                        ? "커스텀 시나리오"
-                        : "기본 제공 시나리오"}
-                  </Text>
-                  <Text className="text-headline1 font-bold text-label-normal">
-                    {scenario.title}
-                  </Text>
-                  <TrainingCountLabel
-                    count={scenario.practice_count ?? 0}
-                    size="md"
-                    color={SEMANTIC_COLORS.label.alternative}
-                  />
-                </View>
-                <Text className="text-label font-medium text-label-neutral">
-                  {scenario.content}
+            ) : isError ? (
+              /* 목록 조회 자체가 실패한 경우 — 재시도를 제공한다 */
+              <View className="h-[163px] items-center justify-center gap-y-3">
+                <Text className="text-body text-label-alternative">
+                  시나리오를 불러오지 못했습니다.
+                </Text>
+                <CustomButton
+                  label="다시 시도"
+                  tone="primary"
+                  variant="md"
+                  onPress={() => refetch()}
+                />
+              </View>
+            ) : !scenario ? (
+              <View className="h-[163px] items-center justify-center">
+                <Text className="text-body text-label-alternative">
+                  시나리오를 찾을 수 없습니다.
                 </Text>
               </View>
-            </View>
+            ) : (
+              <>
+                <View className={shouldStackDetails ? "gap-4" : "flex-row gap-4"}>
+                  <View
+                    className={`shrink-0 overflow-hidden rounded-control border border-line-alternative ${shouldStackDetails ? "self-center" : ""}`}
+                    style={{ width: imageSize, height: imageSize }}
+                  >
+                    <ScenarioImage
+                      source={getScenarioThumbnail(
+                        scenario.scenario_image,
+                        scenario.category,
+                      )}
+                    />
+                    <GradientOverlay direction="bottom" style={{ top: "32%" }} />
+                    {/* 패딩은 콘텐츠에만 준다. 컨테이너에 주면 절대배치 이미지가 그만큼 작아져 여백이 생긴다. */}
+                    <View className="flex-1 items-end justify-end p-3">
+                      <GlassChip
+                        onPress={handleExamplePress}
+                        className="w-full"
+                        containerClassName="px-2 py-1.5"
+                      >
+                        <View className="size-4 items-center justify-center">
+                          {isExampleLoading ? (
+                            <LoadingIndicator
+                              size="small"
+                              tone="inverse"
+                              style={{ transform: [{ scale: 0.7 }] }}
+                            />
+                          ) : (
+                            <Ionicons
+                              name={isExamplePlaying ? "pause" : "play"}
+                              size={12}
+                              color="white"
+                            />
+                          )}
+                        </View>
+                        <Text className="min-w-0 flex-1 text-center text-label font-medium text-white">
+                          예시 대화 듣기
+                        </Text>
+                      </GlassChip>
+                    </View>
+                  </View>
 
-            <CustomButton
-              label="훈련 시작하기"
-              tone="primary"
-              onPress={handleStart}
-            />
-            </>
-          )}
+                  <View
+                    className={`min-w-0 gap-y-3 ${shouldStackDetails ? "" : "flex-1"}`}
+                  >
+                    <View className="gap-y-[2px]">
+                      <Text className="text-caption font-medium text-label-alternative">
+                        {scenario.is_copied
+                          ? "공유받은 시나리오"
+                          : scenario.is_custom
+                            ? "커스텀 시나리오"
+                            : "기본 제공 시나리오"}
+                      </Text>
+                      <Text className="text-headline1 font-bold text-label-normal">
+                        {scenario.title}
+                      </Text>
+                      <TrainingCountLabel
+                        count={scenario.practice_count ?? 0}
+                        size="md"
+                        color={SEMANTIC_COLORS.label.alternative}
+                      />
+                    </View>
+                    <Text className="text-label font-medium text-label-neutral">
+                      {scenario.content}
+                    </Text>
+                  </View>
+                </View>
+
+                <CustomButton
+                  label="훈련 시작하기"
+                  tone="primary"
+                  onPress={handleStart}
+                />
+              </>
+            )}
+          </ScrollView>
         </View>
       </Animated.View>
     </View>

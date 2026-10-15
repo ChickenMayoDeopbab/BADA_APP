@@ -87,6 +87,11 @@ export interface AcceptLegalConsentRequest {
   profileImageAgreed: boolean;
 }
 
+export type OptionalLegalConsents = Pick<
+  AcceptLegalConsentRequest,
+  "sensitiveInformationAgreed" | "profileImageAgreed"
+>;
+
 export type OAuthProvider = 'google' | 'naver' | 'apple';
 
 export interface OAuthCodeRequest {
@@ -219,6 +224,23 @@ export interface CreateSessionRequest {
 export interface CreateSessionResponse {
   sessionId: string;
   wsUrl: string;
+}
+
+export interface CreateTrainingCallScheduleRequest {
+  scenarioId: number;
+  type: SpringSessionType;
+  aiPersonality: SpringPersonality;
+  minDelayMinutes: number;
+  maxDelayMinutes: number;
+  maxDurationSeconds?: number;
+}
+
+export interface TrainingCallScheduleResponse {
+  scheduleId: number;
+  scheduledAt?: string;
+  status: "SCHEDULED" | "RINGING" | "ACCEPTED" | "CANCELED";
+  sessionId?: string;
+  wsUrl?: string;
 }
 
 export interface ScriptTurnContext {

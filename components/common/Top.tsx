@@ -1,7 +1,13 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from "@expo/vector-icons/Ionicons";
 import BadaLogo from "@/assets/badaLogo2.svg";
 import { SEMANTIC_COLORS } from "@/design-system";
 import { ReactNode } from "react";
@@ -15,15 +21,11 @@ interface TopProps {
   safeArea?: boolean;
 }
 
-/**
- * safe area 아래 실제 콘텐츠 영역 높이.
- * 바 전체 높이를 고정하면 상단 인셋만큼 콘텐츠 영역이 깎여, 인셋이 큰 iOS에서만
- * 제목이 아래 내용에 바짝 붙는다. 인셋에 이 값을 더해 두 플랫폼을 같게 맞춘다.
- */
 export const HEADER_CONTENT_HEIGHT = 64;
-/** 뒤로 가기 아이콘 한 변 */
 const BACK_ICON_SIZE = 30;
+const ACTION_WIDTH = 64;
 
+/** 화면 폭과 글자 배율에 맞춰 제목을 한 줄로 유지하고 좌우 버튼 공간을 확보한다. */
 export default function Top({
   title,
   isMain = false,
@@ -33,55 +35,75 @@ export default function Top({
   safeArea = true,
 }: TopProps) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
   const router = useRouter();
   const safeAreaTop = safeArea ? insets.top : 0;
+  const contentHeight = Math.max(
+    HEADER_CONTENT_HEIGHT,
+    Math.ceil(26 * fontScale + 16),
+  );
+  const titleInset = back || right ? ACTION_WIDTH + 8 : 16;
 
-  // 뒤로 가기 버튼 눌렀을 때
+  /** 화면에서 지정한 동작 또는 이전 화면으로 이동한다. */
   const handleBack = () => {
-    if (onBack) {
-      onBack();  
-    } else {
-      router.back(); 
-    }
+    if (onBack) onBack();
+    else router.back();
   };
-
-  /*
-    제목은 flex 자식이라 safe area 패딩 아래 영역의 한가운데에 놓이는데,
-    절대 배치한 뒤로 가기 버튼은 패딩을 무시하고 바 위쪽 끝을 기준으로 잡힌다.
-    고정값을 쓰면 상단 인셋이 큰 iOS에서만 제목보다 위로 뜨므로 같은 기준으로 맞춘다.
-  */
-  const actionTop = safeAreaTop + (HEADER_CONTENT_HEIGHT - BACK_ICON_SIZE) / 2;
 
   return (
     <View
-      className="relative w-full items-center justify-center"
-      style={{
-        paddingTop: safeAreaTop,
-        height: safeAreaTop + HEADER_CONTENT_HEIGHT,
-      }}
+      className="relative w-full shrink-0 items-center justify-center"
+      style={{ paddingTop: safeAreaTop, height: safeAreaTop + contentHeight }}
     >
       {back ? (
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="뒤로 가기"
           onPress={handleBack}
-          className="absolute left-[30px]"
-          style={{ top: actionTop }}
-          hitSlop={8}
+          className="absolute left-[22px] size-11 items-center justify-center"
+          style={{ top: safeAreaTop + (contentHeight - 44) / 2 }}
+          hitSlop={4}
         >
-          <Ionicons name="chevron-back-sharp" size={BACK_ICON_SIZE} color={SEMANTIC_COLORS.label.normal} />
+          <Ionicons
+            name="chevron-back-sharp"
+            size={BACK_ICON_SIZE}
+            color={SEMANTIC_COLORS.label.normal}
+          />
         </TouchableOpacity>
       ) : null}
 
-      {isMain ? (
-        <BadaLogo style={{ width: 80, aspectRatio: 126 / 58 }} />
-      ) : (
-        <Text className="font-bold text-headline1 text-label-neutral">{title}</Text>
-      )}
-
-      <View className="absolute right-2 items-center justify-center size-16" style={{ top: safeAreaTop }}>
-        {right}
+      <View
+        className="w-full min-w-0 items-center"
+        style={{ paddingHorizontal: titleInset }}
+        pointerEvents="none"
+      >
+        {isMain ? (
+          <BadaLogo style={styles.logo} />
+        ) : (
+          <Text
+            accessibilityRole="header"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
+            className="w-full text-center font-bold text-headline1 text-label-neutral"
+          >
+            {title}
+          </Text>
+        )}
       </View>
+
+      {right ? (
+        <View
+          className="absolute right-2 size-16 items-center justify-center"
+          style={{ top: safeAreaTop + (contentHeight - ACTION_WIDTH) / 2 }}
+        >
+          {right}
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: { width: 80, aspectRatio: 126 / 58 },
+});
