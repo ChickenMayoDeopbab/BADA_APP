@@ -63,7 +63,7 @@ export const useMarkAllNotificationsRead = () => {
     mutationFn: markAllNotificationsRead,
     retry: false,
     onSettled: () => queryClient.invalidateQueries({
-      queryKey: ["notifications", "list"],
+      queryKey: notificationQueryKeys.all,
     }),
   });
 };
