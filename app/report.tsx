@@ -396,59 +396,64 @@ export default function Report() {
                   showsVerticalScrollIndicator={false}
                 >
                   <View
-                    className={`relative mx-4 mt-[15px] min-h-32 gap-4 overflow-hidden rounded-component p-4 ${isCompactSummary ? "" : "flex-row"}`}
+                    className="relative mx-[16px] mt-[15px] min-h-[127px] overflow-hidden rounded-component"
                   >
                     <SummaryBackground />
                     <View
-                      className={`min-w-0 ${isCompactSummary ? "flex-row items-center gap-3" : "flex-[2] gap-1"}`}
+                      className={`gap-[16px] p-[16px] ${isCompactSummary ? "" : "flex-row"}`}
                     >
-                      <Clap
-                        width={isCompactSummary ? 48 : 60}
-                        height={isCompactSummary ? 48 : 60}
-                      />
-                      <Text
-                        className={`text-title2 text-common-0 ${isCompactSummary ? "min-w-0 flex-1" : ""}`}
-                        style={reportTextStyles.bold}
-                      >
-                        많이 좋아졌는걸요?
-                      </Text>
-                    </View>
-                    <View
-                      className={`min-w-0 gap-2 ${isCompactSummary ? "flex-row" : "flex-1 items-end"}`}
-                    >
-                      {mode === "scenario" && (
-                        <View
-                          className={`min-w-0 ${isCompactSummary ? "flex-1" : "w-full items-end"}`}
-                        >
-                          <Text
-                            className="text-body text-common-0 opacity-60"
-                            style={reportTextStyles.medium}
-                          >
-                            시나리오명
-                          </Text>
-                          <Text
-                            className={`w-full text-body text-common-0 ${isCompactSummary ? "" : "text-right"}`}
-                            style={reportTextStyles.bold}
-                          >
-                            {feedback.scenarioName}
-                          </Text>
-                        </View>
-                      )}
                       <View
-                        className={`min-w-0 items-end ${isCompactSummary ? "flex-1" : "w-full"}`}
+                        className={`min-w-0 ${isCompactSummary ? "flex-row items-center gap-3" : "flex-[2] gap-1"}`}
                       >
+                        <Clap
+                          width={isCompactSummary ? 48 : 60}
+                          height={isCompactSummary ? 48 : 60}
+                        />
                         <Text
-                          className="text-right text-body text-common-0 opacity-60"
-                          style={reportTextStyles.medium}
-                        >
-                          {mode === "warmUp" ? "워밍업 시간" : "훈련시간"}
-                        </Text>
-                        <Text
-                          className="w-full text-right text-body text-common-0"
+                          className={`text-title2 text-common-0 ${isCompactSummary ? "min-w-0 flex-1" : ""}`}
                           style={reportTextStyles.bold}
                         >
-                          {formatTrainingTime(feedback.trainingTime)}
+                          많이 좋아졌는걸요?
                         </Text>
+                      </View>
+                      <View
+                        className={`min-w-0 gap-2 ${isCompactSummary ? "flex-row" : "flex-1 items-end"}`}
+                      >
+                        {mode === "scenario" && (
+                          <View
+                            className={`min-w-0 ${isCompactSummary ? "flex-1" : "w-full items-end"}`}
+                          >
+                            <Text
+                              className="text-body text-common-0 opacity-60"
+                              style={reportTextStyles.medium}
+                            >
+                              시나리오명
+                            </Text>
+                            <Text
+                              numberOfLines={2}
+                              className={`w-full text-body text-common-0 ${isCompactSummary ? "" : "text-right"}`}
+                              style={reportTextStyles.bold}
+                            >
+                              {feedback.scenarioName}
+                            </Text>
+                          </View>
+                        )}
+                        <View
+                          className={`min-w-0 items-end ${isCompactSummary ? "flex-1" : "w-full"}`}
+                        >
+                          <Text
+                            className="text-right text-body text-common-0 opacity-60"
+                            style={reportTextStyles.medium}
+                          >
+                            {mode === "warmUp" ? "워밍업 시간" : "훈련시간"}
+                          </Text>
+                          <Text
+                            className="w-full text-right text-body text-common-0"
+                            style={reportTextStyles.bold}
+                          >
+                            {formatTrainingTime(feedback.trainingTime)}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   </View>
