@@ -149,6 +149,72 @@ test('the report shows a title while collapsed and the matching description and 
   cleanup();
 });
 
+/** Render the record accordion against current and legacy server responses. */
+function recordScreen(positiveFeedbacks) {
+  const states = [];
+  let stateIndex = 0;
+  const data = { scenarioName: '피자 주문하기', durationSeconds: 60, anxietyScore: 3, recordingUrl: 'https://example.test/record.m4a', positiveFeedbacks };
+  const Screen = loadSource('../app/(tabs)/(record)/record/[id].tsx', {
+    '@/api/recordApi': {},
+    '@/components/audio/AudioSegmentButton': { default: 'Audio' },
+    '@/components/audio/AudioPlaybackGroup': { AudioPlaybackGroupProvider: 'AudioGroup' },
+    '@/components/common/Top': { default: 'Top' },
+    '@/components/common/LoadingIndicator': { default: 'Loading' },
+    '@/components/record/DeleteTrainingRecordModal': { default: 'DeleteModal' },
+    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert() {} }) },
+    '@/design-system/colors': require('../design-system/colors'),
+    '@/design-system/effects': {},
+    '@/hooks/useAndroidBackHandler': { useAndroidBackHandler() {} },
+    '@/hooks/useTrainingRecordDetail': { useTrainingRecordDetail: () => ({ data }) },
+    '@/utils/feedbackHighlight': highlightUtils,
+    '@expo/vector-icons': { Ionicons: 'Icon' },
+    '@tanstack/react-query': { useMutation: () => ({}), useQueryClient: () => ({}) },
+    'expo-router': { router: {}, useLocalSearchParams: () => ({ id: '12' }) },
+    react: { useState: (initial) => {
+      const i = stateIndex++;
+      if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial;
+      return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
+    } },
+    'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', TouchableOpacity: 'TouchableOpacity', ScrollView: 'ScrollView', RefreshControl: 'RefreshControl' },
+    'react-native-reanimated': {
+      default: { View: 'AnimatedView' },
+      Easing: { inOut: (value) => value },
+      LinearTransition: { duration: () => ({ easing: () => ({}) }) },
+      FadeIn: { duration: () => ({}) },
+      FadeOut: { duration: () => ({}) },
+    },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeArea' },
+    'react-native-svg': {},
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+  }).default;
+  return () => { stateIndex = 0; return Screen(); };
+}
+
+for (const highlight of [
+  { startSecond: 3, endSecond: 8, title: '요청을 명확히 전달', content: '원하는 메뉴와 수량을 정확하게 말했어요.' },
+  { startSecond: 3, endSecond: 8, good_point: '이전 기록 제목', summary: '이전 기록 설명' },
+]) {
+  test(`record accordion separates ${highlight.title ? 'new' : 'legacy'} title and description and preserves the audio range`, () => {
+    const render = recordScreen([highlight]);
+    const title = highlight.title ?? highlight.good_point;
+    const content = highlight.content ?? highlight.summary;
+    let tree = render();
+    assert.ok(findNode(tree, (node) => node.props?.children === title));
+    assert.equal(findNode(tree, (node) => node.props?.children === content), undefined);
+    findNode(tree, (node) => node.props?.accessibilityState?.expanded === false).props.onPress();
+    tree = render();
+    assert.ok(findNode(tree, (node) => node.props?.children === content));
+    const audio = findNode(tree, (node) => node.type === 'Audio');
+    assert.equal(audio.props.startTime, 3);
+    assert.equal(audio.props.endTime, 8);
+    assert.equal(audio.props.audioUrl, 'https://example.test/record.m4a');
+    findNode(tree, (node) => node.props?.accessibilityState?.expanded === true).props.onPress();
+    tree = render();
+    assert.equal(findNode(tree, (node) => node.props?.children === content), undefined);
+    assert.equal(findNode(tree, (node) => node.type === 'Audio'), undefined);
+  });
+}
+
 test('the report stays loading across pending responses and shows results without waiting for attendance', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
   const s = feedbackApi(async (attempt) => {

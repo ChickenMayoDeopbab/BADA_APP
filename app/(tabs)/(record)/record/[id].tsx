@@ -9,6 +9,7 @@ import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useTrainingRecordDetail } from "@/hooks/useTrainingRecordDetail";
+import { getFeedbackHighlightText } from "@/utils/feedbackHighlight";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -325,6 +326,7 @@ export default function RecordDetailScreen() {
                 ) : (
                   <View className="mt-[10px]">
                     {data.positiveFeedbacks.map((feedback, index) => {
+                      const highlight = getFeedbackHighlightText(feedback);
                       const isExpanded = expandedFeedbackIndexes.has(index);
                       const isLast =
                         index === data.positiveFeedbacks.length - 1;
@@ -361,11 +363,13 @@ export default function RecordDetailScreen() {
                             >
                               <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                 <Pressable
+                                  accessibilityRole="button"
+                                  accessibilityState={{ expanded: isExpanded }}
                                   className="flex-row items-start justify-between"
                                   onPress={() => toggleFeedback(index)}
                                 >
                                   <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
-                                    {feedback.good_point}
+                                    {highlight.title}
                                   </Text>
                                   <Ionicons
                                     name={
@@ -389,9 +393,9 @@ export default function RecordDetailScreen() {
                                       startTime={feedback.startSecond}
                                       endTime={feedback.endSecond}
                                     />
-                                    {feedback.summary ? (
+                                    {highlight.content ? (
                                       <Text className="mt-4 text-body text-label-alternative">
-                                        {feedback.summary}
+                                        {highlight.content}
                                       </Text>
                                     ) : null}
                                   </Animated.View>

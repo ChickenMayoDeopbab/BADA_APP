@@ -387,8 +387,10 @@ export interface TranscriptTurn {
 export interface PositiveFeedbackResponse {
   startSecond: number;
   endSecond: number;
-  good_point: string;
-  summary: string;
+  title?: string | null;
+  content?: string | null;
+  good_point?: string | null;
+  summary?: string | null;
   audioUrl: string;
 }
 
