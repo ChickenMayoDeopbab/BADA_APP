@@ -276,12 +276,12 @@ export default function Train() {
   });
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
-   * 그대로 두면 종료 화면에 다시 "연결 중..."이 뜨므로 한 번 받은 이름을 붙들어 둔다.
+   * 종료 화면에서도 상대 이름을 유지하도록 한 번 받은 이름을 붙들어 둔다.
    */
   useEffect(() => {
     if (displayName) setCalleeName(displayName);
   }, [displayName]);
-  const roleName = calleeName ?? "연결 중...";
+  const roleName = calleeName ?? "통화 상대";
 
   useEffect(() => {
     const isInCall = step === "training";
