@@ -16,17 +16,19 @@ function load(relative, mocks) {
 function tokensFor(sub, suffix = '') {
   return { accessToken: `eyJhbGciOiJub25lIn0.${Buffer.from(JSON.stringify({ sub })).toString('base64url')}.sig${suffix}`, refreshToken: `refresh-${sub}${suffix}` };
 }
-function setup(post) {
+function setup(post, platform = 'web') {
   const saved = new Map();
   const driver = { getItem: async key => saved.get(key) ?? null, setItem: async (key, value) => saved.set(key, value), removeItem: async key => saved.delete(key), multiRemove: async keys => keys.forEach(key => saved.delete(key)) };
+  const secure = new Map();
+  const secureDriver = { getItemAsync: async key => secure.get(key) ?? null, setItemAsync: async (key, value) => secure.set(key, value), deleteItemAsync: async key => secure.delete(key) };
   const errors = load('../utils/authSessionError.ts', {});
   const storage = load('../utils/authTokenStorage.ts', {
     '@react-native-async-storage/async-storage': driver,
-    'expo-secure-store': {}, 'react-native': { Platform: { OS: 'web' } }, 'jwt-decode': require('jwt-decode'),
+    'expo-secure-store': secureDriver, 'react-native': { Platform: { OS: platform } }, 'jwt-decode': require('jwt-decode'),
     './trainingCallScenario': { clearTrainingCallScenarios: async () => {} }, './authSessionError': errors,
   });
   const api = load('../api/tokenApi.ts', { axios: { ...axios, post }, 'jwt-decode': require('jwt-decode'), '@/utils/authTokenStorage': storage, '@/utils/authSessionError': errors });
-  return { storage, api, saved, driver, errors };
+  return { storage, api, saved, driver, errors, secure, secureDriver };
 }
 
 for (const action of ['logout', 'switch account']) {
@@ -71,4 +73,30 @@ test('a new account does not join the previous account pending refresh', async (
   const next = s.api.refreshAuthTokens(); assert.notEqual(next, old); await next;
   pending.resolve({ data: { data: tokensFor('101', 'new') } }); await rejected;
   assert.deepEqual(users, [101, 202]); assert.deepEqual(await s.storage.getAuthTokens(), tokensFor('202', 'new'));
+});
+
+
+test('logout also wins over legacy secure-storage migration already in progress', async () => {
+  const s = setup(async () => {}, 'ios'), gate = deferred(), started = deferred();
+  for (const [key, value] of Object.entries(tokensFor('101'))) s.saved.set(key, value);
+  const original = s.secureDriver.setItemAsync;
+  s.secureDriver.setItemAsync = async (...args) => { started.resolve(); await gate.promise; await original(...args); };
+  const read = s.storage.getAuthTokens(); await started.promise;
+  const logout = s.storage.clearAuthTokens(); await flush(); gate.resolve();
+  await Promise.all([read, logout]);
+  assert.deepEqual(await s.storage.getAuthTokens(), { accessToken: null, refreshToken: null });
+  assert.equal(s.secure.size, 0);
+});
+
+test('one failed token write cannot let the other write overtake logout', async () => {
+  const s = setup(async () => {}), gate = deferred(), started = deferred();
+  const original = s.driver.setItem;
+  s.driver.setItem = async (key, value) => {
+    if (key === 'refreshToken') throw new Error('storage full');
+    started.resolve(); await gate.promise; await original(key, value);
+  };
+  const write = assert.rejects(s.storage.setAuthTokens(tokensFor('101')), /storage full/);
+  await started.promise; const logout = s.storage.clearAuthTokens(); await flush(); gate.resolve();
+  await Promise.all([write, logout]);
+  assert.deepEqual(await s.storage.getAuthTokens(), { accessToken: null, refreshToken: null });
 });

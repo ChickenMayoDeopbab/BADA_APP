@@ -31,6 +31,7 @@ export interface AuthTokens {
 }
 
 const readToken = async (key: string): Promise<string | null> => {
+  const readVersion = authSessionVersion;
   if (Platform.OS === "web") {
     return AsyncStorage.getItem(key);
   }
@@ -45,10 +46,13 @@ const readToken = async (key: string): Promise<string | null> => {
   const legacyToken = await AsyncStorage.getItem(key);
   if (!legacyToken) return null;
 
-  await SecureStore.setItemAsync(key, legacyToken, secureStoreOptions);
-  await AsyncStorage.removeItem(key).catch(() => {});
+  await enqueueTokenMutation(async () => {
+    if (readVersion !== authSessionVersion) return;
+    await SecureStore.setItemAsync(key, legacyToken, secureStoreOptions);
+    await AsyncStorage.removeItem(key).catch(() => {});
+  });
 
-  return legacyToken;
+  return readVersion === authSessionVersion ? legacyToken : null;
 };
 
 const writeToken = async (key: string, value: string): Promise<void> => {
@@ -83,11 +87,18 @@ export const getAuthTokens = async (): Promise<{
   return { accessToken, refreshToken };
 };
 
+/** Wait for every native write/delete before allowing the next token mutation. */
+const settleTokenOperations = async (operations: Promise<void>[]): Promise<void> => {
+  const results = await Promise.allSettled(operations);
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
+};
+
 const writeAuthTokens = async (
   { accessToken, refreshToken }: AuthTokens,
   loginMethod?: AuthLoginMethod,
 ): Promise<void> => {
-  await Promise.all([
+  await settleTokenOperations([
     writeToken(ACCESS_TOKEN_KEY, accessToken),
     writeToken(REFRESH_TOKEN_KEY, refreshToken),
   ]);
@@ -177,7 +188,7 @@ const deleteAuthTokens = async (): Promise<void> => {
     );
   }
 
-  await Promise.all(deletions);
+  await settleTokenOperations(deletions);
 };
 
 /** Invalidate in-flight refresh immediately, then remove all queued credentials. */
