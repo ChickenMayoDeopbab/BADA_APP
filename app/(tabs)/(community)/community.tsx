@@ -94,7 +94,7 @@ function CommunityFeed({
       <ScrollView
         className="flex-1"
         style={{ width: pageWidth }}
-        contentContainerClassName="px-8 pb-3"
+        contentContainerClassName="px-[11px] pb-3"
         showsVerticalScrollIndicator={false}
       >
         <CommunityPostListSkeleton />
@@ -112,7 +112,7 @@ function CommunityFeed({
         contentContainerStyle={{
           flexGrow: 1,
           gap: 12,
-          paddingHorizontal: 32,
+          paddingHorizontal: 11,
           paddingBottom: 12,
         }}
         renderItem={({ item }) => (
