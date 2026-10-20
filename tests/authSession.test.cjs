@@ -173,6 +173,65 @@ function findNode(tree, predicate) {
   return predicate(tree) ? tree : findNode(tree.props?.children, predicate);
 }
 
+for (const scenario of [
+  { name: 'missing token', token: null, remember: 'true', expectedPath: '/auth', expectedClears: 1 },
+  { name: 'remember-login disabled', token: 'access', remember: 'false', expectedPath: '/auth', expectedClears: 1 },
+  { name: 'valid session', token: 'access', remember: 'true', authenticatedPath: '/home', expectedPath: '/home' },
+  { name: 'required consent', token: 'access', remember: 'true', authenticatedPath: '/auth/terms', expectedPath: '/auth/terms' },
+  { name: 'temporary server failure', token: 'access', remember: 'true', error: new axios.AxiosError('offline', 'ERR_NETWORK'), expectedPath: '/auth' },
+  { name: 'expired session', token: 'access', remember: 'true', error: new authErrors.AuthSessionExpiredError(), expectedPath: '/auth' },
+  { name: 'device storage unavailable', storageError: new Error('device locked'), expectedPath: '/auth' },
+]) {
+  test(`startup routes ${scenario.name} without a blocking retry screen`, async () => {
+    const effects = [], routes = [];
+    let clears = 0;
+    const jsx = (type, props) => ({ type, props });
+    const { default: RootLayout } = loadSource('../app/_layout.tsx', {
+      '@/design-system': { SEMANTIC_COLORS: { background: { normal: 'white' } } },
+      '@/global.css': {},
+      '@/design-system/setupDefaultFont': {},
+      '@react-native-async-storage/async-storage': { getItem: async () => scenario.remember },
+      '@tanstack/react-query': { QueryClient: class {}, QueryClientProvider: 'QueryClientProvider' },
+      '@/components/train/ScheduledCallWatcher': {},
+      '@/context/AppAlertContext': {},
+      'expo-audio': { setAudioModeAsync: async () => {} },
+      'expo-splash-screen': { preventAutoHideAsync: async () => {}, hideAsync: async () => {} },
+      'expo-router': {
+        router: { replace: (route) => routes.push(route) },
+        Stack: { Screen: 'StackScreen' },
+        usePathname: () => '/',
+        useRootNavigationState: () => ({ key: 'ready' }),
+      },
+      'react': {
+        useEffect: (effect) => effects.push(effect),
+        useRef: (initial) => ({ current: initial }),
+        useState: (initial) => [initial, () => {}],
+      },
+      'react-native-safe-area-context': {},
+      '@/utils/legalConsentFlow': { getAuthenticatedPath: async () => {
+        if (scenario.error) throw scenario.error;
+        return scenario.authenticatedPath;
+      } },
+      '@/utils/authTokenStorage': {
+        getAccessToken: async () => {
+          if (scenario.storageError) throw scenario.storageError;
+          return scenario.token;
+        },
+        clearAuthTokens: async () => { clears++; },
+      },
+      '@/hooks/usePushNotifications': { usePushNotifications() {} },
+      '@/services/pushNotifications': { unregisterForPushNotifications: async () => {} },
+      'react-native': { View: 'View' },
+      'react/jsx-runtime': { jsx, jsxs: jsx },
+    });
+    RootLayout();
+    effects.forEach((effect) => effect());
+    await new Promise(setImmediate);
+    assert.deepEqual(routes, [scenario.expectedPath]);
+    assert.equal(clears, scenario.expectedClears ?? 0);
+  });
+}
+
 for (const shouldRemember of [true, false]) {
   test(`login screen persists remember-login=${shouldRemember} from the actual checkbox before restart`, async () => {
     const saved = new Map(), states = [], refs = [], routes = [];

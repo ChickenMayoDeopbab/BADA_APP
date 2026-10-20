@@ -22,9 +22,7 @@ import {
 } from "@/utils/authTokenStorage";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
-import { AuthSessionExpiredError } from "@/utils/authSessionError";
-import CustomButton from "@/components/common/CustomButton";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -54,9 +52,6 @@ export default function RootLayout() {
   const isOAuthCallback = pathname === "/auth/callback";
   const startupCheckStartedRef = useRef(false);
   const [startupPath, setStartupPath] = useState<StartupPath | null>(null);
-  const [hasStartupError, setHasStartupError] = useState(false);
-  const [isCheckingStartup, setIsCheckingStartup] = useState(true);
-  const [startupAttempt, setStartupAttempt] = useState(0);
 
   useEffect(() => {
     setAudioModeAsync({
@@ -72,7 +67,6 @@ export default function RootLayout() {
     if (isOAuthCallback) {
       // 콜백 화면이 로그인 완료와 다음 경로를 결정하므로 시작 시 인증 검사를 생략한다.
       startupCheckStartedRef.current = true;
-      setHasStartupError(false);
       const frame = requestAnimationFrame(() => {
         void SplashScreen.hideAsync();
       });
@@ -81,7 +75,6 @@ export default function RootLayout() {
 
     if (startupCheckStartedRef.current) return;
     startupCheckStartedRef.current = true;
-    setIsCheckingStartup(true);
 
     let active = true;
     let completed = false;
@@ -100,22 +93,14 @@ export default function RootLayout() {
         } else {
           nextPath = await getAuthenticatedPath({ throwOnError: true });
         }
-      } catch (error) {
+      } catch {
         if (!active) return;
-        if (!(error instanceof AuthSessionExpiredError)) {
-          // 오프라인·서버 장애·기기 잠금으로 확인하지 못한 세션을 삭제하지 않는다.
-          startupCheckStartedRef.current = false;
-          setHasStartupError(true);
-          setIsCheckingStartup(false);
-          void SplashScreen.hideAsync().catch(() => {});
-          return;
-        }
+        // 확인 실패 시 로그인 화면으로 이동하되, 일시적인 오류로 저장된 세션을 삭제하지 않는다.
+        nextPath = "/auth";
       }
 
       if (!active) return;
       completed = true;
-      setHasStartupError(false);
-      setIsCheckingStartup(false);
       setStartupPath(nextPath);
       router.replace(nextPath);
     };
@@ -125,7 +110,7 @@ export default function RootLayout() {
       active = false;
       if (!completed) startupCheckStartedRef.current = false;
     };
-  }, [isOAuthCallback, navigationState?.key, startupAttempt]);
+  }, [isOAuthCallback, navigationState?.key]);
 
   useEffect(() => {
     if (!startupPath || pathname !== startupPath) return;
@@ -151,22 +136,6 @@ export default function RootLayout() {
             >
               <Stack.Screen name="train" options={{ gestureEnabled: false }} />
             </Stack>
-            {hasStartupError ? (
-              <View className="absolute inset-0 items-center justify-center gap-5 bg-background-normal px-8">
-                <Text className="text-headline1 font-bold text-label-normal">
-                  로그인 상태를 확인하지 못했어요
-                </Text>
-                <Text className="text-center text-body text-label-alternative">
-                  네트워크 연결과 기기 잠금 해제를 확인한 뒤 다시 시도해 주세요.
-                  저장된 로그인 정보는 유지하고 있어요.
-                </Text>
-                <CustomButton
-                  label={isCheckingStartup ? "확인 중..." : "다시 확인"}
-                  disabled={isCheckingStartup}
-                  onPress={() => setStartupAttempt((attempt) => attempt + 1)}
-                />
-              </View>
-            ) : null}
           </View>
         </AppAlertProvider>
       </SafeAreaProvider>
