@@ -191,6 +191,11 @@ function FeedbackDetails({
 
   return (
     <View>
+      {isExpanded && content ? (
+        <Text className="mt-3 text-body text-label-alternative" style={reportTextStyles.regular}>
+          {content}
+        </Text>
+      ) : null}
       <Animated.View
         pointerEvents={isExpanded ? "auto" : "none"}
         className="overflow-hidden"
@@ -206,11 +211,6 @@ function FeedbackDetails({
           </View>
         )}
       </Animated.View>
-      {isExpanded && content ? (
-        <Text className="mt-4 text-body text-label-alternative" style={reportTextStyles.regular}>
-          {content}
-        </Text>
-      ) : null}
     </View>
   );
 }
@@ -542,7 +542,7 @@ export default function Report() {
                                     >
                                       <Text
                                         className="flex-1 pr-2 text-body text-label-neutral"
-                                        style={reportTextStyles.medium}
+                                        style={isExpanded ? reportTextStyles.bold : reportTextStyles.medium}
                                       >
                                         {keepWordsTogether(highlight.title)}
                                       </Text>

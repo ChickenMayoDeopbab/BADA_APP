@@ -368,7 +368,7 @@ export default function RecordDetailScreen() {
                                   className="flex-row items-start justify-between"
                                   onPress={() => toggleFeedback(index)}
                                 >
-                                  <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
+                                  <Text className={`flex-1 pr-2 text-body text-label-neutral ${isExpanded ? "font-bold" : "font-medium"}`}>
                                     {highlight.title}
                                   </Text>
                                   <Ionicons
@@ -388,16 +388,16 @@ export default function RecordDetailScreen() {
                                     exiting={FadeOut.duration(120)}
                                     className="mt-4"
                                   >
+                                    {highlight.content ? (
+                                      <Text className="mb-4 font-normal text-body text-label-alternative">
+                                        {highlight.content}
+                                      </Text>
+                                    ) : null}
                                     <AudioSegmentButton
                                       audioUrl={data.recordingUrl}
                                       startTime={feedback.startSecond}
                                       endTime={feedback.endSecond}
                                     />
-                                    {highlight.content ? (
-                                      <Text className="mt-4 text-body text-label-alternative">
-                                        {highlight.content}
-                                      </Text>
-                                    ) : null}
                                   </Animated.View>
                                 )}
                               </View>

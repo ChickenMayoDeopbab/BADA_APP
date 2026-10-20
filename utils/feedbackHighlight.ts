@@ -9,9 +9,10 @@ interface FeedbackHighlightFields {
 export function getFeedbackHighlightText(highlight: FeedbackHighlightFields) {
   const explicitTitle = highlight.title?.trim();
   const legacyTitle = highlight.good_point?.trim();
-  const title = explicitTitle || legacyTitle || "통화 하이라이트";
-  const content = highlight.content?.trim() || highlight.summary?.trim() ||
-    (explicitTitle ? legacyTitle : "") || "";
+  const explicitContent = highlight.content?.trim() || highlight.summary?.trim() || "";
+  const title = explicitTitle || (legacyTitle !== explicitContent ? legacyTitle : "") || "통화 하이라이트";
+  const content = explicitContent ||
+    (explicitTitle && legacyTitle !== title ? legacyTitle : "") || "";
 
-  return { title, content: content === title ? "" : content };
+  return { title, content };
 }

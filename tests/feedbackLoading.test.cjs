@@ -37,7 +37,8 @@ test('highlight titles and descriptions prefer the new contract and preserve old
     [{ good_point: '이전 제목', summary: '이전 설명' }, { title: '이전 제목', content: '이전 설명' }],
     [{ good_point: '이전 리포트 피드백' }, { title: '이전 리포트 피드백', content: '' }],
     [{ title: '  새 제목  ', content: ' ', good_point: '기존 설명' }, { title: '새 제목', content: '기존 설명' }],
-    [{ title: '같은 문구', content: '같은 문구' }, { title: '같은 문구', content: '' }],
+    [{ title: '같은 문구', content: '같은 문구' }, { title: '같은 문구', content: '같은 문구' }],
+    [{ title: '', content: '본문 피드백', good_point: '본문 피드백' }, { title: '통화 하이라이트', content: '본문 피드백' }],
     [{ title: null, content: '설명만 있는 피드백' }, { title: '통화 하이라이트', content: '설명만 있는 피드백' }],
   ];
   for (const [input, expected] of cases) {
@@ -69,6 +70,17 @@ function findNode(tree, predicate) {
   if (!tree || typeof tree !== 'object') return undefined;
   if (Array.isArray(tree)) return tree.map((node) => findNode(node, predicate)).find(Boolean);
   return predicate(tree) ? tree : findNode(tree.props?.children, predicate);
+}
+
+/** The expanded explanation must sit immediately below the title, before playback controls. */
+function assertDescriptionBeforeAudio(tree, content) {
+  const container = findNode(tree, (node) => Array.isArray(node.props?.children) &&
+    node.props.children.some((child) => child?.props?.children === content));
+  assert.ok(container, 'the expanded explanation is visible');
+  const children = container.props.children;
+  const descriptionIndex = children.findIndex((child) => child?.props?.children === content);
+  const audioIndex = children.findIndex((child) => findNode(child, (node) => node.type === 'Audio'));
+  assert.ok(descriptionIndex < audioIndex, 'the explanation appears above the audio controls');
 }
 
 /** Render the actual report effect and its public retry action. */
@@ -133,15 +145,18 @@ test('the report shows a title while collapsed and the matching description and 
   const cleanup = report.start();
   await flush();
   let tree = report.render();
-  assert.ok(findNode(tree, (node) => typeof node.props?.children === 'string' && node.props.children.replaceAll('\u2060', '') === highlight.title));
+  const findTitle = (tree) => findNode(tree, (node) => typeof node.props?.children === 'string' && node.props.children.replaceAll('\u2060', '') === highlight.title);
+  assert.equal(findTitle(tree).props.style.fontWeight, '500');
   let details = findNode(tree, (node) => node.type?.name === 'FeedbackDetails');
   assert.equal(details.props.isExpanded, false);
   findNode(tree, (node) => node.props?.accessibilityState?.expanded === false).props.onPress();
   tree = report.render();
+  assert.equal(findTitle(tree).props.style.fontWeight, '700');
   details = findNode(tree, (node) => node.type?.name === 'FeedbackDetails');
   assert.equal(details.props.isExpanded, true);
   const expanded = details.type(details.props);
   assert.ok(findNode(expanded, (node) => node.props?.children === highlight.content));
+  assertDescriptionBeforeAudio(expanded, highlight.content);
   const audio = findNode(expanded, (node) => node.type === 'Audio');
   assert.equal(audio.props.startTime, 4);
   assert.equal(audio.props.endTime, 9);
@@ -190,20 +205,21 @@ function recordScreen(positiveFeedbacks) {
   return () => { stateIndex = 0; return Screen(); };
 }
 
-for (const highlight of [
-  { startSecond: 3, endSecond: 8, title: '요청을 명확히 전달', content: '원하는 메뉴와 수량을 정확하게 말했어요.' },
-  { startSecond: 3, endSecond: 8, good_point: '이전 기록 제목', summary: '이전 기록 설명' },
+for (const { highlight, title, content } of [
+  { highlight: { startSecond: 3, endSecond: 8, title: '요청을 명확히 전달', content: '원하는 메뉴와 수량을 정확하게 말했어요.' }, title: '요청을 명확히 전달', content: '원하는 메뉴와 수량을 정확하게 말했어요.' },
+  { highlight: { startSecond: 3, endSecond: 8, good_point: '이전 기록 제목', summary: '이전 기록 설명' }, title: '이전 기록 제목', content: '이전 기록 설명' },
+  { highlight: { startSecond: 3, endSecond: 8, title: '', content: '본문 피드백', good_point: '본문 피드백' }, title: '통화 하이라이트', content: '본문 피드백' },
 ]) {
-  test(`record accordion separates ${highlight.title ? 'new' : 'legacy'} title and description and preserves the audio range`, () => {
+  test(`record accordion separates title and description for ${title} and preserves the audio range`, () => {
     const render = recordScreen([highlight]);
-    const title = highlight.title ?? highlight.good_point;
-    const content = highlight.content ?? highlight.summary;
     let tree = render();
-    assert.ok(findNode(tree, (node) => node.props?.children === title));
+    assert.match(findNode(tree, (node) => node.props?.children === title).props.className, /font-medium/);
     assert.equal(findNode(tree, (node) => node.props?.children === content), undefined);
     findNode(tree, (node) => node.props?.accessibilityState?.expanded === false).props.onPress();
     tree = render();
+    assert.match(findNode(tree, (node) => node.props?.children === title).props.className, /font-bold/);
     assert.ok(findNode(tree, (node) => node.props?.children === content));
+    assertDescriptionBeforeAudio(tree, content);
     const audio = findNode(tree, (node) => node.type === 'Audio');
     assert.equal(audio.props.startTime, 3);
     assert.equal(audio.props.endTime, 8);
