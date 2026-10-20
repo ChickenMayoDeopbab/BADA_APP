@@ -32,8 +32,9 @@ export default function Detail() {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const maxSheetHeight = Math.max(200, height - insets.top - insets.bottom - 88);
-  const shouldStackDetails = width < 380 || fontScale > 1.2;
-  const imageSize = shouldStackDetails ? 163 : Math.min(163, (width - 82) * 0.48);
+  const shouldStackDetails = width < 340 || fontScale > 1.2;
+  // 시트의 바깥 여백 22px, 안쪽 패딩 44px, 열 간격 16px을 제외한 폭을 나눈다.
+  const imageSize = shouldStackDetails ? 163 : Math.min(163, (width - 82) * 0.51);
   const { showAlert } = useAppAlert();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: scenario, isPending, isError, refetch } = useScenario(id);
@@ -340,7 +341,7 @@ export default function Detail() {
               </View>
             ) : (
               <>
-                <View className={shouldStackDetails ? "gap-4" : "flex-row gap-4"}>
+                <View className={shouldStackDetails ? "gap-4" : "flex-row items-start gap-4"}>
                   <View
                     className={`shrink-0 overflow-hidden rounded-control border border-line-alternative ${shouldStackDetails ? "self-center" : ""}`}
                     style={{ width: imageSize, height: imageSize }}
@@ -374,7 +375,12 @@ export default function Detail() {
                             />
                           )}
                         </View>
-                        <Text className="min-w-0 flex-1 text-center text-label font-medium text-white">
+                        <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.75}
+                          className="min-w-0 flex-1 text-center text-label font-medium text-white"
+                        >
                           예시 대화 듣기
                         </Text>
                       </GlassChip>
