@@ -59,14 +59,18 @@ export default function List() {
   const menuRef = useRef<ScrollView>(null);
   const pagerRef = useRef<FlatList<(typeof SCENARIO_TABS)[number]>>(null);
   const pagerScrollX = useRef(new Animated.Value(0)).current;
-  // 스크롤을 내렸을 때만 상단 페이드를 보여준다
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const fadeOpacity = scrollY.interpolate({
+  const [selectedTab, setSelectedTab] = useState<ScenarioTabValue>("basic");
+  // 각 탭의 위치를 따로 기억해야 다른 탭의 페이드가 맨 위 콘텐츠를 가리지 않는다.
+  const scrollYByTab = useRef<Record<ScenarioTabValue, Animated.Value>>({
+    basic: new Animated.Value(0),
+    custom: new Animated.Value(0),
+    shared: new Animated.Value(0),
+  }).current;
+  const fadeOpacity = scrollYByTab[selectedTab].interpolate({
     inputRange: [0, 24],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
-  const [selectedTab, setSelectedTab] = useState<ScenarioTabValue>("basic");
   const [selectedCategory, setSelectedCategory] =
     useState<ScenarioCategory | null>(null);
 
@@ -270,7 +274,7 @@ export default function List() {
                   contentContainerStyle={{ flexGrow: 1 }}
                   scrollEventThrottle={16}
                   onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                    [{ nativeEvent: { contentOffset: { y: scrollYByTab[item.value] } } }],
                     { useNativeDriver: false },
                   )}
                 >
