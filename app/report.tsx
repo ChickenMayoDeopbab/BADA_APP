@@ -211,6 +211,8 @@ function FeedbackAudio({
 function SummaryBackground() {
   return (
     <Svg
+      width="100%"
+      height="100%"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       style={StyleSheet.absoluteFillObject}
@@ -378,7 +380,7 @@ export default function Report() {
                   >
                     <SummaryBackground />
                     <View
-                      className={`min-w-0 gap-3 ${isCompactSummary ? "flex-row items-center" : "flex-1 justify-between"}`}
+                      className={`min-w-0 ${isCompactSummary ? "flex-row items-center gap-3" : "flex-[2] gap-1"}`}
                     >
                       <Clap
                         width={isCompactSummary ? 48 : 60}
@@ -392,7 +394,7 @@ export default function Report() {
                       </Text>
                     </View>
                     <View
-                      className={`min-w-0 gap-3 ${isCompactSummary ? "flex-row" : "flex-1 items-end"}`}
+                      className={`min-w-0 gap-2 ${isCompactSummary ? "flex-row" : "flex-1 items-end"}`}
                     >
                       {mode === "scenario" && (
                         <View
