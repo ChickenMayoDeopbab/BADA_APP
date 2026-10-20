@@ -236,11 +236,11 @@ for (const scenario of [
 for (const shouldRemember of [true, false]) {
   test(`login screen persists remember-login=${shouldRemember} from the actual checkbox before restart`, async () => {
     const saved = new Map(), states = [], refs = [], routes = [];
-    let stateIndex = 0, refIndex = 0;
+    let stateIndex = 0, refIndex = 0, loginRequests = 0;
     const jsx = (type, props) => ({ type, props });
     const { default: Screen } = loadSource('../app/auth/login.tsx', {
       '@/design-system': { SEMANTIC_COLORS: { primary: { normal: 'green' }, line: { normal: 'gray' } } },
-      '@/api/authApi': { postLogin: async () => ({ data: { accessToken: 'access', refreshToken: 'refresh' } }) },
+      '@/api/authApi': { postLogin: async () => { loginRequests++; return { data: { accessToken: 'access', refreshToken: 'refresh' } }; } },
       '@/api/legalConsentApi': {},
       '@/api/error': {},
       '@/assets/badaLogo2.svg': {},
@@ -276,7 +276,9 @@ for (const shouldRemember of [true, false]) {
       tree = render();
     }
     assert.equal(findNode(tree, (node) => node.props?.accessibilityRole === 'checkbox').props.accessibilityState.checked, shouldRemember);
-    await findNode(tree, (node) => node.props?.label === '로그인').props.onPress();
+    const login = findNode(tree, (node) => node.props?.label === '로그인').props.onPress;
+    await Promise.all([login(), login()]);
+    assert.equal(loginRequests, 1);
     assert.equal(saved.get('autoLogin'), String(shouldRemember));
     assert.deepEqual(saved.get('tokens'), { accessToken: 'access', refreshToken: 'refresh' });
     assert.deepEqual(routes, ['/home']);
