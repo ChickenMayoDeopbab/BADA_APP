@@ -3,12 +3,12 @@ import { getScenarioRecommendation } from "@/api/trainApi";
 import { getMyPage } from "@/api/userInfoApi";
 import FireIllustration from "@/assets/home-fire.svg";
 import SmileIllustration from "@/assets/home-smile.svg";
-import StyledImage from "@/components/common/StyledImage";
 import { Skeleton, SkeletonGroup } from "@/components/common/skeleton";
 import {
   HomeAttendanceSkeleton,
   HomeRecommendationSkeleton,
 } from "@/components/home/HomeContentSkeleton";
+import HomeScenarioIllustration from "@/components/home/HomeScenarioIllustration";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { ELEVATED_CARD_SHADOW } from "@/design-system/effects";
 import { useDoubleBackExit } from "@/hooks/useAndroidBackHandler";
@@ -90,15 +90,6 @@ export default function Home() {
     queryFn: getScenarioRecommendation,
   });
   const recommendedScenario = recommendationQuery.data?.scenario;
-  const recommendationImageUrl =
-    recommendedScenario?.scenario_image ??
-    recommendationQuery.data?.category_icon_url;
-  const [failedRecommendationImageUrl, setFailedRecommendationImageUrl] =
-    useState<string | null>(null);
-  const showRecommendationImage = Boolean(
-    recommendationImageUrl &&
-      failedRecommendationImageUrl !== recommendationImageUrl,
-  );
   const [name, setName] = useState("");
   const [attendedDates, setAttendedDates] = useState<string[]>([]);
   const [isUserLoading, setIsUserLoading] = useState(true);
@@ -485,26 +476,9 @@ export default function Home() {
                           : "훈련 하러가기"}
                       </Text>
                     </View>
-                    {showRecommendationImage ? (
-                      <StyledImage
-                        source={recommendationImageUrl}
-                        className="absolute -bottom-1.5 -right-4 h-[90px] w-[90px]"
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                        onError={() =>
-                          setFailedRecommendationImageUrl(
-                            recommendationImageUrl ?? null,
-                          )
-                        }
-                      />
-                    ) : (
-                      <Ionicons
-                        name="call-outline"
-                        size={58}
-                        color="rgba(255, 255, 255, 0.5)"
-                        style={{ position: "absolute", right: 12, bottom: 12 }}
-                      />
-                    )}
+                    <HomeScenarioIllustration
+                      categoryIconUrl={recommendationQuery.data?.category_icon_url}
+                    />
                   </View>
                 </Pressable>
               )}

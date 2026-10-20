@@ -263,6 +263,25 @@ test('scenario tabs keep independent scroll fades when swiped or tapped', () => 
   assert.equal(fade(tree), 180, 'returning to a tab restores its own scroll fade');
 });
 
+test('home recommendation artwork falls back after an image error and recovers for a new category icon', () => {
+  let failedImageUrl = null;
+  const Illustration = loadSource('../components/home/HomeScenarioIllustration.tsx', {
+    '@/assets/home-pizza.svg': { default: 'Pizza' },
+    '@/components/common/StyledImage': { default: 'Image' },
+    'react': { useState: () => [failedImageUrl, (url) => { failedImageUrl = url; }] },
+    'react-native': { View: 'View' },
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+  }).default;
+  assert.ok(findNode(Illustration({}), (node) => node.type === 'Pizza'));
+  const categoryIconUrl = 'https://example.test/work-icon.svg';
+  const image = findNode(Illustration({ categoryIconUrl }), (node) => node.type === 'Image');
+  assert.equal(image.props.source, categoryIconUrl);
+  image.props.onError();
+  assert.ok(findNode(Illustration({ categoryIconUrl }), (node) => node.type === 'Pizza'));
+  const nextIcon = 'https://example.test/daily-icon.svg';
+  assert.equal(findNode(Illustration({ categoryIconUrl: nextIcon }), (node) => node.type === 'Image').props.source, nextIcon);
+});
+
 test('failed retry keeps recovery actions and lets the user return home to reject a ringing call', async () => {
   const s = scheduleScreen({ failedCancellations: 3 });
   await s.complete();
