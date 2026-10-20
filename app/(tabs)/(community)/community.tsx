@@ -314,7 +314,7 @@ export default function Community() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="커뮤니티 운영정책 및 개발자 문의"
-        className="mx-8 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
+        className="mx-8 mt-4 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
         onPress={() => router.push("/(tabs)/(community)/policy" as Href)}
       >
         <Ionicons
