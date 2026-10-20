@@ -221,8 +221,9 @@ test('home recommendation artwork falls back after an image error and recovers f
 });
 
 /** Render the call screen without native audio, timers or network side effects. */
-function callScreen(initialStep, height = 568) {
-  const states = [], refs = [], events = [];
+function callScreen(initialStep, height = 568, options = {}) {
+  const states = [], refs = [], events = [], alerts = [], routes = [];
+  let socketOptions, onBack, focus, writes = 0;
   let stateIndex = 0, refIndex = 0;
   const Screen = loadSource('../app/train.tsx', {
     '@/components/train/CallBackground': { default: 'Background' },
@@ -231,24 +232,26 @@ function callScreen(initialStep, height = 568) {
     '@/hooks/useSensitiveConsentGuard': { useSensitiveConsentGuard: () => async () => true },
     '@/utils/trainingCallScenario': {},
     '@/components/train/ScriptHintBar': { default: 'Hint' },
-    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert() {} }) },
+    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert: alert => alerts.push(alert) }) },
     '@/design-system/colors': require('../design-system/colors'),
-    '@/hooks/useAndroidBackHandler': { useAndroidBackHandler() {} },
+    '@/hooks/useAndroidBackHandler': { useAndroidBackHandler: callback => { onBack = callback; } },
     '@/hooks/useScenarios': { useScenario: () => ({ data: { title: '피자 주문하기' } }) },
     '@/hooks/useIncomingCallRinging': { useIncomingCallRinging() {} },
     '@/hooks/useAudio': { useAudio: () => ({
       stopSendingAudio: async () => { events.push('stop'); },
       resetStream: (reason) => events.push(reason),
+      requestPermission: options.permission || (async () => true),
+      setMicrophoneMuted() {},
     }) },
-    '@/hooks/useTrainWebSocket': { useTrainWebSocket: () => ({
+    '@/hooks/useTrainWebSocket': { useTrainWebSocket: props => { socketOptions = props; return {
       isConnected: true, isAiSpeaking: false,
       sendEndCall: () => events.push('end'),
-    }) },
+    }; } },
     '@/utils/completedCallDuration': { saveCompletedCallDuration: async () => {} },
     '@/utils/mediaVolumeControl': {},
     '@expo/vector-icons/Ionicons': { default: 'Icon' },
     'expo-router': {
-      router: {}, useFocusEffect() {},
+      router: { replace: route => routes.push(route), canGoBack: () => false }, useFocusEffect: callback => { focus = callback; },
       useLocalSearchParams: () => ({ sessionId: 'session-1', scenarioId: '1' }),
     },
     'react': {
@@ -257,7 +260,7 @@ function callScreen(initialStep, height = 568) {
       useState: (initial) => {
         const i = stateIndex++;
         if (!(i in states)) states[i] = initial === 'receive' ? initialStep : Array.isArray(initial) ? [{ role: 'user', text: '안녕하세요' }] : initial;
-        return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
+        return [states[i], (next) => { writes++; states[i] = typeof next === 'function' ? next(states[i]) : next; }];
       },
     },
     'react-native': {
@@ -268,7 +271,7 @@ function callScreen(initialStep, height = 568) {
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 24 }) },
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
   }).default;
-  return { events, render: () => { stateIndex = 0; refIndex = 0; return Screen(); } };
+  return { events, alerts, routes, get writes() { return writes; }, back: () => onBack(), enter: () => focus(), fail: () => socketOptions.onError("WS_CONNECT_TIMEOUT"), render: () => { stateIndex = 0; refIndex = 0; return Screen(); } };
 }
 
 test('receiving and active calls stay fixed while the script alone scrolls and ending still stops audio', () => {
@@ -302,4 +305,32 @@ test('failed retry keeps recovery actions and lets the user return home to rejec
   s.alerts.at(-1).onCancel();
   assert.deepEqual(s.routes, ['/(tabs)/(home)/home']);
   assert.equal(s.creates, 1);
+});
+
+
+test('initial call connection failure explains recovery and never opens an empty report', () => {
+  const s = callScreen('training'); s.render(); s.fail();
+  assert.equal(s.alerts.length, 1);
+  assert.deepEqual(s.routes, ['/(tabs)/(train)/list']);
+  assert.equal(s.events.filter(event => event === 'stop').length, 1);
+  s.fail(); assert.equal(s.alerts.length, 1);
+});
+
+test('Android back from a ringing call returns to the app instead of terminating it', async () => {
+  const s = callScreen('receive'); s.render(); assert.equal(s.back(), true);
+  await flush(); assert.deepEqual(s.routes, ['/(tabs)/(home)/home']);
+});
+
+test('leaving during microphone permission cannot start audio on a later screen', async () => {
+  let resolve;
+  const s = callScreen('receive', 568, { permission: () => new Promise(done => { resolve = done; }) });
+  let tree = s.render(); const cleanup = s.enter();
+  // Open the meditation dialog and skip it to request permission.
+  findNode(tree, node => node.props?.accessibilityLabel === '전화 받기').props.onPress();
+  tree = s.render(); const dialog = findNode(tree, node => typeof node.props?.onSkip === 'function');
+  dialog.props.onSkip(); assert.equal(typeof cleanup, "function"); cleanup(); const writes = s.writes; resolve(true); await flush();
+  assert.equal(s.writes, writes);
+  s.render();
+  assert.equal(s.events.filter(event => event === 'start').length, 0);
+  assert.equal(s.alerts.length, 0);
 });

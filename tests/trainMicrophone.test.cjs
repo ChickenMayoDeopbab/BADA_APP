@@ -142,7 +142,7 @@ test('local stop flushes speech once before end; disposal discards and repeated 
 
 
 /** Mount the real capture hook with deterministic React refs and capture drivers. */
-function mountAudio(platform = 'android') {
+function mountAudio(platform = 'android', permission = async () => { throw new Error('native permission unavailable'); }) {
   const effects = [], stateListeners = [], sent = [], errors = [], events = [];
   let playbackOptions, nativeListener;
   const recorder = {
@@ -172,8 +172,8 @@ function mountAudio(platform = 'android') {
       useCallback: (callback) => callback,
       useEffect: (callback) => effects.push(callback),
     },
-    'react-native': { Platform: { OS: platform }, AppState: appState },
-    'expo-audio': {},
+    'react-native': { Platform: { OS: platform }, AppState: appState, PermissionsAndroid: { PERMISSIONS: { RECORD_AUDIO: 'mic' }, check: permission } },
+    'expo-audio': { requestRecordingPermissionsAsync: permission },
     'react-native-audio-record': { default: recorder },
   });
   const hook = useAudio({ onRecordingError: (error) => errors.push(error) });
@@ -460,3 +460,11 @@ test('end during the initial permission request never prepares capture after the
   assert.equal(browser.contexts.length, 0);
   s.unmount();
 });
+
+for (const platform of ['ios', 'android']) {
+  test(`${platform} permission bridge rejection recovers as denied rather than an unhandled promise`, async () => {
+    const s = mountAudio(platform);
+    assert.equal(await s.hook.requestPermission(), false);
+    s.unmount();
+  });
+}

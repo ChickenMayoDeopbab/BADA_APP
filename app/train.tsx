@@ -18,7 +18,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BackHandler,
   Modal,
   ScrollView,
   StyleSheet,
@@ -204,7 +203,16 @@ export default function Train() {
   const [isHandlingSchedule, setIsHandlingSchedule] = useState(false);
 
   useAndroidBackHandler(() => {
-    BackHandler.exitApp();
+    if (step === "training") {
+      showAlert({
+        title: "통화를 종료할까요?",
+        confirmLabel: "종료하기",
+        cancelLabel: "계속 통화하기",
+        onConfirm: handleEndCall,
+      });
+    } else if (step === "receive") {
+      void handleDecline();
+    }
     return true;
   });
 
@@ -221,6 +229,9 @@ export default function Train() {
   const callStartedAtRef = useRef<number | null>(null);
   const completedCallDurationRef = useRef<number | null>(null);
   const endHandledRef = useRef(false);
+  const isScreenActiveRef = useRef(true);
+  const isStartingRef = useRef(false);
+  const startAttemptRef = useRef(0);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
@@ -264,14 +275,8 @@ export default function Train() {
     onPlaybackComplete: (turnId) => {
       sendJson({ type: "playback_done", turn_id: turnId });
     },
-    onPlaybackError: () => handleEndCall(),
-    onRecordingError: () => {
-      showAlert({
-        title: "마이크 연결에 실패했어요",
-        description: "마이크 권한과 연결 상태를 확인한 뒤 다시 시도해 주세요.",
-      });
-      handleEndCall();
-    },
+    onPlaybackError: () => handleCallFailure("통화 음성을 재생하지 못했어요"),
+    onRecordingError: () => handleCallFailure("마이크 연결에 실패했어요"),
   });
 
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
@@ -287,7 +292,7 @@ export default function Train() {
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
-    onError: () => handleEndCall(),
+    onError: () => handleCallFailure("통화 연결이 끊겼어요"),
   });
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
@@ -337,7 +342,7 @@ export default function Train() {
    * 시나리오·커스텀 훈련은 불안 점수 입력을 거치고, 워밍업은 바로 리포트로 간다.
    */
   useEffect(() => {
-    if (step !== "end") return;
+    if (step !== "end" || callStartedAtRef.current === null) return;
 
     const nextParams = {
       sessionId,
@@ -376,6 +381,9 @@ export default function Train() {
 
   useFocusEffect(
     useCallback(() => {
+      isScreenActiveRef.current = true;
+      startAttemptRef.current++;
+      isStartingRef.current = false;
       setStep("receive");
       setIsMeditationVisible(false);
       setIsMeditationVideoVisible(false);
@@ -396,6 +404,16 @@ export default function Train() {
       }
       void stopSendingAudio().catch(() => {});
       resetStream();
+      return () => {
+        isScreenActiveRef.current = false;
+        startAttemptRef.current++;
+        endHandledRef.current = true;
+        isStartingRef.current = false;
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        void stopSendingAudio().catch(() => {});
+        resetStream("screen_exit");
+      };
     }, [stopSendingAudio, resetStream, setMicrophoneMuted])
   );
 
@@ -415,23 +433,27 @@ export default function Train() {
     isHandlingScheduleRef.current = true;
     setIsHandlingSchedule(true);
     try {
-      if (!(await ensureSensitiveConsent())) return;
+      if (!(await ensureSensitiveConsent()) || !isScreenActiveRef.current) return;
       const session = await acceptTrainingCallSchedule(Number(scheduleId));
+      if (!isScreenActiveRef.current) return;
       // 예약 생성 직후 수신 화면이 먼저 열려도 저장이 끝난 시나리오 ID를 복구한다.
       if (!scenarioId) {
-        setRecoveredScenarioId(await getTrainingCallScenario(Number(scheduleId)));
+        const recovered = await getTrainingCallScenario(Number(scheduleId));
+        if (!isScreenActiveRef.current) return;
+        setRecoveredScenarioId(recovered);
       }
       setAcceptedSession(session);
       setIsMeditationVisible(true);
       void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
     } catch (error) {
+      if (!isScreenActiveRef.current) return;
       showAlert({
         title: "전화를 받지 못했어요",
         description: getApiErrorMessage(error, "예약 상태를 확인하고 다시 시도해 주세요."),
       });
     } finally {
       isHandlingScheduleRef.current = false;
-      setIsHandlingSchedule(false);
+      if (isScreenActiveRef.current) setIsHandlingSchedule(false);
     }
   };
 
@@ -445,16 +467,18 @@ export default function Train() {
         await cancelTrainingCallSchedule(Number(scheduleId));
         void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
       }
+      if (!isScreenActiveRef.current) return;
       if (router.canGoBack()) router.back();
       else router.replace("/(tabs)/(home)/home");
     } catch (error) {
+      if (!isScreenActiveRef.current) return;
       showAlert({
         title: "전화를 거절하지 못했어요",
         description: getApiErrorMessage(error, "잠시 후 다시 시도해 주세요."),
       });
     } finally {
       isHandlingScheduleRef.current = false;
-      setIsHandlingSchedule(false);
+      if (isScreenActiveRef.current) setIsHandlingSchedule(false);
     }
   };
   const handleToggleMute = useCallback(() => {
@@ -469,11 +493,15 @@ export default function Train() {
    * 오디오 초기화가 느리거나 실패해도 서버에 WS 연결 시도 자체가 누락되지 않는다.
    */
   const startTraining = useCallback(async () => {
+    if (isStartingRef.current || endHandledRef.current || !isScreenActiveRef.current) return;
+    isStartingRef.current = true;
+    const attempt = ++startAttemptRef.current;
     setIsAudioReady(false);
     setStep("training");
 
-    const granted = await requestPermission();
-    if (endHandledRef.current) return;
+    const granted = await requestPermission().catch(() => false);
+    if (attempt !== startAttemptRef.current || endHandledRef.current || !isScreenActiveRef.current) return;
+    isStartingRef.current = false;
     if (!granted) {
       showAlert({
         title: "마이크를 사용할 수 없어요",
@@ -510,7 +538,9 @@ export default function Train() {
       : Math.max(0, Math.floor((Date.now() - callStartedAtRef.current) / 1000));
     completedCallDurationRef.current = callDurationSeconds;
     setSeconds(callDurationSeconds);
-    if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
+    if (sessionId && callStartedAtRef.current !== null) {
+      void saveCompletedCallDuration(sessionId, callDurationSeconds).catch(() => {});
+    }
     // Release the microphone lookahead synchronously before the end message.
     void stopSendingAudio(true).catch(() => {});
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
@@ -520,6 +550,19 @@ export default function Train() {
       timerRef.current = null;
     }
     setStep("end");
+    if (callStartedAtRef.current === null) router.replace("/(tabs)/(train)/list");
+  };
+
+  /** Explain interrupted calls and release audio before leaving an unsuccessful connection. */
+  const handleCallFailure = (message: string) => {
+    if (endHandledRef.current || !isScreenActiveRef.current) return;
+    showAlert({
+      title: message,
+      description: callStartedAtRef.current === null
+        ? "네트워크와 마이크 권한을 확인한 뒤 다시 시도해 주세요."
+        : "통화를 종료했어요. 네트워크와 오디오 연결을 확인해 주세요.",
+    });
+    handleEndCall();
   };
 
   const safeArea = { paddingTop: insets.top, paddingBottom: insets.bottom };
