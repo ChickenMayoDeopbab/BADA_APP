@@ -1,3 +1,4 @@
+import { AuthSessionChangedError } from "./authSessionError";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -30,6 +31,7 @@ export interface AuthTokens {
 }
 
 const readToken = async (key: string): Promise<string | null> => {
+  const readVersion = authSessionVersion;
   if (Platform.OS === "web") {
     return AsyncStorage.getItem(key);
   }
@@ -44,10 +46,13 @@ const readToken = async (key: string): Promise<string | null> => {
   const legacyToken = await AsyncStorage.getItem(key);
   if (!legacyToken) return null;
 
-  await SecureStore.setItemAsync(key, legacyToken, secureStoreOptions);
-  await AsyncStorage.removeItem(key).catch(() => {});
+  await enqueueTokenMutation(async () => {
+    if (readVersion !== authSessionVersion) return;
+    await SecureStore.setItemAsync(key, legacyToken, secureStoreOptions);
+    await AsyncStorage.removeItem(key).catch(() => {});
+  });
 
-  return legacyToken;
+  return readVersion === authSessionVersion ? legacyToken : null;
 };
 
 const writeToken = async (key: string, value: string): Promise<void> => {
@@ -60,11 +65,15 @@ const writeToken = async (key: string, value: string): Promise<void> => {
   await AsyncStorage.removeItem(key).catch(() => {});
 };
 
-export const getAccessToken = (): Promise<string | null> =>
-  readToken(ACCESS_TOKEN_KEY);
+export const getAccessToken = async (): Promise<string | null> => {
+  await tokenMutationQueue.catch(() => {});
+  return readToken(ACCESS_TOKEN_KEY);
+};
 
-export const getRefreshToken = (): Promise<string | null> =>
-  readToken(REFRESH_TOKEN_KEY);
+export const getRefreshToken = async (): Promise<string | null> => {
+  await tokenMutationQueue.catch(() => {});
+  return readToken(REFRESH_TOKEN_KEY);
+};
 
 export const getAuthTokens = async (): Promise<{
   accessToken: string | null;
@@ -78,11 +87,18 @@ export const getAuthTokens = async (): Promise<{
   return { accessToken, refreshToken };
 };
 
-export const setAuthTokens = async (
+/** Wait for every native write/delete before allowing the next token mutation. */
+const settleTokenOperations = async (operations: Promise<void>[]): Promise<void> => {
+  const results = await Promise.allSettled(operations);
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
+};
+
+const writeAuthTokens = async (
   { accessToken, refreshToken }: AuthTokens,
   loginMethod?: AuthLoginMethod,
 ): Promise<void> => {
-  await Promise.all([
+  await settleTokenOperations([
     writeToken(ACCESS_TOKEN_KEY, accessToken),
     writeToken(REFRESH_TOKEN_KEY, refreshToken),
   ]);
@@ -98,6 +114,40 @@ export const setAuthTokens = async (
       JSON.stringify({ subject, method: loginMethod }),
     );
   }
+};
+
+let authSessionVersion = 0;
+let tokenMutationQueue: Promise<void> = Promise.resolve();
+
+/** Synchronously identify logout/login boundaries even while storage is busy. */
+export const getAuthSessionVersion = () => authSessionVersion;
+
+/** Serialize token pairs and deletes so a pending write cannot undo logout. */
+const enqueueTokenMutation = (operation: () => Promise<void>): Promise<void> => {
+  const task = tokenMutationQueue.catch(() => {}).then(operation);
+  tokenMutationQueue = task;
+  return task;
+};
+
+/** Refresh may commit only to the session from which its request originated. */
+export const setAuthTokens = (
+  tokens: AuthTokens,
+  loginMethod?: AuthLoginMethod,
+  expectedVersion?: number,
+): Promise<void> => {
+  if (expectedVersion !== undefined && expectedVersion !== authSessionVersion) {
+    return Promise.reject(new AuthSessionChangedError());
+  }
+  const writeVersion = ++authSessionVersion;
+  return enqueueTokenMutation(async () => {
+    if (expectedVersion !== undefined && writeVersion !== authSessionVersion) {
+      throw new AuthSessionChangedError();
+    }
+    await writeAuthTokens(tokens, loginMethod);
+    if (expectedVersion !== undefined && writeVersion !== authSessionVersion) {
+      throw new AuthSessionChangedError();
+    }
+  });
 };
 
 /** 현재 계정과 일치하는 로그인 방식만 반환하며 기존 세션의 방식은 추정하지 않는다. */
@@ -119,7 +169,7 @@ export const getAuthLoginMethod = async (): Promise<AuthLoginMethod | null> => {
   }
 };
 
-export const clearAuthTokens = async (): Promise<void> => {
+const deleteAuthTokens = async (): Promise<void> => {
   const deletions: Promise<void>[] = [
     // 예약 정리 실패가 토큰 폐기까지 막지 않도록 독립적으로 처리한다.
     clearTrainingCallScenarios().catch(() => {}),
@@ -138,5 +188,11 @@ export const clearAuthTokens = async (): Promise<void> => {
     );
   }
 
-  await Promise.all(deletions);
+  await settleTokenOperations(deletions);
+};
+
+/** Invalidate in-flight refresh immediately, then remove all queued credentials. */
+export const clearAuthTokens = (): Promise<void> => {
+  authSessionVersion++;
+  return enqueueTokenMutation(deleteAuthTokens);
 };

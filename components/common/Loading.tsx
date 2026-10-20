@@ -64,10 +64,10 @@ export default function Loading({
           <Animated.View style={animatedStyle}>
             <SandClock />
           </Animated.View>
-          <Text className="text-title2 font-bold mb-[10px] mt-[30px]">
+          <Text className="text-title2 font-bold text-center mb-[10px] mt-[30px]">
             {loadingText}
           </Text>
-          <Text className="text-label-alternative font-medium text-body">
+          <Text className="text-label-alternative font-medium text-body text-center">
             {loadingSubText}
           </Text>
         </>
@@ -78,10 +78,10 @@ export default function Loading({
       return (
         <>
           <AnimatedCheck />
-          <Text className="text-title2 font-bold mb-[10px] mt-[30px]">
+          <Text className="text-title2 font-bold text-center mb-[10px] mt-[30px]">
             {doneText}
           </Text>
-          <Text className="text-label-alternative font-medium text-body">
+          <Text className="text-label-alternative font-medium text-body text-center">
             {doneSubText}
           </Text>
         </>
@@ -92,10 +92,10 @@ export default function Loading({
       return (
         <>
           <Image source={require("@/assets/sadFace.gif")} style={{ width: 90, height: 90 }} />
-          <Text className="text-title2 font-bold mb-[10px] mt-[30px]">
+          <Text className="text-title2 font-bold text-center mb-[10px] mt-[30px]">
             {errorText}
           </Text>
-          <Text className="text-label-alternative font-medium text-body">
+          <Text className="text-label-alternative font-medium text-body text-center">
             {errorSubText}
           </Text>
         </>

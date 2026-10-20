@@ -9,6 +9,7 @@ import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useTrainingRecordDetail } from "@/hooks/useTrainingRecordDetail";
+import { getFeedbackHighlightText } from "@/utils/feedbackHighlight";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -90,6 +91,10 @@ export default function RecordDetailScreen() {
   );
   const { data, isLoading, isError, isRefetching, refetch } =
     useTrainingRecordDetail(recordId);
+
+  const positiveFeedbacks = Array.isArray(data?.positiveFeedbacks)
+    ? data.positiveFeedbacks.filter((feedback) => feedback && typeof feedback === "object")
+    : [];
 
   const toggleFeedback = (index: number) => {
     setExpandedFeedbackIndexes((current) => {
@@ -311,7 +316,7 @@ export default function RecordDetailScreen() {
                   통화 타임라인
                 </Text>
 
-                {data.positiveFeedbacks.length === 0 ? (
+                {positiveFeedbacks.length === 0 ? (
                   <View className="items-center py-16">
                     <Ionicons
                       name="chatbubble-ellipses-outline"
@@ -324,10 +329,11 @@ export default function RecordDetailScreen() {
                   </View>
                 ) : (
                   <View className="mt-[10px]">
-                    {data.positiveFeedbacks.map((feedback, index) => {
+                    {positiveFeedbacks.map((feedback, index) => {
+                      const highlight = getFeedbackHighlightText(feedback);
                       const isExpanded = expandedFeedbackIndexes.has(index);
                       const isLast =
-                        index === data.positiveFeedbacks.length - 1;
+                        index === positiveFeedbacks.length - 1;
 
                       return (
                         <Animated.View
@@ -361,11 +367,13 @@ export default function RecordDetailScreen() {
                             >
                               <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                 <Pressable
+                                  accessibilityRole="button"
+                                  accessibilityState={{ expanded: isExpanded }}
                                   className="flex-row items-start justify-between"
                                   onPress={() => toggleFeedback(index)}
                                 >
-                                  <Text className="flex-1 pr-2 font-medium text-body text-label-neutral">
-                                    {feedback.good_point}
+                                  <Text className={`flex-1 pr-2 text-body text-label-neutral ${isExpanded ? "font-bold" : "font-medium"}`}>
+                                    {highlight.title}
                                   </Text>
                                   <Ionicons
                                     name={
@@ -384,16 +392,16 @@ export default function RecordDetailScreen() {
                                     exiting={FadeOut.duration(120)}
                                     className="mt-4"
                                   >
+                                    {highlight.content ? (
+                                      <Text className="mb-4 font-normal text-body text-label-alternative">
+                                        {highlight.content}
+                                      </Text>
+                                    ) : null}
                                     <AudioSegmentButton
                                       audioUrl={data.recordingUrl}
                                       startTime={feedback.startSecond}
                                       endTime={feedback.endSecond}
                                     />
-                                    {feedback.summary ? (
-                                      <Text className="mt-4 text-body text-label-alternative">
-                                        {feedback.summary}
-                                      </Text>
-                                    ) : null}
                                   </Animated.View>
                                 )}
                               </View>

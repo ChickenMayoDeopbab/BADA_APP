@@ -13,8 +13,16 @@ const POD_DEPLOYMENT_TARGET_FIX = `    installer.pods_project.targets.each do |t
 
 /** Podfile의 모든 Pod 타겟에 iOS 최소 배포 버전을 적용한다. */
 function applyPodfileFixes(contents) {
-  return CodeGenerator.mergeContents({
+  const withStaticFirebase = CodeGenerator.mergeContents({
     src: contents,
+    newSrc: "$RNFirebaseDisableSPM = true",
+    tag: "bada-firebase-static-linkage",
+    anchor: /^target\s+['"][^'"]+['"]\s+do\s*$/,
+    offset: 0,
+    comment: "#",
+  }).contents;
+  return CodeGenerator.mergeContents({
+    src: withStaticFirebase,
     newSrc: POD_DEPLOYMENT_TARGET_FIX,
     tag: PODFILE_FIXES_TAG,
     anchor: /^\s*post_install do \|installer\|\s*$/,

@@ -6,19 +6,17 @@ const SCENE_DELEGATE_MARKER =
 
 const REACT_NATIVE_STARTUP_PATTERN = /#if os\(iOS\) \|\| os\(tvOS\)\r?\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\r?\n([\s\S]*?)\s*factory\.startReactNative\(\r?\n\s*withModuleName: "main",\r?\n\s*in: window,\r?\n\s*launchOptions: launchOptions\)\r?\n#endif/;
 
-const LEGACY_REACT_NATIVE_STARTUP = `    if #unavailable(iOS 13.0) {
-      window = UIWindow(frame: UIScreen.main.bounds)
-      factory.startReactNative(
-        withModuleName: "main",
-        in: window,
-        launchOptions: launchOptions)
-    }`;
+const REACT_NATIVE_STARTUP = `    window = UIWindow(frame: UIScreen.main.bounds)
+    factory.startReactNative(
+      withModuleName: "main",
+      in: window,
+      launchOptions: launchOptions)`;
 
 /** 다른 config plugin이 삽입한 초기화 코드를 보존해 Scene 시작 블록을 만든다. */
 function createSceneAwareStartup(preservedStartupCode) {
   const preservedCode = preservedStartupCode.trim();
   return `#if os(iOS) || os(tvOS)
-${preservedCode ? `${preservedCode}\n` : ""}${LEGACY_REACT_NATIVE_STARTUP}
+${preservedCode ? `${preservedCode}\n` : ""}${REACT_NATIVE_STARTUP}
 #endif`;
 }
 
@@ -49,18 +47,13 @@ const SCENE_DELEGATE_CLASS = `class SceneDelegate: UIResponder, UIWindowSceneDel
   ) {
     guard let windowScene = scene as? UIWindowScene,
       let appDelegate,
-      let factory = appDelegate.reactNativeFactory else {
+      let appWindow = appDelegate.window else {
       return
     }
 
-    let nextWindow = UIWindow(windowScene: windowScene)
-    window = nextWindow
-    appDelegate.window = nextWindow
-
-    factory.startReactNative(
-      withModuleName: "main",
-      in: nextWindow,
-      launchOptions: appDelegate.reactNativeLaunchOptions)
+    appWindow.windowScene = windowScene
+    window = appWindow
+    appWindow.makeKeyAndVisible()
 
     for urlContext in connectionOptions.urlContexts {
       open(urlContext)
@@ -148,9 +141,13 @@ function applyIosSceneManifest(infoPlist) {
   };
 }
 
-/** Expo AppDelegate의 React Native 시작 지점을 SceneDelegate로 이동한다. */
+/** Expo가 시작한 창을 SceneDelegate에 연결한다. */
 function applyAppDelegateSceneLifecycle(contents) {
-  if (contents.includes(SCENE_DELEGATE_MARKER)) return contents;
+  if (contents.includes(SCENE_DELEGATE_MARKER)) {
+    return contents
+      .replace(/    if #unavailable\(iOS 13\.0\) \{\n[\s\S]*?launchOptions: launchOptions\)\n    \}/, REACT_NATIVE_STARTUP)
+      .replace(/class SceneDelegate: UIResponder, UIWindowSceneDelegate \{[\s\S]*?(?=\nclass ReactNativeDelegate:)/, SCENE_DELEGATE_CLASS);
+  }
   if (!REACT_NATIVE_STARTUP_PATTERN.test(contents)) {
     throw new Error(
       "iOS Scene 생명주기를 적용할 React Native 시작 코드를 찾지 못했습니다.",

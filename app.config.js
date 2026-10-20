@@ -63,6 +63,7 @@ module.exports = {
       "expo-router",
       "./plugins/withIosSceneLifecycle",
       "./plugins/withPodfileFixes",
+      ["./plugins/withIosFirebaseMode", { enabled: FIREBASE_PUSH_ENABLED }],
       ...(FIREBASE_PUSH_ENABLED
         ? [
             [

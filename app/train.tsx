@@ -18,7 +18,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BackHandler,
   Modal,
   ScrollView,
   StyleSheet,
@@ -128,16 +127,24 @@ function MeditationVideoContent({
 }
 
 /** 통화 상대 이름 · 번호 · 프로필 사진 묶음 */
-function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
+function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140, isCompact = false }: {
   name: string;
   phoneNumber: string;
   isSpeaking?: boolean;
   avatarSize?: number;
+  isCompact?: boolean;
 }) {
   return (
-    <View className="w-full items-center gap-y-6 px-4">
+    <View className={`w-full items-center px-4 ${isCompact ? "gap-y-3" : "gap-y-6"}`}>
       <View className="w-full items-center">
-        <Text className="w-full text-center text-title1 font-bold text-label-normal">{name}</Text>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+          className={`w-full text-center font-bold text-label-normal ${isCompact ? "text-title2" : "text-title1"}`}
+        >
+          {name}
+        </Text>
         <Text className="w-full text-center text-body text-label-neutral">폰 {phoneNumber}</Text>
       </View>
       <View
@@ -157,10 +164,13 @@ function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140 }: {
 }
 
 /** 어떤 시나리오로 훈련 중인지 화면 맨 아래에 작게 적어 둔다 */
-function ScenarioLabel({ title }: { title?: string }) {
+function ScenarioLabel({ title, isCompact = false }: { title?: string; isCompact?: boolean }) {
   if (!title) return null;
   return (
-    <Text className="mt-[26px] px-4 text-caption font-medium text-label-alternative text-center opacity-60">
+    <Text
+      numberOfLines={1}
+      className={`px-4 text-caption font-medium text-label-alternative text-center opacity-60 ${isCompact ? "mt-3" : "mt-[26px]"}`}
+    >
       {title}
     </Text>
   );
@@ -193,7 +203,16 @@ export default function Train() {
   const [isHandlingSchedule, setIsHandlingSchedule] = useState(false);
 
   useAndroidBackHandler(() => {
-    BackHandler.exitApp();
+    if (step === "training") {
+      showAlert({
+        title: "통화를 종료할까요?",
+        confirmLabel: "종료하기",
+        cancelLabel: "계속 통화하기",
+        onConfirm: handleEndCall,
+      });
+    } else if (step === "receive") {
+      void handleDecline();
+    }
     return true;
   });
 
@@ -210,6 +229,9 @@ export default function Train() {
   const callStartedAtRef = useRef<number | null>(null);
   const completedCallDurationRef = useRef<number | null>(null);
   const endHandledRef = useRef(false);
+  const isScreenActiveRef = useRef(true);
+  const isStartingRef = useRef(false);
+  const startAttemptRef = useRef(0);
   const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
@@ -220,7 +242,11 @@ export default function Train() {
   const scenarioTitle = title ?? scenario?.title;
   /** iPhone SE·8처럼 세로가 짧은 기기에서 통화 버튼이 잘리지 않도록 값을 줄인다 */
   const { height: windowHeight, fontScale } = useWindowDimensions();
-  const isCompactScreen = windowHeight < 700 || fontScale > 1.2;
+  const availableHeight = windowHeight - insets.top - insets.bottom;
+  const isCompactScreen = availableHeight < 740 || fontScale > 1.2;
+  const isShortScreen = availableHeight < 580;
+  const avatarSize = isShortScreen ? 72 : isCompactScreen ? 96 : 140;
+  const controlSize = isShortScreen ? 48 : isCompactScreen ? 56 : 72;
 
   const [isMuted, setIsMuted] = useState(false);
   const isWarmupSession = isWarmup === "true";
@@ -249,14 +275,8 @@ export default function Train() {
     onPlaybackComplete: (turnId) => {
       sendJson({ type: "playback_done", turn_id: turnId });
     },
-    onPlaybackError: () => handleEndCall(),
-    onRecordingError: () => {
-      showAlert({
-        title: "마이크 연결에 실패했어요",
-        description: "마이크 권한과 연결 상태를 확인한 뒤 다시 시도해 주세요.",
-      });
-      handleEndCall();
-    },
+    onPlaybackError: () => handleCallFailure("통화 음성을 재생하지 못했어요"),
+    onRecordingError: () => handleCallFailure("마이크 연결에 실패했어요"),
   });
 
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
@@ -272,16 +292,16 @@ export default function Train() {
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
-    onError: () => handleEndCall(),
+    onError: () => handleCallFailure("통화 연결이 끊겼어요"),
   });
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
-   * 그대로 두면 종료 화면에 다시 "연결 중..."이 뜨므로 한 번 받은 이름을 붙들어 둔다.
+   * 종료 화면에서도 상대 이름을 유지하도록 한 번 받은 이름을 붙들어 둔다.
    */
   useEffect(() => {
     if (displayName) setCalleeName(displayName);
   }, [displayName]);
-  const roleName = calleeName ?? "연결 중...";
+  const roleName = calleeName ?? "통화 상대";
 
   useEffect(() => {
     const isInCall = step === "training";
@@ -322,7 +342,7 @@ export default function Train() {
    * 시나리오·커스텀 훈련은 불안 점수 입력을 거치고, 워밍업은 바로 리포트로 간다.
    */
   useEffect(() => {
-    if (step !== "end") return;
+    if (step !== "end" || callStartedAtRef.current === null) return;
 
     const nextParams = {
       sessionId,
@@ -361,6 +381,9 @@ export default function Train() {
 
   useFocusEffect(
     useCallback(() => {
+      isScreenActiveRef.current = true;
+      startAttemptRef.current++;
+      isStartingRef.current = false;
       setStep("receive");
       setIsMeditationVisible(false);
       setIsMeditationVideoVisible(false);
@@ -381,6 +404,16 @@ export default function Train() {
       }
       void stopSendingAudio().catch(() => {});
       resetStream();
+      return () => {
+        isScreenActiveRef.current = false;
+        startAttemptRef.current++;
+        endHandledRef.current = true;
+        isStartingRef.current = false;
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        void stopSendingAudio().catch(() => {});
+        resetStream("screen_exit");
+      };
     }, [stopSendingAudio, resetStream, setMicrophoneMuted])
   );
 
@@ -400,23 +433,27 @@ export default function Train() {
     isHandlingScheduleRef.current = true;
     setIsHandlingSchedule(true);
     try {
-      if (!(await ensureSensitiveConsent())) return;
+      if (!(await ensureSensitiveConsent()) || !isScreenActiveRef.current) return;
       const session = await acceptTrainingCallSchedule(Number(scheduleId));
+      if (!isScreenActiveRef.current) return;
       // 예약 생성 직후 수신 화면이 먼저 열려도 저장이 끝난 시나리오 ID를 복구한다.
       if (!scenarioId) {
-        setRecoveredScenarioId(await getTrainingCallScenario(Number(scheduleId)));
+        const recovered = await getTrainingCallScenario(Number(scheduleId));
+        if (!isScreenActiveRef.current) return;
+        setRecoveredScenarioId(recovered);
       }
       setAcceptedSession(session);
       setIsMeditationVisible(true);
       void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
     } catch (error) {
+      if (!isScreenActiveRef.current) return;
       showAlert({
         title: "전화를 받지 못했어요",
         description: getApiErrorMessage(error, "예약 상태를 확인하고 다시 시도해 주세요."),
       });
     } finally {
       isHandlingScheduleRef.current = false;
-      setIsHandlingSchedule(false);
+      if (isScreenActiveRef.current) setIsHandlingSchedule(false);
     }
   };
 
@@ -430,16 +467,18 @@ export default function Train() {
         await cancelTrainingCallSchedule(Number(scheduleId));
         void removeTrainingCallScenario(Number(scheduleId)).catch(() => undefined);
       }
+      if (!isScreenActiveRef.current) return;
       if (router.canGoBack()) router.back();
       else router.replace("/(tabs)/(home)/home");
     } catch (error) {
+      if (!isScreenActiveRef.current) return;
       showAlert({
         title: "전화를 거절하지 못했어요",
         description: getApiErrorMessage(error, "잠시 후 다시 시도해 주세요."),
       });
     } finally {
       isHandlingScheduleRef.current = false;
-      setIsHandlingSchedule(false);
+      if (isScreenActiveRef.current) setIsHandlingSchedule(false);
     }
   };
   const handleToggleMute = useCallback(() => {
@@ -454,11 +493,15 @@ export default function Train() {
    * 준비 전에 연 WS를 실패로 닫으면 서버가 세션을 끝내 다시 받을 수 없다.
    */
   const startTraining = useCallback(async () => {
+    if (isStartingRef.current || endHandledRef.current || !isScreenActiveRef.current) return;
+    isStartingRef.current = true;
+    const attempt = ++startAttemptRef.current;
     setIsAudioReady(false);
     setStep("training");
 
-    const granted = await requestPermission();
-    if (endHandledRef.current) return;
+    const granted = await requestPermission().catch(() => false);
+    if (attempt !== startAttemptRef.current || endHandledRef.current || !isScreenActiveRef.current) return;
+    isStartingRef.current = false;
     if (!granted) {
       showAlert({
         title: "마이크를 사용할 수 없어요",
@@ -495,7 +538,9 @@ export default function Train() {
       : Math.max(0, Math.floor((Date.now() - callStartedAtRef.current) / 1000));
     completedCallDurationRef.current = callDurationSeconds;
     setSeconds(callDurationSeconds);
-    if (sessionId) void saveCompletedCallDuration(sessionId, callDurationSeconds);
+    if (sessionId && callStartedAtRef.current !== null) {
+      void saveCompletedCallDuration(sessionId, callDurationSeconds).catch(() => {});
+    }
     // Release the microphone lookahead synchronously before the end message.
     void stopSendingAudio(true).catch(() => {});
     resetStream("call_end"); // Flush playback stats before the server closes the socket.
@@ -505,6 +550,19 @@ export default function Train() {
       timerRef.current = null;
     }
     setStep("end");
+    if (callStartedAtRef.current === null) router.replace("/(tabs)/(train)/list");
+  };
+
+  /** Explain interrupted calls and release audio before leaving an unsuccessful connection. */
+  const handleCallFailure = (message: string) => {
+    if (endHandledRef.current || !isScreenActiveRef.current) return;
+    showAlert({
+      title: message,
+      description: callStartedAtRef.current === null
+        ? "네트워크와 마이크 권한을 확인한 뒤 다시 시도해 주세요."
+        : "통화를 종료했어요. 네트워크와 오디오 연결을 확인해 주세요.",
+    });
+    handleEndCall();
   };
 
   const safeArea = { paddingTop: insets.top, paddingBottom: insets.bottom };
@@ -516,11 +574,7 @@ export default function Train() {
         <View className="flex-1">
           <CallBackground />
           <View className="flex-1" style={safeArea}>
-            <ScrollView
-              className="flex-1"
-              contentContainerClassName="grow items-center pt-[22px] pb-6"
-              showsVerticalScrollIndicator={false}
-            >
+            <View className="flex-1 items-center pt-[22px] pb-6">
               <Text className="text-body font-medium text-label-alternative">
                 바다 시나리오 훈련
               </Text>
@@ -528,11 +582,12 @@ export default function Train() {
                 <CalleeProfile
                   name={roleName}
                   phoneNumber={generatedPhoneNumber}
-                  avatarSize={isCompactScreen ? 112 : 140}
+                  avatarSize={avatarSize}
+                  isCompact={isCompactScreen}
                 />
               </View>
-            </ScrollView>
-            <View className="shrink-0 items-center pb-6">
+            </View>
+            <View className={`shrink-0 items-center ${isCompactScreen ? "pb-3" : "pb-6"}`}>
               <View className="w-full max-w-[300px] flex-row items-center justify-between px-4">
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -546,6 +601,7 @@ export default function Train() {
                   activeOpacity={0.8}
                   style={[
                     styles.callButton,
+                    isCompactScreen && styles.callButtonCompact,
                     { backgroundColor: PALETTE.green[40] },
                   ]}
                 >
@@ -557,7 +613,7 @@ export default function Train() {
                   onPress={() => void handleDecline()}
                   disabled={isHandlingSchedule}
                   activeOpacity={0.8}
-                  style={[styles.callButton, { backgroundColor: PALETTE.red[40] }]}
+                  style={[styles.callButton, isCompactScreen && styles.callButtonCompact, { backgroundColor: PALETTE.red[40] }]}
                 >
                   <Ionicons
                     name="call"
@@ -567,7 +623,7 @@ export default function Train() {
                   />
                 </TouchableOpacity>
               </View>
-              <ScenarioLabel title={scenarioTitle} />
+              <ScenarioLabel title={scenarioTitle} isCompact={isCompactScreen} />
             </View>
           </View>
         </View>
@@ -597,13 +653,8 @@ export default function Train() {
       {/* 배경은 safe area 패딩 바깥에 둬야 화면 끝까지 깔린다 */}
       {!isEnd && <CallBackground />}
       <View className="flex-1" style={safeArea}>
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="grow"
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-        >
-          <View className="flex-row items-center justify-center mt-6 gap-x-2">
+        <View className="min-h-0 flex-1">
+          <View className={`shrink-0 flex-row items-center justify-center gap-x-2 ${isCompactScreen ? "mt-3" : "mt-6"}`}>
             <Ionicons
               name="call"
               size={20}
@@ -630,7 +681,8 @@ export default function Train() {
               name={roleName}
               phoneNumber={generatedPhoneNumber}
               isSpeaking={isAiSpeaking}
-              avatarSize={isCompactScreen ? 112 : 140}
+              avatarSize={avatarSize}
+              isCompact={isCompactScreen}
             />
             {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
             {!isConnected && step === "training" && (
@@ -641,7 +693,7 @@ export default function Train() {
           </View>
 
           {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
-          <View className="grow justify-center py-4">
+          <View className={`min-h-0 flex-1 justify-center ${isCompactScreen ? "py-2" : "py-4"}`}>
             {!isEnd && !isScriptVisible && (
               <View style={styles.gridContainer}>
                 {[
@@ -708,12 +760,12 @@ export default function Train() {
                     <TouchableOpacity
                       activeOpacity={0.8}
                       disabled={btn.disabled}
-                      style={styles.gridButton}
+                      style={[styles.gridButton, { width: controlSize, height: controlSize }]}
                       onPress={btn.onPress}
                     >
                       <Ionicons
                         name={btn.icon as any}
-                        size={32}
+                        size={isCompactScreen ? 28 : 32}
                         color={
                           btn.disabled
                             ? SEMANTIC_COLORS.line.normal
@@ -724,7 +776,10 @@ export default function Train() {
                       />
                     </TouchableOpacity>
                     <Text
-                      className={`w-full text-center text-label font-medium mt-2 ${
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      className={`w-full text-center text-label font-medium ${isCompactScreen ? "mt-1" : "mt-2"} ${
                         btn.disabled ? "text-line-normal" : "text-label-normal"
                       }`}
                     >
@@ -736,10 +791,7 @@ export default function Train() {
             )}
 
             {!isEnd && isScriptVisible && (
-              <View
-                className="mx-[33px]"
-                style={{ height: Math.max(240, windowHeight * 0.35) }}
-              >
+              <View className="mx-[33px] min-h-0 flex-1">
                 <TouchableOpacity
                   onPress={() => setIsScriptVisible(false)}
                   activeOpacity={0.8}
@@ -759,6 +811,9 @@ export default function Train() {
                   ) : (
                     <ScrollView
                       ref={scriptScrollRef}
+                      className="min-h-0 flex-1"
+                      bounces={false}
+                      overScrollMode="never"
                       nestedScrollEnabled
                       showsVerticalScrollIndicator={false}
                       contentContainerClassName="gap-y-[10px]"
@@ -781,15 +836,18 @@ export default function Train() {
               </View>
             )}
           </View>
-        </ScrollView>
+        </View>
 
-        <View className="shrink-0 items-center pb-6">
+        <View className={`shrink-0 items-center ${isCompactScreen ? "pb-3" : "pb-6"}`}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="통화 종료"
             onPress={handleEndCall}
             activeOpacity={0.8}
             disabled={isEnd}
             style={[
               styles.callButton,
+              isCompactScreen && styles.callButtonCompact,
               { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
             ]}
           >
@@ -800,7 +858,7 @@ export default function Train() {
               style={styles.rotatedIcon}
             />
           </TouchableOpacity>
-          <ScenarioLabel title={scenarioTitle} />
+          <ScenarioLabel title={scenarioTitle} isCompact={isCompactScreen} />
         </View>
       </View>
     </View>
@@ -822,6 +880,11 @@ const styles = StyleSheet.create({
   },
   rotatedIcon: {
     transform: [{ rotate: "135deg" }],
+  },
+  callButtonCompact: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   gridContainer: {
     flexDirection: "row",
@@ -856,6 +919,7 @@ const styles = StyleSheet.create({
   },
   scriptContainer: {
     flex: 1,
+    minHeight: 0,
     borderRadius: 12,
     padding: 16,
     backgroundColor: "rgba(254,254,254,0.72)",

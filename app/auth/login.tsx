@@ -72,6 +72,7 @@ export default function LoginScreen() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const isLoggingInRef = useRef(false);
   const passwordRef = useRef<TextInput>(null);
   const inputTranslateY = useRef(new Animated.Value(0)).current;
 
@@ -113,12 +114,13 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    const isValid = await trigger(["username", "password"]);
-    if (!isValid) return;
-
+    if (isLoggingInRef.current) return;
+    isLoggingInRef.current = true;
     setIsLoggingIn(true);
 
     try {
+      const isValid = await trigger(["username", "password"]);
+      if (!isValid) return;
       const { username: rawUsername, password } = getValues();
       const username = rawUsername.trim();
       const response = await postLogin({ username, password });
@@ -160,6 +162,7 @@ export default function LoginScreen() {
         ),
       });
     } finally {
+      isLoggingInRef.current = false;
       setIsLoggingIn(false);
     }
   };

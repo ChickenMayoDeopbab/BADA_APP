@@ -2,6 +2,7 @@ import axios, { isAxiosError } from "axios";
 import { jwtDecode } from "jwt-decode";
 import {
   getAuthTokens,
+  getAuthSessionVersion,
   setAuthTokens,
   type AuthTokens,
 } from "@/utils/authTokenStorage";
@@ -10,17 +11,18 @@ import {
   RefreshTokenRequest,
   RefreshTokenResponse,
 } from "./types";
-import { AuthSessionExpiredError } from "@/utils/authSessionError";
+import { AuthSessionChangedError, AuthSessionExpiredError } from "@/utils/authSessionError";
 
 interface AccessTokenClaims {
   sub?: string;
 }
 
-let refreshPromise: Promise<AuthTokens> | null = null;
+let refreshPending: { version: number; promise: Promise<AuthTokens> } | null = null;
 
-const requestTokenRefresh = async (): Promise<AuthTokens> => {
+const requestTokenRefresh = async (version: number): Promise<AuthTokens> => {
   const { accessToken, refreshToken } = await getAuthTokens();
 
+  if (version !== getAuthSessionVersion()) throw new AuthSessionChangedError();
   if (!accessToken || !refreshToken) {
     throw new AuthSessionExpiredError();
   }
@@ -43,6 +45,7 @@ const requestTokenRefresh = async (): Promise<AuthTokens> => {
     request,
     { timeout: 10_000 },
   ).catch((error: unknown) => {
+    if (version !== getAuthSessionVersion()) throw new AuthSessionChangedError();
     if (isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0)) {
       throw new AuthSessionExpiredError();
     }
@@ -55,17 +58,19 @@ const requestTokenRefresh = async (): Promise<AuthTokens> => {
     throw new Error("토큰 갱신 응답이 올바르지 않습니다.");
   }
 
-  await setAuthTokens(nextTokens);
+  await setAuthTokens(nextTokens, undefined, version);
 
   return nextTokens;
 };
 
+/** Share refresh only among requests from the same signed-in session. */
 export const refreshAuthTokens = (): Promise<AuthTokens> => {
-  if (!refreshPromise) {
-    refreshPromise = requestTokenRefresh().finally(() => {
-      refreshPromise = null;
+  const version = getAuthSessionVersion();
+  if (!refreshPending || refreshPending.version !== version) {
+    const promise = requestTokenRefresh(version).finally(() => {
+      if (refreshPending?.promise === promise) refreshPending = null;
     });
+    refreshPending = { version, promise };
   }
-
-  return refreshPromise;
+  return refreshPending.promise;
 };

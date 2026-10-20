@@ -1,5 +1,5 @@
 import { checkAttendance } from "@/api/AttendanceApi";
-import { getFeedback } from "@/api/recordApi";
+import { FeedbackWaitTimeoutError, waitForFeedback } from "@/api/recordApi";
 import { FeedbackResponse } from "@/api/types";
 import Clap from "@/assets/clap.svg";
 import MagnifyingGlass from "@/assets/magnifyingGlass.svg";
@@ -11,9 +11,11 @@ import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { getCompletedCallDuration } from "@/utils/completedCallDuration";
+import { getFeedbackHighlightText } from "@/utils/feedbackHighlight";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { isCancel } from "axios";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -55,11 +57,7 @@ const reportTextStyles = StyleSheet.create({
   },
 });
 
-const MINIMUM_LOADING_TIME = 3000;
 const FEEDBACK_AUDIO_HEIGHT = 88;
-
-const wait = (duration: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, duration));
 
 function ReportLoading() {
   const translateX = useSharedValue(0);
@@ -121,7 +119,7 @@ function ReportLoading() {
 }
 
 const formatTrainingTime = (trainingTime: FeedbackResponse["trainingTime"]) => {
-  const [hours = "0", minutes = "0", seconds = "0"] = trainingTime.split(":");
+  const [hours = "0", minutes = "0", seconds = "0"] = (typeof trainingTime === "string" ? trainingTime : "").split(":");
   const parts: string[] = [];
   if (Number(hours) > 0) parts.push(`${Number(hours)}시간`);
   if (Number(minutes) > 0) parts.push(`${Number(minutes)}분`);
@@ -152,16 +150,18 @@ const keepWordsTogether = (text: string) =>
     .map((word) => word.split("").join("\u2060"))
     .join(" ");
 
-function FeedbackAudio({
+function FeedbackDetails({
   isExpanded,
   audioUrl,
   startTime,
   endTime,
+  content,
 }: {
   isExpanded: boolean;
   audioUrl: string;
   startTime: number;
   endTime: number;
+  content: string;
 }) {
   const [shouldRender, setShouldRender] = useState(isExpanded);
   const progress = useSharedValue(isExpanded ? 1 : 0);
@@ -190,27 +190,36 @@ function FeedbackAudio({
   }));
 
   return (
-    <Animated.View
-      pointerEvents={isExpanded ? "auto" : "none"}
-      className="overflow-hidden"
-      style={animatedStyle}
-    >
-      {shouldRender && (
-        <View className="pt-4">
-          <AudioSegmentButton
-            audioUrl={audioUrl}
-            startTime={startTime}
-            endTime={endTime}
-          />
-        </View>
-      )}
-    </Animated.View>
+    <View>
+      {isExpanded && content ? (
+        <Text className="mt-3 text-body text-label-alternative" style={reportTextStyles.regular}>
+          {content}
+        </Text>
+      ) : null}
+      <Animated.View
+        pointerEvents={isExpanded ? "auto" : "none"}
+        className="overflow-hidden"
+        style={animatedStyle}
+      >
+        {shouldRender && (
+          <View className="pt-4">
+            <AudioSegmentButton
+              audioUrl={audioUrl}
+              startTime={startTime}
+              endTime={endTime}
+            />
+          </View>
+        )}
+      </Animated.View>
+    </View>
   );
 }
 
 function SummaryBackground() {
   return (
     <Svg
+      width="100%"
+      height="100%"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       style={StyleSheet.absoluteFillObject}
@@ -260,10 +269,16 @@ export default function Report() {
   } = useLocalSearchParams<ReportParams>();
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAnalysisDelayed, setIsAnalysisDelayed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const feedbackRequestRef = useRef<AbortController | null>(null);
   const [expandedIndexes, setExpandedIndexes] = useState(
     () => new Set<number>([]),
   );
+
+  const goodSegments = Array.isArray(feedback?.goodSegments)
+    ? feedback.goodSegments.filter((segment) => segment && typeof segment === "object")
+    : [];
 
   const finishReport = useCallback(() => {
     goToList();
@@ -275,8 +290,12 @@ export default function Report() {
   });
 
   const fetchFeedback = useCallback(async () => {
+    feedbackRequestRef.current?.abort();
+    const controller = new AbortController();
+    feedbackRequestRef.current = controller;
+    setIsAnalysisDelayed(false);
     const parsedScenarioId = Number(scenarioId);
-    if (!scenarioId || !Number.isSafeInteger(parsedScenarioId)) {
+    if (!scenarioId || !Number.isSafeInteger(parsedScenarioId) || parsedScenarioId <= 0) {
       setError("시나리오 정보를 찾을 수 없습니다.");
       setIsLoading(false);
       return;
@@ -285,10 +304,10 @@ export default function Report() {
     try {
       setIsLoading(true);
       setError(null);
-      const [result] = await Promise.all([
-        getFeedback({ scenarioId: parsedScenarioId }),
-        wait(MINIMUM_LOADING_TIME),
-      ]);
+      const result = await waitForFeedback(
+        { scenarioId: parsedScenarioId },
+        { signal: controller.signal },
+      );
       const routeDuration = Number(callDurationSeconds);
       const completedDuration =
         callDurationSeconds !== undefined &&
@@ -296,6 +315,7 @@ export default function Report() {
         routeDuration >= 0
           ? routeDuration
           : await getCompletedCallDuration(sessionId);
+      if (controller.signal.aborted) return;
       setFeedback(
         completedDuration === null
           ? result
@@ -304,18 +324,23 @@ export default function Report() {
               trainingTime: trainingTimeFromSeconds(completedDuration),
             },
       );
-      try {
-        await checkAttendance();
-      } catch {}
-    } catch {
-      setError("훈련 결과를 불러오지 못했습니다.");
+      void checkAttendance().catch(() => {});
+    } catch (error) {
+      if (controller.signal.aborted || isCancel(error)) return;
+      setIsAnalysisDelayed(error instanceof FeedbackWaitTimeoutError);
+      setError(error instanceof FeedbackWaitTimeoutError
+        ? error.message
+        : "훈련 결과를 불러오지 못했습니다.");
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }, [callDurationSeconds, scenarioId, sessionId]);
 
   useEffect(() => {
-    fetchFeedback();
+    void fetchFeedback();
+    return () => {
+      feedbackRequestRef.current?.abort();
+    };
   }, [fetchFeedback]);
 
   const toggleFeedback = (index: number) => {
@@ -333,8 +358,19 @@ export default function Report() {
         className="flex-1 bg-background-alternative"
         edges={["top", "bottom"]}
       >
-        {isLoading ? (
-          <ReportLoading />
+        {isLoading || isAnalysisDelayed ? (
+          <View className="flex-1 bg-background-normal">
+            <ReportLoading />
+            {isAnalysisDelayed && (
+              <View className="gap-3 px-[33px] pb-6">
+                <Text className="text-center text-label text-label-alternative">
+                  {error}
+                </Text>
+                <CustomButton label="재시도" onPress={fetchFeedback} tone="primary" />
+                <CustomButton label="홈으로 돌아가기" onPress={goToHome} tone="neutral" />
+              </View>
+            )}
+          </View>
         ) : (
           <>
             <Top title="훈련 리포트" safeArea={false} />
@@ -374,59 +410,64 @@ export default function Report() {
                   showsVerticalScrollIndicator={false}
                 >
                   <View
-                    className={`relative mx-4 mt-[15px] min-h-32 gap-4 overflow-hidden rounded-component p-4 ${isCompactSummary ? "" : "flex-row"}`}
+                    className="relative mx-[16px] mt-[15px] min-h-[127px] overflow-hidden rounded-component"
                   >
                     <SummaryBackground />
                     <View
-                      className={`min-w-0 gap-3 ${isCompactSummary ? "flex-row items-center" : "flex-1 justify-between"}`}
+                      className={`gap-[16px] p-[16px] ${isCompactSummary ? "" : "flex-row"}`}
                     >
-                      <Clap
-                        width={isCompactSummary ? 48 : 60}
-                        height={isCompactSummary ? 48 : 60}
-                      />
-                      <Text
-                        className={`text-title2 text-common-0 ${isCompactSummary ? "min-w-0 flex-1" : ""}`}
-                        style={reportTextStyles.bold}
-                      >
-                        많이 좋아졌는걸요?
-                      </Text>
-                    </View>
-                    <View
-                      className={`min-w-0 gap-3 ${isCompactSummary ? "flex-row" : "flex-1 items-end"}`}
-                    >
-                      {mode === "scenario" && (
-                        <View
-                          className={`min-w-0 ${isCompactSummary ? "flex-1" : "w-full items-end"}`}
-                        >
-                          <Text
-                            className="text-body text-common-0 opacity-60"
-                            style={reportTextStyles.medium}
-                          >
-                            시나리오명
-                          </Text>
-                          <Text
-                            className={`w-full text-body text-common-0 ${isCompactSummary ? "" : "text-right"}`}
-                            style={reportTextStyles.bold}
-                          >
-                            {feedback.scenarioName}
-                          </Text>
-                        </View>
-                      )}
                       <View
-                        className={`min-w-0 items-end ${isCompactSummary ? "flex-1" : "w-full"}`}
+                        className={`min-w-0 ${isCompactSummary ? "flex-row items-center gap-3" : "flex-[2] gap-1"}`}
                       >
+                        <Clap
+                          width={isCompactSummary ? 48 : 60}
+                          height={isCompactSummary ? 48 : 60}
+                        />
                         <Text
-                          className="text-right text-body text-common-0 opacity-60"
-                          style={reportTextStyles.medium}
-                        >
-                          {mode === "warmUp" ? "워밍업 시간" : "훈련시간"}
-                        </Text>
-                        <Text
-                          className="w-full text-right text-body text-common-0"
+                          className={`text-title2 text-common-0 ${isCompactSummary ? "min-w-0 flex-1" : ""}`}
                           style={reportTextStyles.bold}
                         >
-                          {formatTrainingTime(feedback.trainingTime)}
+                          많이 좋아졌는걸요?
                         </Text>
+                      </View>
+                      <View
+                        className={`min-w-0 gap-2 ${isCompactSummary ? "flex-row" : "flex-1 items-end"}`}
+                      >
+                        {mode === "scenario" && (
+                          <View
+                            className={`min-w-0 ${isCompactSummary ? "flex-1" : "w-full items-end"}`}
+                          >
+                            <Text
+                              className="text-body text-common-0 opacity-60"
+                              style={reportTextStyles.medium}
+                            >
+                              시나리오명
+                            </Text>
+                            <Text
+                              numberOfLines={2}
+                              className={`w-full text-body text-common-0 ${isCompactSummary ? "" : "text-right"}`}
+                              style={reportTextStyles.bold}
+                            >
+                              {feedback.scenarioName}
+                            </Text>
+                          </View>
+                        )}
+                        <View
+                          className={`min-w-0 items-end ${isCompactSummary ? "flex-1" : "w-full"}`}
+                        >
+                          <Text
+                            className="text-right text-body text-common-0 opacity-60"
+                            style={reportTextStyles.medium}
+                          >
+                            {mode === "warmUp" ? "워밍업 시간" : "훈련시간"}
+                          </Text>
+                          <Text
+                            className="w-full text-right text-body text-common-0"
+                            style={reportTextStyles.bold}
+                          >
+                            {formatTrainingTime(feedback.trainingTime)}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -439,7 +480,7 @@ export default function Report() {
                       통화 타임라인
                     </Text>
 
-                    {feedback.goodSegments.length === 0 ? (
+                    {goodSegments.length === 0 ? (
                       <View className="items-center py-16">
                         <Ionicons
                           name="chatbubble-ellipses-outline"
@@ -455,10 +496,11 @@ export default function Report() {
                       </View>
                     ) : (
                       <View className="mt-[10px]">
-                        {feedback.goodSegments.map((segment, index) => {
+                        {goodSegments.map((segment, index) => {
+                          const highlight = getFeedbackHighlightText(segment);
                           const isExpanded = expandedIndexes.has(index);
                           const isLast =
-                            index === feedback.goodSegments.length - 1;
+                            index === goodSegments.length - 1;
 
                           return (
                             <View
@@ -497,14 +539,16 @@ export default function Report() {
                                 >
                                   <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                     <Pressable
+                                      accessibilityRole="button"
+                                      accessibilityState={{ expanded: isExpanded }}
                                       className="flex-row items-start justify-between"
                                       onPress={() => toggleFeedback(index)}
                                     >
                                       <Text
                                         className="flex-1 pr-2 text-body text-label-neutral"
-                                        style={reportTextStyles.medium}
+                                        style={isExpanded ? reportTextStyles.bold : reportTextStyles.medium}
                                       >
-                                        {keepWordsTogether(segment.good_point)}
+                                        {keepWordsTogether(highlight.title)}
                                       </Text>
                                       <Ionicons
                                         name={
@@ -517,11 +561,12 @@ export default function Report() {
                                       />
                                     </Pressable>
 
-                                    <FeedbackAudio
+                                    <FeedbackDetails
                                       isExpanded={isExpanded}
                                       audioUrl={feedback.recordingUrl}
                                       startTime={segment.start}
                                       endTime={segment.end}
+                                      content={highlight.content}
                                     />
                                   </View>
                                 </View>

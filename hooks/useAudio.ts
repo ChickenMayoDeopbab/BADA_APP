@@ -141,19 +141,19 @@ export function useAudio(options: UseAudioOptions = {}): UseAudioReturn {
         return false;
       }
     }
-    let granted: boolean;
-    if (Platform.OS === "android") {
-      const permission = PermissionsAndroid.PERMISSIONS.RECORD_AUDIO;
-      granted = await PermissionsAndroid.check(permission);
-      if (!granted) {
-        granted = (await PermissionsAndroid.request(permission)) === PermissionsAndroid.RESULTS.GRANTED;
-      }
-    } else {
-      ({ granted } = await requestRecordingPermissionsAsync());
-    }
-    if (!granted || attempt !== generation.current) return false;
-    if (!(await waitForActive()) || attempt !== generation.current) return false;
     try {
+      let granted: boolean;
+      if (Platform.OS === "android") {
+        const permission = PermissionsAndroid.PERMISSIONS.RECORD_AUDIO;
+        granted = await PermissionsAndroid.check(permission);
+        if (!granted) {
+          granted = (await PermissionsAndroid.request(permission)) === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      } else {
+        ({ granted } = await requestRecordingPermissionsAsync());
+      }
+      if (!granted || attempt !== generation.current) return false;
+      if (!(await waitForActive()) || attempt !== generation.current) return false;
       await setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
