@@ -1,5 +1,5 @@
 import { checkAttendance } from "@/api/AttendanceApi";
-import { getFeedback } from "@/api/recordApi";
+import { FeedbackWaitTimeoutError, waitForFeedback } from "@/api/recordApi";
 import { FeedbackResponse } from "@/api/types";
 import Clap from "@/assets/clap.svg";
 import MagnifyingGlass from "@/assets/magnifyingGlass.svg";
@@ -13,7 +13,8 @@ import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { getCompletedCallDuration } from "@/utils/completedCallDuration";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { isCancel } from "axios";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -55,11 +56,7 @@ const reportTextStyles = StyleSheet.create({
   },
 });
 
-const MINIMUM_LOADING_TIME = 3000;
 const FEEDBACK_AUDIO_HEIGHT = 88;
-
-const wait = (duration: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, duration));
 
 function ReportLoading() {
   const translateX = useSharedValue(0);
@@ -263,6 +260,7 @@ export default function Report() {
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const feedbackRequestRef = useRef<AbortController | null>(null);
   const [expandedIndexes, setExpandedIndexes] = useState(
     () => new Set<number>([]),
   );
@@ -277,8 +275,11 @@ export default function Report() {
   });
 
   const fetchFeedback = useCallback(async () => {
+    feedbackRequestRef.current?.abort();
+    const controller = new AbortController();
+    feedbackRequestRef.current = controller;
     const parsedScenarioId = Number(scenarioId);
-    if (!scenarioId || !Number.isSafeInteger(parsedScenarioId)) {
+    if (!scenarioId || !Number.isSafeInteger(parsedScenarioId) || parsedScenarioId <= 0) {
       setError("시나리오 정보를 찾을 수 없습니다.");
       setIsLoading(false);
       return;
@@ -287,10 +288,10 @@ export default function Report() {
     try {
       setIsLoading(true);
       setError(null);
-      const [result] = await Promise.all([
-        getFeedback({ scenarioId: parsedScenarioId }),
-        wait(MINIMUM_LOADING_TIME),
-      ]);
+      const result = await waitForFeedback(
+        { scenarioId: parsedScenarioId },
+        { signal: controller.signal },
+      );
       const routeDuration = Number(callDurationSeconds);
       const completedDuration =
         callDurationSeconds !== undefined &&
@@ -298,6 +299,7 @@ export default function Report() {
         routeDuration >= 0
           ? routeDuration
           : await getCompletedCallDuration(sessionId);
+      if (controller.signal.aborted) return;
       setFeedback(
         completedDuration === null
           ? result
@@ -306,18 +308,22 @@ export default function Report() {
               trainingTime: trainingTimeFromSeconds(completedDuration),
             },
       );
-      try {
-        await checkAttendance();
-      } catch {}
-    } catch {
-      setError("훈련 결과를 불러오지 못했습니다.");
+      void checkAttendance().catch(() => {});
+    } catch (error) {
+      if (controller.signal.aborted || isCancel(error)) return;
+      setError(error instanceof FeedbackWaitTimeoutError
+        ? error.message
+        : "훈련 결과를 불러오지 못했습니다.");
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }, [callDurationSeconds, scenarioId, sessionId]);
 
   useEffect(() => {
-    fetchFeedback();
+    void fetchFeedback();
+    return () => {
+      feedbackRequestRef.current?.abort();
+    };
   }, [fetchFeedback]);
 
   const toggleFeedback = (index: number) => {
