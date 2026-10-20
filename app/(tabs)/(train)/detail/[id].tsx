@@ -289,8 +289,7 @@ export default function Detail() {
         }}
         style={{
           transform: [{ translateY: dragY }],
-          // 탭 바 안쪽에 떠서 하단 인셋은 이미 확보돼 있다
-          marginBottom: 11,
+          marginBottom: insets.bottom + 11,
         }}
       >
         <View
