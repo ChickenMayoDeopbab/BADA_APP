@@ -445,7 +445,9 @@ export type ApiResponseVoid = ApiResponse<ApiVoidData>;
 export interface GoodSegment {
   start: number;
   end: number;
-  good_point: string;
+  title?: string | null;
+  content?: string | null;
+  good_point?: string | null;
 }
 
 export interface FeedbackResponse {

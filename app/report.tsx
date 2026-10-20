@@ -11,6 +11,7 @@ import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { getCompletedCallDuration } from "@/utils/completedCallDuration";
+import { getFeedbackHighlightText } from "@/utils/feedbackHighlight";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { isCancel } from "axios";
@@ -149,16 +150,18 @@ const keepWordsTogether = (text: string) =>
     .map((word) => word.split("").join("\u2060"))
     .join(" ");
 
-function FeedbackAudio({
+function FeedbackDetails({
   isExpanded,
   audioUrl,
   startTime,
   endTime,
+  content,
 }: {
   isExpanded: boolean;
   audioUrl: string;
   startTime: number;
   endTime: number;
+  content: string;
 }) {
   const [shouldRender, setShouldRender] = useState(isExpanded);
   const progress = useSharedValue(isExpanded ? 1 : 0);
@@ -187,21 +190,28 @@ function FeedbackAudio({
   }));
 
   return (
-    <Animated.View
-      pointerEvents={isExpanded ? "auto" : "none"}
-      className="overflow-hidden"
-      style={animatedStyle}
-    >
-      {shouldRender && (
-        <View className="pt-4">
-          <AudioSegmentButton
-            audioUrl={audioUrl}
-            startTime={startTime}
-            endTime={endTime}
-          />
-        </View>
-      )}
-    </Animated.View>
+    <View>
+      <Animated.View
+        pointerEvents={isExpanded ? "auto" : "none"}
+        className="overflow-hidden"
+        style={animatedStyle}
+      >
+        {shouldRender && (
+          <View className="pt-4">
+            <AudioSegmentButton
+              audioUrl={audioUrl}
+              startTime={startTime}
+              endTime={endTime}
+            />
+          </View>
+        )}
+      </Animated.View>
+      {isExpanded && content ? (
+        <Text className="mt-4 text-body text-label-alternative" style={reportTextStyles.regular}>
+          {content}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -483,6 +493,7 @@ export default function Report() {
                     ) : (
                       <View className="mt-[10px]">
                         {feedback.goodSegments.map((segment, index) => {
+                          const highlight = getFeedbackHighlightText(segment);
                           const isExpanded = expandedIndexes.has(index);
                           const isLast =
                             index === feedback.goodSegments.length - 1;
@@ -524,6 +535,8 @@ export default function Report() {
                                 >
                                   <View className="px-3 py-4 overflow-hidden bg-background-normal rounded-component">
                                     <Pressable
+                                      accessibilityRole="button"
+                                      accessibilityState={{ expanded: isExpanded }}
                                       className="flex-row items-start justify-between"
                                       onPress={() => toggleFeedback(index)}
                                     >
@@ -531,7 +544,7 @@ export default function Report() {
                                         className="flex-1 pr-2 text-body text-label-neutral"
                                         style={reportTextStyles.medium}
                                       >
-                                        {keepWordsTogether(segment.good_point)}
+                                        {keepWordsTogether(highlight.title)}
                                       </Text>
                                       <Ionicons
                                         name={
@@ -544,11 +557,12 @@ export default function Report() {
                                       />
                                     </Pressable>
 
-                                    <FeedbackAudio
+                                    <FeedbackDetails
                                       isExpanded={isExpanded}
                                       audioUrl={feedback.recordingUrl}
                                       startTime={segment.start}
                                       endTime={segment.end}
+                                      content={highlight.content}
                                     />
                                   </View>
                                 </View>

@@ -29,6 +29,21 @@ const result = {
   sessionType: 'SCENARIO', scenarioName: '피자 주문하기', trainingTime: '00:01:00',
   goodSegments: [], recordingUrl: '',
 };
+const highlightUtils = loadSource('../utils/feedbackHighlight.ts', {});
+
+test('highlight titles and descriptions prefer the new contract and preserve older records', () => {
+  const cases = [
+    [{ title: '사유를 설명했어요', content: '변경 이유를 구체적으로 말했어요.', good_point: '이전 문구', summary: '이전 설명' }, { title: '사유를 설명했어요', content: '변경 이유를 구체적으로 말했어요.' }],
+    [{ good_point: '이전 제목', summary: '이전 설명' }, { title: '이전 제목', content: '이전 설명' }],
+    [{ good_point: '이전 리포트 피드백' }, { title: '이전 리포트 피드백', content: '' }],
+    [{ title: '  새 제목  ', content: ' ', good_point: '기존 설명' }, { title: '새 제목', content: '기존 설명' }],
+    [{ title: '같은 문구', content: '같은 문구' }, { title: '같은 문구', content: '' }],
+    [{ title: null, content: '설명만 있는 피드백' }, { title: '통화 하이라이트', content: '설명만 있는 피드백' }],
+  ];
+  for (const [input, expected] of cases) {
+    assert.deepEqual(highlightUtils.getFeedbackHighlightText(input), expected);
+  }
+});
 
 /** Match the Spring server's error envelope rather than retrying every 404. */
 function apiError(status = 404, code = 'TRAINING_RECORD_001') {
@@ -73,6 +88,7 @@ function reportScreen(api) {
     '@/design-system/effects': {},
     '@/hooks/useAndroidBackHandler': { useAndroidBackHandler() {} },
     '@/utils/completedCallDuration': { getCompletedCallDuration: async () => null },
+    '@/utils/feedbackHighlight': highlightUtils,
     '@expo/vector-icons': { Ionicons: 'Icon' },
     'expo-router': {
       router: {},
@@ -94,7 +110,12 @@ function reportScreen(api) {
       StyleSheet: { create: (styles) => styles },
       useWindowDimensions: () => ({ width: 360, fontScale: 1 }),
     },
-    'react-native-reanimated': {},
+    'react-native-reanimated': {
+      default: { View: 'AnimatedView' },
+      useSharedValue: (value) => ({ value }),
+      useReducedMotion: () => true,
+      useAnimatedStyle: (factory) => factory(),
+    },
     'react-native-safe-area-context': { SafeAreaView: 'SafeArea' },
     'react-native-svg': {},
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
@@ -104,6 +125,29 @@ function reportScreen(api) {
     start: () => effects[0](),
   };
 }
+
+test('the report shows a title while collapsed and the matching description and audio range after expansion', async () => {
+  const highlight = { start: 4, end: 9, title: '변경 사유 전달', content: '회의 일정을 바꾸어야 하는 이유를 설명했어요.' };
+  const report = reportScreen({ waitForFeedback: async () => ({ ...result, goodSegments: [highlight], recordingUrl: 'https://example.test/call.m4a' }) });
+  report.render();
+  const cleanup = report.start();
+  await flush();
+  let tree = report.render();
+  assert.ok(findNode(tree, (node) => typeof node.props?.children === 'string' && node.props.children.replaceAll('\u2060', '') === highlight.title));
+  let details = findNode(tree, (node) => node.type?.name === 'FeedbackDetails');
+  assert.equal(details.props.isExpanded, false);
+  findNode(tree, (node) => node.props?.accessibilityState?.expanded === false).props.onPress();
+  tree = report.render();
+  details = findNode(tree, (node) => node.type?.name === 'FeedbackDetails');
+  assert.equal(details.props.isExpanded, true);
+  const expanded = details.type(details.props);
+  assert.ok(findNode(expanded, (node) => node.props?.children === highlight.content));
+  const audio = findNode(expanded, (node) => node.type === 'Audio');
+  assert.equal(audio.props.startTime, 4);
+  assert.equal(audio.props.endTime, 9);
+  assert.equal(audio.props.audioUrl, 'https://example.test/call.m4a');
+  cleanup();
+});
 
 test('the report stays loading across pending responses and shows results without waiting for attendance', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
