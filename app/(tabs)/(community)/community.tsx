@@ -94,7 +94,7 @@ function CommunityFeed({
       <ScrollView
         className="flex-1"
         style={{ width: pageWidth }}
-        contentContainerClassName="px-8 pb-3"
+        contentContainerClassName="px-[11px] pb-3"
         showsVerticalScrollIndicator={false}
       >
         <CommunityPostListSkeleton />
@@ -112,7 +112,7 @@ function CommunityFeed({
         contentContainerStyle={{
           flexGrow: 1,
           gap: 12,
-          paddingHorizontal: 32,
+          paddingHorizontal: 11,
           paddingBottom: 12,
         }}
         renderItem={({ item }) => (
@@ -314,7 +314,7 @@ export default function Community() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="커뮤니티 운영정책 및 개발자 문의"
-        className="mx-8 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
+        className="mx-8 mt-4 mb-3 flex-row items-center rounded-component bg-fill-normal px-4 py-3 active:bg-fill-pressed"
         onPress={() => router.push("/(tabs)/(community)/policy" as Href)}
       >
         <Ionicons
@@ -389,7 +389,7 @@ export default function Community() {
           elevation: 5,
         }}
       >
-        <FontAsweome5 name="pen" size={29} color="white" />
+        <FontAsweome5 name="pen" size={24} color="white" />
       </Pressable>
     </SafeAreaView>
   );

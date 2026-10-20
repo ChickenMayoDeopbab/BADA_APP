@@ -116,7 +116,7 @@ function ProfileScreen() {
       <ScrollView
         className="flex-1 bg-background-alternative"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-4 px-[33px] pb-6 pt-[22px]"
+        contentContainerClassName="gap-4 px-[22px] pb-6 pt-[22px]"
       >
         <View
           className="w-full items-center gap-6 rounded-component bg-background-normal px-[22px] py-[14px]"

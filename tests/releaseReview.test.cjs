@@ -96,28 +96,30 @@ test('a cached profile never exposes password fields before login method confirm
 });
 
 /** Render the actual schedule form and invoke its public button callbacks. */
-function scheduleScreen({ failedCancellations = 1 } = {}) {
+function scheduleScreen({ failedCancellations = 1, immediate = false, createSession, createSchedule, saveScenario } = {}) {
   const alerts = [], routes = [], cancellations = [], removals = [];
-  const states = ['time', 0, 0, 1, 2, false];
+  const states = ['time', 0, 0, immediate ? 0 : 1, immediate ? 0 : 2, false];
+  let focus;
   const refs = [];
   let stateIndex = 0, refIndex = 0, creates = 0;
   const mocks = {
-    '@/api/trainApi': {},
+    '@/api/trainApi': { createSession: async () => { creates++; return createSession?.(); } },
     '@/components/common/CustomButton': { default: 'Button' },
     '@/components/common/Top': { default: 'Top' },
     '@/components/train/MinuteRangePicker': { default: 'Picker' },
     '@/components/train/StepProgress': { default: 'Progress' },
     '@/components/train/StepSlider': { default: 'Slider' },
+    '@/components/train/TrainingSettingTitle': { default: 'SettingTitle' },
     '@/constants/train': { DIFFICULTY_MAP: ['low'], SPRING_PERSONALITY_MAP: ['KIND'] },
     '@/api/trainingCallApi': {
-      createTrainingCallSchedule: async () => { creates++; return { scheduleId: 7, scheduledAt: '2026-10-16T10:00:00Z' }; },
+      createTrainingCallSchedule: async () => { creates++; return createSchedule ? createSchedule() : { scheduleId: 7, scheduledAt: '2026-10-16T10:00:00Z' }; },
       cancelTrainingCallSchedule: async (id) => {
         cancellations.push(id);
         if (cancellations.length <= failedCancellations) throw new Error('offline');
       },
     },
     '@/utils/trainingCallScenario': {
-      saveTrainingCallScenario: async () => { throw new Error('storage full'); },
+      saveTrainingCallScenario: saveScenario || (async () => { throw new Error('storage full'); }),
       removeTrainingCallScenario: async (id) => { removals.push(id); },
     },
     '@/api/error': { getApiErrorMessage: (error) => error.message },
@@ -127,8 +129,8 @@ function scheduleScreen({ failedCancellations = 1 } = {}) {
     '@/hooks/useSensitiveConsentGuard': { useSensitiveConsentGuard: () => async () => true },
     '@expo/vector-icons/Ionicons': {},
     'expo-router': {
-      router: { replace: (route) => routes.push(route) },
-      useFocusEffect() {},
+      router: { replace: (route) => routes.push(route), push: (route) => routes.push(route) },
+      useFocusEffect: callback => { focus = callback; },
       useLocalSearchParams: () => ({ id: '17' }),
     },
     'react': {
@@ -144,6 +146,7 @@ function scheduleScreen({ failedCancellations = 1 } = {}) {
   const render = () => { stateIndex = 0; refIndex = 0; return Screen(); };
   return {
     alerts, routes, cancellations, removals,
+    enter: () => { render(); const cleanup = focus(); states[0] = "time"; states[3] = immediate ? 0 : 1; states[4] = immediate ? 0 : 2; return cleanup; },
     get creates() { return creates; },
     complete: () => findNode(render(), (node) => node.type === 'Button' && node.props?.label === '설정 완료하기').props.onPress(),
   };
@@ -166,6 +169,134 @@ test('double failure exposes same-reservation cancellation retry and prevents du
   assert.equal(s.alerts.at(-1).title, '예약을 취소했어요');
 });
 
+test('training help opens an anchored explanation and closes by tapping outside', () => {
+  for (const setting of ['difficulty', 'attitude']) {
+    const refs = [];
+    let anchor = null, refIndex = 0;
+    const SettingTitle = loadSource('../components/train/TrainingSettingTitle.tsx', {
+      '@/design-system/colors': { SEMANTIC_COLORS: { label: { alternative: '#888' } } },
+      '@expo/vector-icons/Ionicons': { default: 'Icon' },
+      'react': {
+        useRef: (initial) => refs[refIndex++] ??= { current: initial },
+        useState: () => [anchor, (next) => { anchor = next; }],
+      },
+      'react-native': {
+        View: 'View', Text: 'Text', Pressable: 'Pressable', Modal: 'Modal', ScrollView: 'ScrollView',
+        useWindowDimensions: () => ({ width: 360, height: 800 }),
+      },
+      'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) },
+      'react/jsx-runtime': { jsx, jsxs: jsx },
+    }).default;
+    const render = () => { refIndex = 0; return SettingTitle({ setting }); };
+    let tree = render();
+    const button = findNode(tree, (node) => node.props?.accessibilityRole === 'button');
+    button.props.ref.current = { measureInWindow: (callback) => callback(90, 180, 24, 24) };
+    button.props.onPress();
+    tree = render();
+    assert.equal(findNode(tree, (node) => node.type === 'Modal').props.visible, true);
+    assert.equal(findNode(tree, (node) => node.props?.style?.top === 212).props.style.left, 90);
+    const explanation = findNode(tree, (node) => node.type === 'ScrollView').props.children.props.children;
+    assert.match(explanation, setting === 'difficulty' ? /하·중·상/ : /친절·보통·까다로움·진상/);
+    findNode(tree, (node) => node.props?.accessibilityLabel === '도움말 닫기').props.onPress();
+    assert.equal(findNode(render(), (node) => node.type === 'Modal').props.visible, false);
+  }
+});
+
+
+test('home recommendation artwork falls back after an image error and recovers for a new category icon', () => {
+  let failedImageUrl = null;
+  const Illustration = loadSource('../components/home/HomeScenarioIllustration.tsx', {
+    '@/assets/home-pizza.svg': { default: 'Pizza' },
+    '@/components/common/StyledImage': { default: 'Image' },
+    'react': { useState: () => [failedImageUrl, (url) => { failedImageUrl = url; }] },
+    'react-native': { View: 'View' },
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+  }).default;
+  assert.ok(findNode(Illustration({}), (node) => node.type === 'Pizza'));
+  const categoryIconUrl = 'https://example.test/work-icon.svg';
+  const image = findNode(Illustration({ categoryIconUrl }), (node) => node.type === 'Image');
+  assert.equal(image.props.source, categoryIconUrl);
+  image.props.onError();
+  assert.ok(findNode(Illustration({ categoryIconUrl }), (node) => node.type === 'Pizza'));
+  const nextIcon = 'https://example.test/daily-icon.svg';
+  assert.equal(findNode(Illustration({ categoryIconUrl: nextIcon }), (node) => node.type === 'Image').props.source, nextIcon);
+});
+
+/** Render the call screen without native audio, timers or network side effects. */
+function callScreen(initialStep, height = 568, options = {}) {
+  const states = [], refs = [], events = [], alerts = [], routes = [];
+  let socketOptions, onBack, focus, writes = 0;
+  let stateIndex = 0, refIndex = 0;
+  const Screen = loadSource('../app/train.tsx', {
+    '@/components/train/CallBackground': { default: 'Background' },
+    '@/api/trainingCallApi': {},
+    '@/api/error': {},
+    '@/hooks/useSensitiveConsentGuard': { useSensitiveConsentGuard: () => async () => true },
+    '@/utils/trainingCallScenario': {},
+    '@/components/train/ScriptHintBar': { default: 'Hint' },
+    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert: alert => alerts.push(alert) }) },
+    '@/design-system/colors': require('../design-system/colors'),
+    '@/hooks/useAndroidBackHandler': { useAndroidBackHandler: callback => { onBack = callback; } },
+    '@/hooks/useScenarios': { useScenario: () => ({ data: { title: '피자 주문하기' } }) },
+    '@/hooks/useIncomingCallRinging': { useIncomingCallRinging() {} },
+    '@/hooks/useAudio': { useAudio: () => ({
+      stopSendingAudio: async () => { events.push('stop'); },
+      resetStream: (reason) => events.push(reason),
+      requestPermission: options.permission || (async () => true),
+      setMicrophoneMuted() {},
+    }) },
+    '@/hooks/useTrainWebSocket': { useTrainWebSocket: props => { socketOptions = props; return {
+      isConnected: true, isAiSpeaking: false,
+      sendEndCall: () => events.push('end'),
+    }; } },
+    '@/utils/completedCallDuration': { saveCompletedCallDuration: async () => {} },
+    '@/utils/mediaVolumeControl': {},
+    '@expo/vector-icons/Ionicons': { default: 'Icon' },
+    'expo-router': {
+      router: { replace: route => routes.push(route), canGoBack: () => false }, useFocusEffect: callback => { focus = callback; },
+      useLocalSearchParams: () => ({ sessionId: 'session-1', scenarioId: '1' }),
+    },
+    'react': {
+      useEffect() {}, useMemo: (compute) => compute(), useCallback: (callback) => callback,
+      useRef: (initial) => refs[refIndex++] ??= { current: initial },
+      useState: (initial) => {
+        const i = stateIndex++;
+        if (!(i in states)) states[i] = initial === 'receive' ? initialStep : Array.isArray(initial) ? [{ role: 'user', text: '안녕하세요' }] : initial;
+        return [states[i], (next) => { writes++; states[i] = typeof next === 'function' ? next(states[i]) : next; }];
+      },
+    },
+    'react-native': {
+      View: 'View', Text: 'Text', TouchableOpacity: 'Button', Modal: 'Modal', ScrollView: 'ScrollView',
+      StyleSheet: { create: (styles) => styles }, BackHandler: {},
+      useWindowDimensions: () => ({ width: 320, height, fontScale: 1 }),
+    },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 24 }) },
+    'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
+  }).default;
+  return { events, alerts, routes, get writes() { return writes; }, back: () => onBack(), enter: () => focus(), fail: () => socketOptions.onError("WS_CONNECT_TIMEOUT"), render: () => { stateIndex = 0; refIndex = 0; return Screen(); } };
+}
+
+test('receiving and active calls stay fixed while the script alone scrolls and ending still stops audio', () => {
+  for (const height of [568, 874]) {
+    const incoming = callScreen('receive', height);
+    assert.equal(findNode(incoming.render(), (node) => node.type === 'ScrollView'), undefined);
+    const s = callScreen('training', height);
+    let tree = s.render();
+    assert.equal(findNode(tree, (node) => node.type === 'ScrollView'), undefined);
+    findNode(tree, (node) => node.type === 'Button' && node.props.children?.props?.name === 'document-text').props.onPress();
+    tree = s.render();
+    const script = findNode(tree, (node) => node.type === 'ScrollView');
+    assert.ok(script, 'the conversation remains scrollable inside the script panel');
+    const scrolls = [];
+    script.props.ref.current = { scrollToEnd: (options) => scrolls.push(options) };
+    script.props.onContentSizeChange();
+    assert.deepEqual(scrolls, [{ animated: true }]);
+    findNode(tree, (node) => node.props?.accessibilityLabel === '통화 종료').props.onPress();
+    assert.deepEqual(s.events, ['stop', 'call_end', 'end']);
+    assert.equal(findNode(s.render(), (node) => node.props?.accessibilityLabel === '통화 종료').props.disabled, true);
+  }
+});
+
 test('failed retry keeps recovery actions and lets the user return home to reject a ringing call', async () => {
   const s = scheduleScreen({ failedCancellations: 3 });
   await s.complete();
@@ -176,4 +307,51 @@ test('failed retry keeps recovery actions and lets the user return home to rejec
   s.alerts.at(-1).onCancel();
   assert.deepEqual(s.routes, ['/(tabs)/(home)/home']);
   assert.equal(s.creates, 1);
+});
+
+
+test('initial call connection failure explains recovery and never opens an empty report', () => {
+  const s = callScreen('training'); s.render(); s.fail();
+  assert.equal(s.alerts.length, 1);
+  assert.deepEqual(s.routes, ['/(tabs)/(train)/list']);
+  assert.equal(s.events.filter(event => event === 'stop').length, 1);
+  s.fail(); assert.equal(s.alerts.length, 1);
+});
+
+test('Android back from a ringing call returns to the app instead of terminating it', async () => {
+  const s = callScreen('receive'); s.render(); assert.equal(s.back(), true);
+  await flush(); assert.deepEqual(s.routes, ['/(tabs)/(home)/home']);
+});
+
+test('leaving during microphone permission cannot start audio on a later screen', async () => {
+  let resolve;
+  const s = callScreen('receive', 568, { permission: () => new Promise(done => { resolve = done; }) });
+  let tree = s.render(); const cleanup = s.enter();
+  // Open the meditation dialog and skip it to request permission.
+  findNode(tree, node => node.props?.accessibilityLabel === '전화 받기').props.onPress();
+  tree = s.render(); const dialog = findNode(tree, node => typeof node.props?.onSkip === 'function');
+  dialog.props.onSkip(); assert.equal(typeof cleanup, "function"); cleanup(); const writes = s.writes; resolve(true); await flush();
+  assert.equal(s.writes, writes);
+  s.render();
+  assert.equal(s.events.filter(event => event === 'start').length, 0);
+  assert.equal(s.alerts.length, 0);
+});
+
+
+test('an immediate scenario session arriving after leaving cannot reopen the call screen', async () => {
+  let resolve; const s = scheduleScreen({ immediate: true, createSession: () => new Promise(done => { resolve = done; }) });
+  const cleanup = s.enter(), pending = s.complete(); await flush(); cleanup?.(); resolve({ sessionId: 's', wsUrl: 'wss://example.test' }); await pending;
+  assert.deepEqual(s.routes, []); assert.deepEqual(s.alerts, []);
+});
+
+test('malformed immediate scenario sessions are rejected before navigation', async () => {
+  const s = scheduleScreen({ immediate: true, createSession: async () => ({ sessionId: null, wsUrl: null }) });
+  await s.complete(); assert.deepEqual(s.routes, []); assert.equal(s.alerts.length, 1);
+});
+
+test('a scheduled response after leaving persists recovery data without redirecting the new screen', async () => {
+  let resolve; const saved = [];
+  const s = scheduleScreen({ createSchedule: () => new Promise(done => { resolve = done; }), saveScenario: async (...args) => saved.push(args) });
+  const cleanup = s.enter(), pending = s.complete(); await flush(); cleanup?.(); resolve({ scheduleId: 9 }); await pending;
+  assert.equal(saved[0][0], 9); assert.deepEqual(s.routes, []); assert.deepEqual(s.alerts, []);
 });

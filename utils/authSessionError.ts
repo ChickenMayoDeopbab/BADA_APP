@@ -5,3 +5,11 @@ export class AuthSessionExpiredError extends Error {
     this.name = "AuthSessionExpiredError";
   }
 }
+
+/** A stale request belongs to a discarded session, not an expired current account. */
+export class AuthSessionChangedError extends Error {
+  constructor() {
+    super("로그인 계정이 변경되어 이전 요청을 취소했어요.");
+    this.name = "AuthSessionChangedError";
+  }
+}

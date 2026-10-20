@@ -58,7 +58,7 @@ test("Info.plist에 단일 iOS Scene 구성을 추가한다", () => {
   );
 });
 
-test("React Native 시작을 SceneDelegate로 이동한다", () => {
+test("Expo 시작 창을 재사용해 Scene에 연결한다", () => {
   const result = applyAppDelegateSceneLifecycle(appDelegate);
 
   assert.match(
@@ -66,14 +66,13 @@ test("React Native 시작을 SceneDelegate로 이동한다", () => {
     /class SceneDelegate: UIResponder, UIWindowSceneDelegate/,
   );
   assert.match(result, /configurationForConnecting connectingSceneSession/);
-  assert.match(result, /UIWindow\(windowScene: windowScene\)/);
-  assert.match(result, /launchOptions: appDelegate\.reactNativeLaunchOptions/);
+  assert.match(result, /appWindow.windowScene = windowScene/);
+  assert.match(result, /appWindow.makeKeyAndVisible\(\)/);
+  assert.equal(result.match(/factory.startReactNative\(/g)?.length, 1);
+  assert.ok(result.indexOf("factory.startReactNative(") < result.indexOf("return super.application"));
   assert.match(result, /reactNativeLaunchOptions = launchOptions/);
-  assert.match(result, /if #unavailable\(iOS 13\.0\)/);
-  assert.doesNotMatch(
-    result,
-    /#if os\(iOS\) \|\| os\(tvOS\)\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)/,
-  );
+  assert.doesNotMatch(result, /if #unavailable\(iOS 13\.0\)/);
+
 });
 
 test("Scene 이벤트를 기존 AppDelegate에 전달한다", () => {
@@ -98,7 +97,7 @@ test("Firebase가 삽입한 앱 초기화 코드를 유지한다", () => {
   assert.match(result, /FirebaseApp\.configure\(\)/);
   assert.ok(
     result.indexOf("FirebaseApp.configure()") <
-      result.indexOf("if #unavailable(iOS 13.0)"),
+      result.indexOf("factory.startReactNative("),
   );
 });
 
@@ -111,6 +110,21 @@ test("AppDelegate 보정을 반복 적용해도 중복되지 않는다", () => {
     secondResult.match(/class SceneDelegate: UIResponder/g)?.length,
     1,
   );
+});
+
+test("이전 Scene 생성 결과도 Expo 시작 창을 재사용하도록 갱신한다", () => {
+  const current = applyAppDelegateSceneLifecycle(appDelegate);
+  const legacy = current.replace(
+    /    window = UIWindow\(frame: UIScreen.main.bounds\)\n    factory.startReactNative\([\s\S]*?launchOptions: launchOptions\)/,
+    `    if #unavailable(iOS 13.0) {
+      window = UIWindow(frame: UIScreen.main.bounds)
+      factory.startReactNative(
+        withModuleName: "main",
+        in: window,
+        launchOptions: launchOptions)
+    }`,
+  );
+  assert.equal(applyAppDelegateSceneLifecycle(legacy), current);
 });
 
 test("지원하지 않는 AppDelegate 형식은 명확한 오류를 반환한다", () => {

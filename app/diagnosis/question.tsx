@@ -64,6 +64,8 @@ export default function Question() {
     currentAnswer,
     currentQuestion,
     status,
+    isLoadingQuestions,
+    handleRetry,
     handleChange,
     handleNext,
     handleBack,
@@ -80,16 +82,24 @@ export default function Question() {
 
   if (status !== null) {
     return (
-      <Loading
-        status={status}
-        title="자가진단"
-        loadingText="콜포비아 레벨을 계산 중이에요."
-        loadingSubText="잠시만 기다려 주세요."
-        doneText="콜포비아 레벨의 계산이 끝났어요."
-        doneSubText="함께 결과를 확인해볼까요?"
-        errorText="레벨 계산에 실패했어요."
-        errorSubText="다시 시도해주세요."
-      />
+      <View className="flex-1 bg-background-normal">
+        <Loading
+          status={status}
+          title="자가진단"
+          loadingText={isLoadingQuestions ? "자가진단 문항을 불러오고 있어요." : "콜포비아 레벨을 계산 중이에요."}
+          loadingSubText="잠시만 기다려 주세요."
+          doneText="콜포비아 레벨의 계산이 끝났어요."
+          doneSubText="함께 결과를 확인해볼까요?"
+          errorText={isLoadingQuestions ? "문항을 불러오지 못했어요." : "레벨 계산에 실패했어요."}
+          errorSubText="다시 시도해주세요."
+        />
+        {status === "error" && (
+          <View className="gap-3 px-10" style={{ paddingBottom: insets.bottom + 40 }}>
+            <CustomButton label="다시 시도" onPress={handleRetry} tone="primary" />
+            <CustomButton label="돌아가기" onPress={handleBack} />
+          </View>
+        )}
+      </View>
     );
   }
 

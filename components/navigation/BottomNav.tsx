@@ -50,7 +50,7 @@ export default function BottomNav({
       }}
     >
       <View
-        className="h-[72px] flex-row items-center"
+        className="h-[72px] flex-row items-center justify-between"
         style={{ paddingHorizontal: horizontalPadding }}
       >
         {state.routes.map((route, index) => {
@@ -76,12 +76,14 @@ export default function BottomNav({
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={descriptors[route.key].options.tabBarAccessibilityLabel}
               onPress={onPress}
-              className="h-full min-w-0 items-center justify-center gap-1"
-              style={{ flex: route.name === "(community)" ? 1.25 : 1 }}
+              hitSlop={1}
+              className="h-full w-[42px] items-center justify-center gap-1"
             >
               <TabIcon routeName={route.name} color={color} />
               <Text
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
                 className="w-full text-center text-caption font-medium"
                 style={{ color }}
               >

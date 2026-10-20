@@ -1,7 +1,9 @@
-import { SEMANTIC_COLORS } from "@/design-system";
+import { getApiErrorMessage } from "@/api/error";
+import { useAppAlert } from "@/context/AppAlertContext";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import StepSlider from "@/components/train/StepSlider";
+import TrainingSettingTitle from "@/components/train/TrainingSettingTitle";
 import { createSession } from "@/api/trainApi";
 import {
   ATTITUDE_LABELS,
@@ -9,44 +11,64 @@ import {
   DIFFICULTY_MAP,
   SPRING_PERSONALITY_MAP,
 } from "@/constants/train";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
 export default function WarmupStart() {
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAppAlert();
   const ensureSensitiveConsent = useSensitiveConsentGuard();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [difficulty, setDifficulty] = useState(0); // 하(0) 중(1) 상(2)
   const [attitude, setAttitude] = useState(0); // 친절(0) 보통(1) 까다로움(2) 진상(3)
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const isCreatingRef = useRef(false);
+  const isActiveRef = useRef(true);
+  const attemptRef = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
+      isActiveRef.current = true;
+      isCreatingRef.current = false;
+      attemptRef.current++;
       setDifficulty(0);
       setAttitude(0);
       setIsCreatingSession(false);
+      return () => {
+        isActiveRef.current = false;
+        isCreatingRef.current = false;
+        attemptRef.current++;
+      };
     }, []),
   );
 
   /** 워밍업 세션 생성 — 발신 시간은 0초(즉시 발신) 고정 */
   const handleComplete = async () => {
-    if (!id) return;
-    if (!(await ensureSensitiveConsent())) return;
-
+    if (isCreatingRef.current || !isActiveRef.current) return;
+    const scenarioId = Number(id);
+    if (!id || !Number.isSafeInteger(scenarioId) || scenarioId <= 0) {
+      showAlert({ title: "시나리오를 찾을 수 없어요", description: "워밍업 시나리오를 다시 선택해 주세요." });
+      return;
+    }
+    isCreatingRef.current = true;
+    const attempt = ++attemptRef.current;
     setIsCreatingSession(true);
+    let didNavigate = false;
     try {
+      if (!(await ensureSensitiveConsent()) || !isActiveRef.current || attempt !== attemptRef.current) return;
       const session = await createSession({
-        scenarioId: parseInt(id, 10),
+        scenarioId,
         type: "WARMUP",
         aiPersonality: SPRING_PERSONALITY_MAP[attitude],
         difficulty: DIFFICULTY_MAP[difficulty],
         maxDurationSeconds: 0,
       });
+      if (!isActiveRef.current || attempt !== attemptRef.current) return;
+      if (!session?.sessionId || !session.wsUrl) throw new Error("통화 세션을 받지 못했어요.");
       router.push({
         pathname: "/train",
         params: {
@@ -56,8 +78,15 @@ export default function WarmupStart() {
           isWarmup: "true",
         },
       });
-    } catch {
-      setIsCreatingSession(false);
+      didNavigate = true;
+    } catch (error) {
+      if (!isActiveRef.current || attempt !== attemptRef.current) return;
+      showAlert({ title: "워밍업을 시작하지 못했어요", description: getApiErrorMessage(error, "연결 상태를 확인한 뒤 다시 시도해 주세요.") });
+    } finally {
+      if (!didNavigate && isActiveRef.current && attempt === attemptRef.current) {
+        isCreatingRef.current = false;
+        setIsCreatingSession(false);
+      }
     }
   };
 
@@ -70,15 +99,8 @@ export default function WarmupStart() {
         showsVerticalScrollIndicator={false}
       >
         <View className="mb-10">
-          <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-headline1 font-bold text-label-neutral">
-              난이도
-            </Text>
-            <Ionicons
-              name="help-circle-outline"
-              size={20}
-              color={SEMANTIC_COLORS.line.normal}
-            />
+          <View className="mb-8">
+            <TrainingSettingTitle setting="difficulty" />
           </View>
           <StepSlider
             steps={DIFFICULTY_LABELS}
@@ -88,15 +110,8 @@ export default function WarmupStart() {
         </View>
 
         <View>
-          <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-headline1 font-bold text-label-neutral">
-              상대의 태도
-            </Text>
-            <Ionicons
-              name="help-circle-outline"
-              size={20}
-              color={SEMANTIC_COLORS.line.normal}
-            />
+          <View className="mb-8">
+            <TrainingSettingTitle setting="attitude" />
           </View>
           <StepSlider
             steps={ATTITUDE_LABELS}

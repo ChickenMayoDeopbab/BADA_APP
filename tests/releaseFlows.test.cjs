@@ -566,6 +566,7 @@ test("scheduled scenario IDs survive a fresh module load and are removed after u
 
 /** 앱 시작 인증 검사의 중단과 재실행을 실제 effect로 검증한다. */
 function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } = {}) {
+  const queryClient = new (require("@tanstack/query-core").QueryClient)();
   let pathname = "/";
   let refIndex = 0;
   const refs = [];
@@ -586,7 +587,7 @@ function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } 
       getItem: async () => autoLogin,
     },
     "@tanstack/react-query": {
-      QueryClient: class {},
+      QueryClient: class { constructor() { return queryClient; } },
       QueryClientProvider: () => null,
     },
     "@/components/train/ScheduledCallWatcher": { default: () => null },
@@ -657,6 +658,8 @@ function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } 
       tree = loaded.exports.default();
       return effects[1];
     },
+    queryClient,
+    runCacheEffect: () => effects[3]?.(),
     tokenResolvers,
     tokenRejecters,
     routes,
@@ -721,6 +724,7 @@ function authStorageSetup(platform = "web") {
     },
     "react-native": { Platform: { OS: platform } },
     "jwt-decode": require("jwt-decode"),
+    "./authSessionError": loadTypeScript("../utils/authSessionError.ts"),
   };
   mocks["./trainingCallScenario"] = loadTypeScript("../utils/trainingCallScenario.ts", {
     "@react-native-async-storage/async-storage": mocks["@react-native-async-storage/async-storage"],
@@ -955,49 +959,26 @@ test('the existing push listener signals one immediate reservation check and uns
   assert.equal(unsubscribed, true);
 });
 
-/** Read the retry button from the actual root layout tree. */
-function findStartupRetry(tree) {
-  if (!tree || typeof tree !== 'object') return undefined;
-  if (Array.isArray(tree)) return tree.map(findStartupRetry).find(Boolean);
-  if (tree.props?.label === '다시 확인') return tree;
-  return findStartupRetry(tree.props?.children);
-}
-
-test('cold launch with remember-login preserves credentials on a temporary error and retries successfully', async () => {
-  let isOffline = true;
+test('temporary startup API failure preserves credentials and routes directly to login', async () => {
   const root = rootSetup({ getDestination: async (options) => {
     assert.equal(options.throwOnError, true);
-    if (isOffline) throw new Error('network unavailable');
-    return '/home';
+    throw new Error('network unavailable');
   } });
   const cleanup = root.render('/')();
   root.tokenResolvers[0]('saved-access-token');
   await flushAsync();
   assert.equal(root.clears, 0);
-  assert.deepEqual(root.routes, []);
-  root.render('/');
-  const retry = findStartupRetry(root.tree);
-  assert.ok(retry);
-  retry.props.onPress();
+  assert.deepEqual(root.routes, ['/auth']);
   cleanup();
-  isOffline = false;
-  const retryCleanup = root.render('/')();
-  root.tokenResolvers[1]('saved-access-token');
-  await flushAsync();
-  assert.equal(root.clears, 0);
-  assert.deepEqual(root.routes, ['/home']);
-  retryCleanup();
 });
 
-test('temporary secure-storage failure at cold launch does not delete login tokens', async () => {
+test('temporary secure-storage failure routes to login without deleting saved tokens', async () => {
   const root = rootSetup();
   const cleanup = root.render('/')();
   root.tokenRejecters[0](new Error('device keychain temporarily unavailable'));
   await flushAsync();
   assert.equal(root.clears, 0);
-  assert.deepEqual(root.routes, []);
-  root.render('/');
-  assert.ok(findStartupRetry(root.tree));
+  assert.deepEqual(root.routes, ['/auth']);
   cleanup();
 });
 
@@ -1022,4 +1003,21 @@ test('legacy cleanup errors cannot hide a valid secure token or undo a successfu
   await s.api.setAuthTokens(refreshed);
   assert.equal(await s.api.getAccessToken(), refreshed.accessToken);
   assert.equal(await s.api.getAuthLoginMethod(), 'password');
+});
+
+
+test('returning to authentication clears all previous account queries and cancels pending reads', async () => {
+  const root = rootSetup();
+  for (const key of ['trainingRecords', 'trainingRecordDates', 'community', 'notifications', 'currentUserId', 'profileImage']) {
+    root.queryClient.setQueryData([key], { owner: 'previous-user' });
+  }
+  let signal;
+  const pending = root.queryClient.fetchQuery({ queryKey: ['trainingRecord', 1], queryFn: (context) => {
+    signal = context.signal;
+    return new Promise(() => {});
+  } }).catch(() => {});
+  root.render('/auth/login'); root.runCacheEffect();
+  assert.equal(root.queryClient.getQueryCache().getAll().length, 0);
+  assert.equal(signal.aborted, true);
+  await pending;
 });
