@@ -6,7 +6,7 @@
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "node scripts/run-android.cjs",
-    "ios": "expo run:ios",
+    "ios": "expo prebuild --platform ios && expo run:ios",
     "ios:prebuild": "EXPO_PUBLIC_FIREBASE_PUSH_ENABLED=true expo prebuild --clean --platform ios && npm run ios:check",
     "ios:check": "node scripts/check-ios-native.cjs",
     "web": "expo start --web",

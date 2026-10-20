@@ -8,6 +8,18 @@ const FIX_GUIDE = "npm run ios:prebuild 로 ios/ 폴더를 다시 생성하세�
 const REQUIRED_ITEMS = [
   {
     file: "Info.plist",
+    label: "NSMicrophoneUsageDescription (통화 마이크 권한)",
+    test: (contents) =>
+      /<key>NSMicrophoneUsageDescription<\/key>\s*<string>\s*\S[^<]*<\/string>/.test(contents),
+  },
+  {
+    file: "Info.plist",
+    label: "NSPhotoLibraryUsageDescription (사진 선택 권한)",
+    test: (contents) =>
+      /<key>NSPhotoLibraryUsageDescription<\/key>\s*<string>\s*\S[^<]*<\/string>/.test(contents),
+  },
+  {
+    file: "Info.plist",
     label: "UIApplicationSceneManifest (iOS 27 Scene 구성)",
     test: (contents) => contents.includes("<key>UIApplicationSceneManifest</key>"),
   },
