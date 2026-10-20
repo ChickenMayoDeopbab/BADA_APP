@@ -167,26 +167,36 @@ test('double failure exposes same-reservation cancellation retry and prevents du
   assert.equal(s.alerts.at(-1).title, '예약을 취소했어요');
 });
 
-test('each training setting help button opens the explanation for that setting', () => {
-  const alerts = [];
-  const SettingTitle = loadSource('../components/train/TrainingSettingTitle.tsx', {
-    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert: (alert) => alerts.push(alert) }) },
-    '@/design-system/colors': { SEMANTIC_COLORS: { label: { alternative: '#888' } } },
-    '@expo/vector-icons/Ionicons': { default: 'Icon' },
-    'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable' },
-    'react/jsx-runtime': { jsx, jsxs: jsx },
-  }).default;
-
-  for (const [setting, title, explanation] of [
-    ['difficulty', '난이도', /하·중·상/],
-    ['attitude', '상대의 태도', /친절·보통·까다로움·진상/],
-  ]) {
-    const button = findNode(SettingTitle({ setting }), (node) => node.props?.accessibilityLabel === `${title} 도움말`);
-    assert.equal(button.props.accessibilityRole, 'button');
+test('training help opens an anchored explanation and closes by tapping outside', () => {
+  for (const setting of ['difficulty', 'attitude']) {
+    const refs = [];
+    let anchor = null, refIndex = 0;
+    const SettingTitle = loadSource('../components/train/TrainingSettingTitle.tsx', {
+      '@/design-system/colors': { SEMANTIC_COLORS: { label: { alternative: '#888' } } },
+      '@expo/vector-icons/Ionicons': { default: 'Icon' },
+      'react': {
+        useRef: (initial) => refs[refIndex++] ??= { current: initial },
+        useState: () => [anchor, (next) => { anchor = next; }],
+      },
+      'react-native': {
+        View: 'View', Text: 'Text', Pressable: 'Pressable', Modal: 'Modal', ScrollView: 'ScrollView',
+        useWindowDimensions: () => ({ width: 360, height: 800 }),
+      },
+      'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) },
+      'react/jsx-runtime': { jsx, jsxs: jsx },
+    }).default;
+    const render = () => { refIndex = 0; return SettingTitle({ setting }); };
+    let tree = render();
+    const button = findNode(tree, (node) => node.props?.accessibilityRole === 'button');
+    button.props.ref.current = { measureInWindow: (callback) => callback(90, 180, 24, 24) };
     button.props.onPress();
-    assert.equal(alerts.at(-1).title, title);
-    assert.match(alerts.at(-1).description, explanation);
-    assert.equal(alerts.at(-1).confirmLabel, '확인');
+    tree = render();
+    assert.equal(findNode(tree, (node) => node.type === 'Modal').props.visible, true);
+    assert.equal(findNode(tree, (node) => node.props?.style?.top === 212).props.style.left, 90);
+    const explanation = findNode(tree, (node) => node.type === 'ScrollView').props.children.props.children;
+    assert.match(explanation, setting === 'difficulty' ? /하·중·상/ : /친절·보통·까다로움·진상/);
+    findNode(tree, (node) => node.props?.accessibilityLabel === '도움말 닫기').props.onPress();
+    assert.equal(findNode(render(), (node) => node.type === 'Modal').props.visible, false);
   }
 });
 

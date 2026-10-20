@@ -1,7 +1,8 @@
-import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SETTING_HELP = {
   difficulty: {
@@ -24,15 +25,19 @@ interface TrainingSettingTitleProps {
 export default function TrainingSettingTitle({
   setting,
 }: TrainingSettingTitleProps) {
-  const { showAlert } = useAppAlert();
+  const anchorRef = useRef<View>(null);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; height: number } | null>(null);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const help = SETTING_HELP[setting];
+  const tooltipWidth = Math.min(240, width - insets.left - insets.right - 32);
+  const left = Math.max(insets.left + 16, Math.min(anchor?.x ?? 0, width - insets.right - tooltipWidth - 16));
+  const top = Math.max(insets.top + 16, Math.min((anchor?.y ?? 0) + (anchor?.height ?? 0) + 8, height - insets.bottom - 160));
 
-  /** 현재 설정의 의미를 공용 안내 모달로 표시한다. */
+  /** 물음표 바로 아래에 자가진단과 같은 작은 설명 카드를 연다. */
   const handleHelpPress = () => {
-    showAlert({
-      title: help.title,
-      description: help.description,
-      confirmLabel: "확인",
+    anchorRef.current?.measureInWindow((x, y, _width, height) => {
+      setAnchor({ x, y, height });
     });
   };
 
@@ -47,8 +52,10 @@ export default function TrainingSettingTitle({
         {help.title}
       </Text>
       <Pressable
+        ref={anchorRef}
         accessibilityRole="button"
         accessibilityLabel={`${help.title} 도움말`}
+        accessibilityState={{ expanded: Boolean(anchor) }}
         onPress={handleHelpPress}
         hitSlop={10}
         className="size-6 shrink-0 items-center justify-center"
@@ -59,6 +66,32 @@ export default function TrainingSettingTitle({
           color={SEMANTIC_COLORS.label.alternative}
         />
       </Pressable>
+      <Modal
+        visible={Boolean(anchor)}
+        transparent
+        statusBarTranslucent
+        animationType="none"
+        onRequestClose={() => setAnchor(null)}
+      >
+        <View className="flex-1">
+          <Pressable
+            accessibilityLabel="도움말 닫기"
+            onPress={() => setAnchor(null)}
+            className="absolute inset-0"
+          />
+          <View
+            className="absolute rounded-component border border-line-neutral bg-background-normal p-3 shadow-xl"
+            style={{ left, top }}
+          >
+            <ScrollView
+              bounces={false}
+              style={{ width: tooltipWidth - 24, maxHeight: height - insets.bottom - top - 40 }}
+            >
+              <Text className="text-label text-label-neutral">{help.description}</Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
