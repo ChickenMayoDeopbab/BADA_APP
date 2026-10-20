@@ -282,6 +282,78 @@ test('home recommendation artwork falls back after an image error and recovers f
   assert.equal(findNode(Illustration({ categoryIconUrl: nextIcon }), (node) => node.type === 'Image').props.source, nextIcon);
 });
 
+/** Render the call screen without native audio, timers or network side effects. */
+function callScreen(initialStep, height = 568) {
+  const states = [], refs = [], events = [];
+  let stateIndex = 0, refIndex = 0;
+  const Screen = loadSource('../app/train.tsx', {
+    '@/components/train/CallBackground': { default: 'Background' },
+    '@/api/trainingCallApi': {},
+    '@/api/error': {},
+    '@/hooks/useSensitiveConsentGuard': { useSensitiveConsentGuard: () => async () => true },
+    '@/utils/trainingCallScenario': {},
+    '@/components/train/ScriptHintBar': { default: 'Hint' },
+    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert() {} }) },
+    '@/design-system/colors': require('../design-system/colors'),
+    '@/hooks/useAndroidBackHandler': { useAndroidBackHandler() {} },
+    '@/hooks/useScenarios': { useScenario: () => ({ data: { title: '피자 주문하기' } }) },
+    '@/hooks/useIncomingCallRinging': { useIncomingCallRinging() {} },
+    '@/hooks/useAudio': { useAudio: () => ({
+      stopSendingAudio: async () => { events.push('stop'); },
+      resetStream: (reason) => events.push(reason),
+    }) },
+    '@/hooks/useTrainWebSocket': { useTrainWebSocket: () => ({
+      isConnected: true, isAiSpeaking: false,
+      sendEndCall: () => events.push('end'),
+    }) },
+    '@/utils/completedCallDuration': { saveCompletedCallDuration: async () => {} },
+    '@/utils/mediaVolumeControl': {},
+    '@expo/vector-icons/Ionicons': { default: 'Icon' },
+    'expo-router': {
+      router: {}, useFocusEffect() {},
+      useLocalSearchParams: () => ({ sessionId: 'session-1', scenarioId: '1' }),
+    },
+    'react': {
+      useEffect() {}, useMemo: (compute) => compute(), useCallback: (callback) => callback,
+      useRef: (initial) => refs[refIndex++] ??= { current: initial },
+      useState: (initial) => {
+        const i = stateIndex++;
+        if (!(i in states)) states[i] = initial === 'receive' ? initialStep : Array.isArray(initial) ? [{ role: 'user', text: '안녕하세요' }] : initial;
+        return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
+      },
+    },
+    'react-native': {
+      View: 'View', Text: 'Text', TouchableOpacity: 'Button', Modal: 'Modal', ScrollView: 'ScrollView',
+      StyleSheet: { create: (styles) => styles }, BackHandler: {},
+      useWindowDimensions: () => ({ width: 320, height, fontScale: 1 }),
+    },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 24 }) },
+    'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
+  }).default;
+  return { events, render: () => { stateIndex = 0; refIndex = 0; return Screen(); } };
+}
+
+test('receiving and active calls stay fixed while the script alone scrolls and ending still stops audio', () => {
+  for (const height of [568, 874]) {
+    const incoming = callScreen('receive', height);
+    assert.equal(findNode(incoming.render(), (node) => node.type === 'ScrollView'), undefined);
+    const s = callScreen('training', height);
+    let tree = s.render();
+    assert.equal(findNode(tree, (node) => node.type === 'ScrollView'), undefined);
+    findNode(tree, (node) => node.type === 'Button' && node.props.children?.props?.name === 'document-text').props.onPress();
+    tree = s.render();
+    const script = findNode(tree, (node) => node.type === 'ScrollView');
+    assert.ok(script, 'the conversation remains scrollable inside the script panel');
+    const scrolls = [];
+    script.props.ref.current = { scrollToEnd: (options) => scrolls.push(options) };
+    script.props.onContentSizeChange();
+    assert.deepEqual(scrolls, [{ animated: true }]);
+    findNode(tree, (node) => node.props?.accessibilityLabel === '통화 종료').props.onPress();
+    assert.deepEqual(s.events, ['stop', 'call_end', 'end']);
+    assert.equal(findNode(s.render(), (node) => node.props?.accessibilityLabel === '통화 종료').props.disabled, true);
+  }
+});
+
 test('failed retry keeps recovery actions and lets the user return home to reject a ringing call', async () => {
   const s = scheduleScreen({ failedCancellations: 3 });
   await s.complete();
