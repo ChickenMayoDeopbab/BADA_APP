@@ -1,7 +1,7 @@
-import { SEMANTIC_COLORS } from "@/design-system";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
 import StepSlider from "@/components/train/StepSlider";
+import TrainingSettingTitle from "@/components/train/TrainingSettingTitle";
 import { createSession } from "@/api/trainApi";
 import {
   ATTITUDE_LABELS,
@@ -9,10 +9,9 @@ import {
   DIFFICULTY_MAP,
   SPRING_PERSONALITY_MAP,
 } from "@/constants/train";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 
@@ -70,15 +69,8 @@ export default function WarmupStart() {
         showsVerticalScrollIndicator={false}
       >
         <View className="mb-10">
-          <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-headline1 font-bold text-label-neutral">
-              난이도
-            </Text>
-            <Ionicons
-              name="help-circle-outline"
-              size={20}
-              color={SEMANTIC_COLORS.line.normal}
-            />
+          <View className="mb-8">
+            <TrainingSettingTitle setting="difficulty" />
           </View>
           <StepSlider
             steps={DIFFICULTY_LABELS}
@@ -88,15 +80,8 @@ export default function WarmupStart() {
         </View>
 
         <View>
-          <View className="flex-row items-center gap-x-2 mb-8">
-            <Text className="text-headline1 font-bold text-label-neutral">
-              상대의 태도
-            </Text>
-            <Ionicons
-              name="help-circle-outline"
-              size={20}
-              color={SEMANTIC_COLORS.line.normal}
-            />
+          <View className="mb-8">
+            <TrainingSettingTitle setting="attitude" />
           </View>
           <StepSlider
             steps={ATTITUDE_LABELS}

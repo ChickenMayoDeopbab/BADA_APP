@@ -108,6 +108,7 @@ function scheduleScreen({ failedCancellations = 1 } = {}) {
     '@/components/train/MinuteRangePicker': { default: 'Picker' },
     '@/components/train/StepProgress': { default: 'Progress' },
     '@/components/train/StepSlider': { default: 'Slider' },
+    '@/components/train/TrainingSettingTitle': { default: 'SettingTitle' },
     '@/constants/train': { DIFFICULTY_MAP: ['low'], SPRING_PERSONALITY_MAP: ['KIND'] },
     '@/api/trainingCallApi': {
       createTrainingCallSchedule: async () => { creates++; return { scheduleId: 7, scheduledAt: '2026-10-16T10:00:00Z' }; },
@@ -164,6 +165,29 @@ test('double failure exposes same-reservation cancellation retry and prevents du
   assert.equal(s.creates, 1);
   assert.deepEqual(s.removals, [7]);
   assert.equal(s.alerts.at(-1).title, '예약을 취소했어요');
+});
+
+test('each training setting help button opens the explanation for that setting', () => {
+  const alerts = [];
+  const SettingTitle = loadSource('../components/train/TrainingSettingTitle.tsx', {
+    '@/context/AppAlertContext': { useAppAlert: () => ({ showAlert: (alert) => alerts.push(alert) }) },
+    '@/design-system/colors': { SEMANTIC_COLORS: { label: { alternative: '#888' } } },
+    '@expo/vector-icons/Ionicons': { default: 'Icon' },
+    'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable' },
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+  }).default;
+
+  for (const [setting, title, explanation] of [
+    ['difficulty', '난이도', /하·중·상/],
+    ['attitude', '상대의 태도', /친절·보통·까다로움·진상/],
+  ]) {
+    const button = findNode(SettingTitle({ setting }), (node) => node.props?.accessibilityLabel === `${title} 도움말`);
+    assert.equal(button.props.accessibilityRole, 'button');
+    button.props.onPress();
+    assert.equal(alerts.at(-1).title, title);
+    assert.match(alerts.at(-1).description, explanation);
+    assert.equal(alerts.at(-1).confirmLabel, '확인');
+  }
 });
 
 test('failed retry keeps recovery actions and lets the user return home to reject a ringing call', async () => {

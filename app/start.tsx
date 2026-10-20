@@ -4,6 +4,7 @@ import Top from "@/components/common/Top";
 import MinuteRangePicker from "@/components/train/MinuteRangePicker";
 import StepProgress from "@/components/train/StepProgress";
 import StepSlider from "@/components/train/StepSlider";
+import TrainingSettingTitle from "@/components/train/TrainingSettingTitle";
 import {
   ATTITUDE_LABELS,
   DIFFICULTY_LABELS,
@@ -17,10 +18,8 @@ import {
 import { saveTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
 import { getApiErrorMessage } from "@/api/error";
 import { useAppAlert } from "@/context/AppAlertContext";
-import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -29,26 +28,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type FlowStep = "difficulty" | "time";
 
 const FLOW_STEPS: FlowStep[] = ["difficulty", "time"];
-
-interface SectionTitleProps {
-  title: string;
-}
-
-/** 물음표 아이콘이 붙는 설정 항목 제목 */
-function SectionTitle({ title }: SectionTitleProps) {
-  return (
-    <View className="flex-row items-center gap-x-1">
-      <Text className="text-headline1 font-bold text-label-normal">
-        {title}
-      </Text>
-      <Ionicons
-        name="help-circle"
-        size={20}
-        color={SEMANTIC_COLORS.line.normal}
-      />
-    </View>
-  );
-}
 
 export default function Start() {
   const insets = useSafeAreaInsets();
@@ -240,7 +219,7 @@ export default function Start() {
           showsVerticalScrollIndicator={false}
         >
           <View className="gap-y-8">
-            <SectionTitle title="난이도" />
+            <TrainingSettingTitle setting="difficulty" />
             <StepSlider
               steps={DIFFICULTY_LABELS}
               value={difficulty}
@@ -249,7 +228,7 @@ export default function Start() {
           </View>
 
           <View className="gap-y-8">
-            <SectionTitle title="상대의 태도" />
+            <TrainingSettingTitle setting="attitude" />
             <StepSlider
               steps={ATTITUDE_LABELS}
               value={attitude}
