@@ -169,12 +169,26 @@ test('a prolonged analysis offers retry and retry starts a new bounded wait', as
   await flush();
   let tree = report.render();
   assert.ok(findNode(tree, (node) => typeof node.props?.children === 'string' && node.props.children.includes('예상보다 오래')));
+  assert.ok(findNode(tree, (node) => node.type?.name === 'ReportLoading'));
+  assert.equal(findNode(tree, (node) => node.props?.name === 'alert-circle-outline'), undefined);
   isReady = true;
   findNode(tree, (node) => node.props?.label === '재시도').props.onPress();
   await flush();
   tree = report.render();
   assert.ok(findNode(tree, (node) => node.props?.children === result.scenarioName));
   assert.equal(findNode(tree, (node) => node.props?.label === '재시도'), undefined);
+});
+
+test('a real server failure shows the error view instead of claiming analysis is still pending', async () => {
+  const s = feedbackApi(async () => { throw apiError(500); });
+  const report = reportScreen(s.api);
+  report.render();
+  const cleanup = report.start();
+  await flush();
+  const tree = report.render();
+  assert.equal(findNode(tree, (node) => node.type?.name === 'ReportLoading'), undefined);
+  assert.ok(findNode(tree, (node) => node.props?.name === 'alert-circle-outline'));
+  cleanup();
 });
 
 test('leaving the report cancels the poll timer without another request', async (t) => {

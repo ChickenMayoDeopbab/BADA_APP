@@ -259,6 +259,7 @@ export default function Report() {
   } = useLocalSearchParams<ReportParams>();
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAnalysisDelayed, setIsAnalysisDelayed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const feedbackRequestRef = useRef<AbortController | null>(null);
   const [expandedIndexes, setExpandedIndexes] = useState(
@@ -278,6 +279,7 @@ export default function Report() {
     feedbackRequestRef.current?.abort();
     const controller = new AbortController();
     feedbackRequestRef.current = controller;
+    setIsAnalysisDelayed(false);
     const parsedScenarioId = Number(scenarioId);
     if (!scenarioId || !Number.isSafeInteger(parsedScenarioId) || parsedScenarioId <= 0) {
       setError("시나리오 정보를 찾을 수 없습니다.");
@@ -311,6 +313,7 @@ export default function Report() {
       void checkAttendance().catch(() => {});
     } catch (error) {
       if (controller.signal.aborted || isCancel(error)) return;
+      setIsAnalysisDelayed(error instanceof FeedbackWaitTimeoutError);
       setError(error instanceof FeedbackWaitTimeoutError
         ? error.message
         : "훈련 결과를 불러오지 못했습니다.");
@@ -341,8 +344,19 @@ export default function Report() {
         className="flex-1 bg-background-alternative"
         edges={["top", "bottom"]}
       >
-        {isLoading ? (
-          <ReportLoading />
+        {isLoading || isAnalysisDelayed ? (
+          <View className="flex-1 bg-background-normal">
+            <ReportLoading />
+            {isAnalysisDelayed && (
+              <View className="gap-3 px-[33px] pb-6">
+                <Text className="text-center text-label text-label-alternative">
+                  {error}
+                </Text>
+                <CustomButton label="재시도" onPress={fetchFeedback} tone="primary" />
+                <CustomButton label="홈으로 돌아가기" onPress={goToHome} tone="neutral" />
+              </View>
+            )}
+          </View>
         ) : (
           <>
             <Top title="훈련 리포트" safeArea={false} />
