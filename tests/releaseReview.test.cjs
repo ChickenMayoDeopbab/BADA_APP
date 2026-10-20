@@ -96,13 +96,14 @@ test('a cached profile never exposes password fields before login method confirm
 });
 
 /** Render the actual schedule form and invoke its public button callbacks. */
-function scheduleScreen({ failedCancellations = 1 } = {}) {
+function scheduleScreen({ failedCancellations = 1, immediate = false, createSession, createSchedule, saveScenario } = {}) {
   const alerts = [], routes = [], cancellations = [], removals = [];
-  const states = ['time', 0, 0, 1, 2, false];
+  const states = ['time', 0, 0, immediate ? 0 : 1, immediate ? 0 : 2, false];
+  let focus;
   const refs = [];
   let stateIndex = 0, refIndex = 0, creates = 0;
   const mocks = {
-    '@/api/trainApi': {},
+    '@/api/trainApi': { createSession: async () => { creates++; return createSession?.(); } },
     '@/components/common/CustomButton': { default: 'Button' },
     '@/components/common/Top': { default: 'Top' },
     '@/components/train/MinuteRangePicker': { default: 'Picker' },
@@ -111,14 +112,14 @@ function scheduleScreen({ failedCancellations = 1 } = {}) {
     '@/components/train/TrainingSettingTitle': { default: 'SettingTitle' },
     '@/constants/train': { DIFFICULTY_MAP: ['low'], SPRING_PERSONALITY_MAP: ['KIND'] },
     '@/api/trainingCallApi': {
-      createTrainingCallSchedule: async () => { creates++; return { scheduleId: 7, scheduledAt: '2026-10-16T10:00:00Z' }; },
+      createTrainingCallSchedule: async () => { creates++; return createSchedule ? createSchedule() : { scheduleId: 7, scheduledAt: '2026-10-16T10:00:00Z' }; },
       cancelTrainingCallSchedule: async (id) => {
         cancellations.push(id);
         if (cancellations.length <= failedCancellations) throw new Error('offline');
       },
     },
     '@/utils/trainingCallScenario': {
-      saveTrainingCallScenario: async () => { throw new Error('storage full'); },
+      saveTrainingCallScenario: saveScenario || (async () => { throw new Error('storage full'); }),
       removeTrainingCallScenario: async (id) => { removals.push(id); },
     },
     '@/api/error': { getApiErrorMessage: (error) => error.message },
@@ -128,8 +129,8 @@ function scheduleScreen({ failedCancellations = 1 } = {}) {
     '@/hooks/useSensitiveConsentGuard': { useSensitiveConsentGuard: () => async () => true },
     '@expo/vector-icons/Ionicons': {},
     'expo-router': {
-      router: { replace: (route) => routes.push(route) },
-      useFocusEffect() {},
+      router: { replace: (route) => routes.push(route), push: (route) => routes.push(route) },
+      useFocusEffect: callback => { focus = callback; },
       useLocalSearchParams: () => ({ id: '17' }),
     },
     'react': {
@@ -145,6 +146,7 @@ function scheduleScreen({ failedCancellations = 1 } = {}) {
   const render = () => { stateIndex = 0; refIndex = 0; return Screen(); };
   return {
     alerts, routes, cancellations, removals,
+    enter: () => { render(); const cleanup = focus(); states[0] = "time"; states[3] = immediate ? 0 : 1; states[4] = immediate ? 0 : 2; return cleanup; },
     get creates() { return creates; },
     complete: () => findNode(render(), (node) => node.type === 'Button' && node.props?.label === '설정 완료하기').props.onPress(),
   };
@@ -333,4 +335,23 @@ test('leaving during microphone permission cannot start audio on a later screen'
   s.render();
   assert.equal(s.events.filter(event => event === 'start').length, 0);
   assert.equal(s.alerts.length, 0);
+});
+
+
+test('an immediate scenario session arriving after leaving cannot reopen the call screen', async () => {
+  let resolve; const s = scheduleScreen({ immediate: true, createSession: () => new Promise(done => { resolve = done; }) });
+  const cleanup = s.enter(), pending = s.complete(); await flush(); cleanup?.(); resolve({ sessionId: 's', wsUrl: 'wss://example.test' }); await pending;
+  assert.deepEqual(s.routes, []); assert.deepEqual(s.alerts, []);
+});
+
+test('malformed immediate scenario sessions are rejected before navigation', async () => {
+  const s = scheduleScreen({ immediate: true, createSession: async () => ({ sessionId: null, wsUrl: null }) });
+  await s.complete(); assert.deepEqual(s.routes, []); assert.equal(s.alerts.length, 1);
+});
+
+test('a scheduled response after leaving persists recovery data without redirecting the new screen', async () => {
+  let resolve; const saved = [];
+  const s = scheduleScreen({ createSchedule: () => new Promise(done => { resolve = done; }), saveScenario: async (...args) => saved.push(args) });
+  const cleanup = s.enter(), pending = s.complete(); await flush(); cleanup?.(); resolve({ scheduleId: 9 }); await pending;
+  assert.equal(saved[0][0], 9); assert.deepEqual(s.routes, []); assert.deepEqual(s.alerts, []);
 });

@@ -43,6 +43,8 @@ export default function Start() {
     }>();
   const { showAlert } = useAppAlert();
   const isSubmittingRef = useRef(false);
+  const isActiveRef = useRef(true);
+  const attemptRef = useRef(0);
   const pendingCancellationRef = useRef<number | null>(null);
 
   const [flowStep, setFlowStep] = useState<FlowStep>("difficulty");
@@ -54,12 +56,19 @@ export default function Start() {
 
   useFocusEffect(
     useCallback(() => {
+      isActiveRef.current = true;
+      attemptRef.current++;
+      isSubmittingRef.current = false;
       setFlowStep("difficulty");
       setDifficulty(0);
       setAttitude(0);
       setTimeFrom(0);
       setTimeTo(0);
       setIsCreatingSession(false);
+      return () => {
+        isActiveRef.current = false;
+        attemptRef.current++;
+      };
     }, []),
   );
 
@@ -96,27 +105,33 @@ export default function Start() {
 
   /** 새 예약을 만들지 않고 실패했던 동일한 예약의 취소만 다시 요청한다. */
   const retryScheduleCancellation = async (scheduleId: number): Promise<void> => {
-    if (isSubmittingRef.current) return;
+    if (!isActiveRef.current || isSubmittingRef.current) return;
     isSubmittingRef.current = true;
+    const attempt = ++attemptRef.current;
+    const isCurrent = () => isActiveRef.current && attempt === attemptRef.current;
     setIsCreatingSession(true);
     try {
       await cancelTrainingCallSchedule(scheduleId);
       pendingCancellationRef.current = null;
       await removeTrainingCallScenario(scheduleId).catch(() => {});
+      if (!isCurrent()) return;
       showAlert({
         title: "예약을 취소했어요",
         onConfirm: () => router.replace("/(tabs)/(home)/home"),
       });
     } catch {
-      showCancellationRecovery(scheduleId);
+      if (isCurrent()) showCancellationRecovery(scheduleId);
     } finally {
-      isSubmittingRef.current = false;
-      setIsCreatingSession(false);
+      if (isCurrent()) {
+        isSubmittingRef.current = false;
+        setIsCreatingSession(false);
+      }
     }
   };
 
   /** 즉시 발신은 세션을 생성하고 예약 발신은 서버에 시간 범위를 등록한다. */
   const handleComplete = async () => {
+    if (!isActiveRef.current) return;
     if (pendingCancellationRef.current !== null) {
       showCancellationRecovery(pendingCancellationRef.current);
       return;
@@ -130,9 +145,12 @@ export default function Start() {
     )
       return;
     isSubmittingRef.current = true;
+    const attempt = ++attemptRef.current;
+    const isCurrent = () => isActiveRef.current && attempt === attemptRef.current;
+    let didNavigate = false;
     setIsCreatingSession(true);
     try {
-      if (!(await ensureSensitiveConsent())) return;
+      if (!(await ensureSensitiveConsent()) || !isCurrent()) return;
       const sessionConfig = {
         scenarioId,
         type: isCustom === "true" ? "CUSTOM" : "SCENARIO",
@@ -141,6 +159,8 @@ export default function Start() {
       } as const;
       if (timeFrom === 0 && timeTo === 0) {
         const session = await createSession(sessionConfig);
+        if (!isCurrent()) return;
+        if (!session?.sessionId || !session.wsUrl) throw new Error("통화 세션을 받지 못했어요.");
         router.push({
           pathname: "/train",
           params: {
@@ -169,20 +189,23 @@ export default function Start() {
             await cancelTrainingCallSchedule(schedule.scheduleId);
           } catch {
             pendingCancellationRef.current = schedule.scheduleId;
-            showCancellationRecovery(schedule.scheduleId);
+            if (isCurrent()) showCancellationRecovery(schedule.scheduleId);
             return;
           }
           throw new Error(
             "예약 정보를 기기에 저장하지 못해 예약을 취소했어요. 다시 시도해 주세요.",
           );
         }
+        if (!isCurrent()) return;
         router.replace("/(tabs)/(home)/home");
         showAlert({
           title: "발신을 예약했어요",
           description: `${timeFrom}분~${timeTo}분 사이에 전화가 와요. 앱을 다시 열어도 수신 중인 예약을 확인할 수 있어요.`,
         });
       }
+      didNavigate = true;
     } catch (error) {
+      if (!isCurrent()) return;
       showAlert({
         title: "훈련을 시작하지 못했어요",
         description: getApiErrorMessage(
@@ -191,8 +214,10 @@ export default function Start() {
         ),
       });
     } finally {
-      isSubmittingRef.current = false;
-      setIsCreatingSession(false);
+      if (!didNavigate && isCurrent()) {
+        isSubmittingRef.current = false;
+        setIsCreatingSession(false);
+      }
     }
   };
 
