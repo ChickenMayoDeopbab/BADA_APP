@@ -24,6 +24,11 @@ test("Podfile post_install에 모든 Pod 타겟의 배포 버전 보정을 추�
   );
 });
 
+test("로컬 iOS 빌드에서도 Firebase SPM과 정적 링크 충돌을 방지한다", () => {
+  const result = applyPodfileFixes(podfile);
+  assert.ok(result.indexOf("$RNFirebaseDisableSPM = true") < result.indexOf("target 'app' do"));
+});
+
 test("Podfile 보정을 반복 적용해도 생성 블록이 중복되지 않는다", () => {
   const firstResult = applyPodfileFixes(podfile);
   const secondResult = applyPodfileFixes(firstResult);
