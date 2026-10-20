@@ -238,7 +238,8 @@ export default function CreateCommunityPostScreen() {
             maxLength={100}
             placeholder="게시물 제목을 입력해주세요."
             placeholderTextColor={SEMANTIC_COLORS.line.normal}
-            className="h-12 px-3 font-medium rounded-component bg-background-alternative text-body text-label-normal"
+            textAlignVertical="center"
+            className="min-h-14 px-3 py-3 font-medium rounded-component bg-background-alternative text-body text-label-normal"
           />
           <TextInput
             value={content}
