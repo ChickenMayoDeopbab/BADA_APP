@@ -4,9 +4,10 @@ import { Question } from "@/api/types";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { getAccessToken } from "@/utils/authTokenStorage";
 import { completeRequiredDiagnosis } from "@/utils/diagnosisFlow";
+import { normalizeDiagnosisResult } from "@/utils/diagnosisResult";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
 
@@ -24,16 +25,38 @@ export const useDiagnosisQuestion = () => {
   const [status, setStatus] = useState<Status>(null);
   const [questionsList, setQuestionsList] = useState<Question[]>([]);
 
-  useEffect(() => {
-    const getQuestionList = async () => {
-      try {
-        const data = await getQuestion();
-        setQuestionsList(data.data);
-      } catch {}
-    };
+  const [questionStatus, setQuestionStatus] = useState<"loading" | "done" | "error">("loading");
+  const isActiveRef = useRef(false);
+  const isLoadingQuestionsRef = useRef(false);
+  const isSubmittingRef = useRef(false);
+  const submissionIdRef = useRef<string | null>(null);
 
-    getQuestionList();
+  /** Failed question loads stay recoverable without exposing blank questions. */
+  const loadQuestions = useCallback(async () => {
+    if (isLoadingQuestionsRef.current) return;
+    isLoadingQuestionsRef.current = true;
+    setQuestionStatus("loading");
+    try {
+      const { data } = await getQuestion();
+      if (!isActiveRef.current) return;
+      if (!Array.isArray(data) || data.length !== QUESTION_COUNT
+        || data.some((question) => typeof question?.content !== "string" || !question.content.trim())) {
+        throw new Error("자가진단 문항을 확인할 수 없습니다.");
+      }
+      setQuestionsList(data);
+      setQuestionStatus("done");
+    } catch {
+      if (isActiveRef.current) setQuestionStatus("error");
+    } finally {
+      isLoadingQuestionsRef.current = false;
+    }
   }, []);
+
+  useEffect(() => {
+    isActiveRef.current = true;
+    void loadQuestions();
+    return () => { isActiveRef.current = false; };
+  }, [loadQuestions]);
 
   useEffect(() => {
     if (status === "done") {
@@ -49,55 +72,70 @@ export const useDiagnosisQuestion = () => {
     }
   }, [isProfileRetake, status]);
 
+  /** Serialize submissions and reuse the same identifier when retrying unchanged answers. */
   const submitAnswers = useCallback(async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setStatus("loading");
-
-    const token = await getAccessToken();
-    if (!token) {
-      setStatus("error");
-      return;
-    }
-
     try {
-      const request = createDiagnosisSubmitRequest(
-        uuidv4(),
-        "SIGNUP",
-        answers,
-      );
-      const data = await calculateLevel(request);
-      await AsyncStorage.setItem("diagnosisResult", JSON.stringify(data.data));
+      const token = await getAccessToken();
+      if (!isActiveRef.current) return;
+      if (!token) throw new Error("로그인이 필요합니다.");
+      submissionIdRef.current ??= uuidv4();
+      const request = createDiagnosisSubmitRequest(submissionIdRef.current, "SIGNUP", answers);
+      const { data } = await calculateLevel(request);
+      if (!isActiveRef.current) return;
+      const result = normalizeDiagnosisResult(data);
+      await AsyncStorage.setItem("diagnosisResult", JSON.stringify(result));
+      if (!isActiveRef.current) return;
       await completeRequiredDiagnosis();
-      setStatus("done");
+      if (isActiveRef.current) setStatus("done");
     } catch {
-      setStatus("error");
+      if (isActiveRef.current) setStatus("error");
+    } finally {
+      isSubmittingRef.current = false;
     }
   }, [answers]);
 
+  /** Retry the failed stage while preserving already selected answers. */
+  const handleRetry = useCallback(async () => {
+    if (questionStatus === "error") await loadQuestions();
+    else if (status === "error") await submitAnswers();
+  }, [loadQuestions, questionStatus, status, submitAnswers]);
+
   const handleChange = useCallback((value: number) => {
+    if (status !== null || questionStatus !== "done" || value < 1 || value > 5) return;
+    submissionIdRef.current = null;
     setAnswers((prev) => {
       const next = [...prev];
       next[nowStep] = value;
       return next;
     });
-  }, [nowStep]);
+  }, [nowStep, questionStatus, status]);
 
   const handleNext = useCallback(() => {
+    if (questionStatus !== "done" || status !== null) return;
     if (nowStep < QUESTION_COUNT - 1) {
-      setNowStep((prev) => prev + 1);
+      setNowStep(nowStep + 1);
       return;
     }
 
     submitAnswers();
-  }, [nowStep, submitAnswers]);
+  }, [nowStep, questionStatus, status, submitAnswers]);
 
   const handleBack = useCallback(() => {
+    if (status === "loading" || status === "done") return;
+    if (status === "error") {
+      setStatus(null);
+      return;
+    }
     if (nowStep > 0) {
-      setNowStep((prev) => prev - 1);
+      setNowStep(nowStep - 1);
       return;
     }
 
     router.back();
-  }, [nowStep]);
+  }, [nowStep, status]);
 
   useAndroidBackHandler(() => {
     handleBack();
@@ -108,7 +146,9 @@ export const useDiagnosisQuestion = () => {
     nowStep,
     currentAnswer: answers[nowStep],
     currentQuestion: questionsList[nowStep],
-    status,
+    status: questionStatus === "done" ? status : questionStatus,
+    isLoadingQuestions: questionStatus !== "done",
+    handleRetry,
     handleChange,
     handleNext,
     handleBack,

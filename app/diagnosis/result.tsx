@@ -1,5 +1,6 @@
+import { normalizeDiagnosisResult } from "@/utils/diagnosisResult";
 import Top from "@/components/common/Top";
-import { Pressable, Text, View, TouchableWithoutFeedback } from "react-native";
+import { ActivityIndicator, Pressable, Text, View, TouchableWithoutFeedback } from "react-native";
 import type { TextStyle } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from "react";
@@ -35,16 +36,42 @@ export default function Result() {
   const [isShowCard, setIsShowCard] = useState<boolean>(false);
   const [result, setResult] = useState<Level>();
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   useEffect(() => {
+    let isActive = true;
     const getData = async () => {
-      const stored = await AsyncStorage.getItem('diagnosisResult');
-      if (stored) {
-        setResult(JSON.parse(stored));
+      try {
+        const stored = await AsyncStorage.getItem("diagnosisResult");
+        const value = normalizeDiagnosisResult(stored ? JSON.parse(stored) : null);
+        if (isActive) setResult(value);
+      } catch {
+        if (isActive) setHasError(true);
+      } finally {
+        if (isActive) setIsLoading(false);
       }
     };
-    getData();
+    void getData();
+    return () => { isActive = false; };
   }, []);
-  
+
+  if (isLoading || hasError) {
+    return (
+      <View className="flex-1 bg-background-normal">
+        <Top title="자가진단" back onBack={handleExit} />
+        <View className="flex-1 items-center justify-center gap-5 px-10">
+          {isLoading ? <ActivityIndicator /> : <>
+            <Text className="text-body text-label-normal">자가진단 결과를 불러오지 못했어요.</Text>
+            <CustomButton label="자가진단 다시 하기" onPress={() => router.replace(isProfileRetake
+              ? { pathname: "/diagnosis/question", params: { from: "profile" } }
+              : "/diagnosis/question")} tone="primary" />
+            <CustomButton label="돌아가기" onPress={handleExit} />
+          </>}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-background-normal">
       <Top
