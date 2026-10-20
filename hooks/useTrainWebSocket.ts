@@ -67,7 +67,6 @@ export function useTrainWebSocket({
   onScriptHint,
 }: UseTrainWebSocketProps): UseTrainWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
-  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -90,157 +89,186 @@ export function useTrainWebSocket({
   onTranscriptRef.current = onTranscript;
   onScriptHintRef.current = onScriptHint;
 
-  const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
-
-  const disconnect = useCallback(() => {
-    aiSpeakingRef.current = false;
-    if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current);
-      pingIntervalRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    setIsConnected(false);
-    setIsAiSpeaking(false);
-    setDisplayName(null);
-  }, []);
-
-  const connect = useCallback(async () => {
-    if (!sessionId) return;
-    const token = await getAccessToken();
-    if (!token) return;
-
-    // wsUrl은 Spring 내부 IP를 담아 반환하므로 사용하지 않고 sessionId로 직접 구성
-    // 토큰은 URL에 싣지 않는다(접속 로그에 남는다). 연결 직후 첫 프레임으로 보낸다.
-    const url = `${getWsBaseUrl()}/ws/voice/${sessionId}`;
-    const ws = new WebSocket(url);
-    // 바이너리 프레임을 ArrayBuffer로 수신 (기본값은 플랫폼마다 다름)
-    ws.binaryType = "arraybuffer";
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      // 서버는 첫 프레임을 인증으로 읽는다 — 마이크 PCM 등 어떤 프레임보다 먼저 보낸다.
-      ws.send(JSON.stringify({ type: "auth", token }));
-      setIsConnected(true);
-      ws.send(JSON.stringify({ type: "playback_capabilities", completion_ack: true }));
-      // keep-alive ping 30초마다
-      pingIntervalRef.current = setInterval(() => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ type: "ping" }));
-        }
-      }, 30000);
-    };
-
-    ws.onmessage = (event) => {
-      if (typeof event.data === "string") {
-        try {
-          const msg = JSON.parse(event.data as string);
-          if (
-            msg?.type === "scenario_info" &&
-            typeof msg?.aiRole === "string" &&
-            msg.aiRole.trim()
-          ) {
-            setDisplayName(msg.aiRole.trim());
-          }
-          switch (msg.type) {
-            case "emotion":
-              onEmotionRef.current?.(msg.value);
-              break;
-            case "speaking_end":
-              // Output completion + tail guard owns the microphone gate.
-              onSpeakingEndRef.current?.(
-                typeof msg.turn_id === "number" ? msg.turn_id : undefined,
-              );
-              break;
-            case "interrupt":
-              onInterruptRef.current?.();
-              break;
-            case "transcript":
-              if (typeof msg.text === "string" && msg.text.trim()) {
-                onTranscriptRef.current?.({
-                  role: typeof msg.role === "string" ? msg.role : "",
-                  text: msg.text,
-                });
-              }
-              break;
-            case "script_hint":
-              if (typeof msg.level === "number") {
-                onScriptHintRef.current?.({
-                  level: msg.level,
-                  text: typeof msg.text === "string" ? msg.text.trim() : "",
-                });
-              }
-              break;
-            case "end":
-              onEndRef.current?.(msg.reason);
-              break;
-            case "error":
-              onErrorRef.current?.(msg.code);
-              break;
-            case "pong":
-              break;
-          }
-        } catch {
-          // invalid JSON 무시
-        }
-      } else {
-        // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
-        if (event.data instanceof ArrayBuffer) {
-          onBinaryMessageRef.current?.(event.data);
-        }
-      }
-    };
-
-    ws.onclose = (event) => {
-      aiSpeakingRef.current = false;
-      setIsConnected(false);
-      setIsAiSpeaking(false);
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-        pingIntervalRef.current = null;
-      }
-      if (event.code === 1008) {
-        if (event.reason === "TOKEN_EXPIRED") {
-          // 토큰 재발급 후 재연결
-          (async () => {
-            try {
-              await refreshAuthTokens();
-              await connectRef.current();
-            } catch {
-              onErrorRef.current?.("WS_CLOSE_TOKEN_EXPIRED");
-            }
-          })();
-        } else {
-          onErrorRef.current?.(`WS_CLOSE_${event.reason}`);
-        }
-      } else if (event.code !== 1000) {
-        // onerror만으로 끝나면 통화 화면이 "연결 중..."에 머문다.
-        // 비정상 종료는 화면에도 전달해 녹음과 통화 상태를 함께 정리한다.
-        onErrorRef.current?.(`WS_CLOSE_${event.code}`);
-      }
-    };
-
-    ws.onerror = () => {
-      aiSpeakingRef.current = false;
-      setIsConnected(false);
-      setIsAiSpeaking(false);
-    };
-  }, [sessionId]);
-
-  connectRef.current = connect;
-
   useEffect(() => {
-    if (!enabled) {
-      disconnect();
-      return;
-    }
-    connect();
-    return () => {
-      disconnect();
+    let isActive = enabled && !!sessionId;
+    let hasRefreshed = false;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let pingInterval: ReturnType<typeof setInterval> | undefined;
+
+    /** Detach callbacks before closing so cleanup cannot report another failure. */
+    const closeSocket = () => {
+      const socket = wsRef.current;
+      wsRef.current = null;
+      if (!socket) return;
+      socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
+      try {
+        socket.close();
+      } catch {
+        // Already closed native transports can throw during teardown.
+      }
     };
-  }, [enabled, connect, disconnect]);
+
+    /** Invalidate pending token/refresh work and release the current transport. */
+    const stop = () => {
+      isActive = false;
+      clearTimeout(deadline);
+      clearInterval(pingInterval);
+      closeSocket();
+      aiSpeakingRef.current = false;
+      setIsConnected(false);
+      setIsAiSpeaking(false);
+      setDisplayName(null);
+    };
+
+    /** Report each terminal connection failure once, with no live resources left. */
+    const fail = (code: string) => {
+      if (!isActive) return;
+      stop();
+      onErrorRef.current?.(code);
+    };
+
+    /** Bound secure-storage lookup, refresh, and connection establishment. */
+    const startDeadline = () => {
+      clearTimeout(deadline);
+      deadline = setTimeout(() => fail("WS_CONNECT_TIMEOUT"), 15000);
+    };
+
+    /** Only this effect's active socket may update call state or reconnect. */
+    const connect = async () => {
+      try {
+        const token = await getAccessToken();
+        if (!isActive) return;
+        if (!token) {
+          fail("WS_AUTH_REQUIRED");
+          return;
+        }
+        // Spring returns an internal address; use the configured public AI endpoint.
+        const ws = new WebSocket(`${getWsBaseUrl()}/ws/voice/${sessionId}`);
+        ws.binaryType = "arraybuffer";
+        wsRef.current = ws;
+        const isCurrent = () => isActive && wsRef.current === ws;
+
+        ws.onopen = () => {
+          if (!isCurrent()) return;
+          try {
+            // Authentication must precede microphone PCM and all other frames.
+            ws.send(JSON.stringify({ type: "auth", token }));
+            ws.send(JSON.stringify({ type: "playback_capabilities", completion_ack: true }));
+            clearTimeout(deadline);
+            setIsConnected(true);
+            pingInterval = setInterval(() => {
+              if (!isCurrent() || ws.readyState !== WebSocket.OPEN) return;
+              try {
+                ws.send(JSON.stringify({ type: "ping" }));
+              } catch {
+                fail("WS_CONNECTION_ERROR");
+              }
+            }, 30000);
+          } catch {
+            fail("WS_CONNECTION_ERROR");
+          }
+        };
+
+        ws.onmessage = (event) => {
+          if (!isCurrent()) return;
+          if (typeof event.data === "string") {
+            try {
+              const msg = JSON.parse(event.data);
+              if (
+                msg?.type === "scenario_info" &&
+                typeof msg?.aiRole === "string" &&
+                msg.aiRole.trim()
+              ) {
+                setDisplayName(msg.aiRole.trim());
+              }
+              switch (msg.type) {
+                case "emotion":
+                  onEmotionRef.current?.(msg.value);
+                  break;
+                case "speaking_end":
+                  // Output completion + tail guard owns the microphone gate.
+                  onSpeakingEndRef.current?.(
+                    typeof msg.turn_id === "number" ? msg.turn_id : undefined,
+                  );
+                  break;
+                case "interrupt":
+                  onInterruptRef.current?.();
+                  break;
+                case "transcript":
+                  if (typeof msg.text === "string" && msg.text.trim()) {
+                    onTranscriptRef.current?.({
+                      role: typeof msg.role === "string" ? msg.role : "",
+                      text: msg.text,
+                    });
+                  }
+                  break;
+                case "script_hint":
+                  if (typeof msg.level === "number") {
+                    onScriptHintRef.current?.({
+                      level: msg.level,
+                      text: typeof msg.text === "string" ? msg.text.trim() : "",
+                    });
+                  }
+                  break;
+                case "end":
+                  stop();
+                  onEndRef.current?.(msg.reason);
+                  break;
+                case "error":
+                  fail(typeof msg.code === "string" ? msg.code : "WS_SERVER_ERROR");
+                  break;
+                case "pong":
+                  break;
+              }
+            } catch {
+              // invalid JSON 무시
+            }
+          } else {
+            // Binary: AI 음성 PCM(16kHz/mono) 데이터 수신
+            if (event.data instanceof ArrayBuffer) {
+              onBinaryMessageRef.current?.(event.data);
+            }
+          }
+        };
+
+        ws.onclose = (event) => {
+          if (!isCurrent()) return;
+          clearInterval(pingInterval);
+          closeSocket();
+          aiSpeakingRef.current = false;
+          setIsConnected(false);
+          setIsAiSpeaking(false);
+          if (event.code === 1008 && event.reason === "TOKEN_EXPIRED" && !hasRefreshed) {
+            hasRefreshed = true;
+            startDeadline();
+            void (async () => {
+              try {
+                await refreshAuthTokens();
+                if (isActive) await connect();
+              } catch {
+                fail("WS_CLOSE_TOKEN_EXPIRED");
+              }
+            })();
+            return;
+          }
+          fail(`WS_CLOSE_${event.code === 1008 ? event.reason : event.code}`);
+        };
+        ws.onerror = () => {
+          if (isCurrent()) fail("WS_CONNECTION_ERROR");
+        };
+      } catch {
+        fail("WS_CONNECTION_ERROR");
+      }
+    };
+
+    if (isActive) {
+      startDeadline();
+      void connect();
+    } else {
+      stop();
+    }
+    return stop;
+  }, [enabled, sessionId]);
 
   const setPlaybackBlocked = useCallback((blocked: boolean) => {
     aiSpeakingRef.current = blocked;
@@ -258,16 +286,12 @@ export function useTrainWebSocket({
   }, []);
 
   const sendEndCall = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "end" }));
-    }
-  }, []);
+    sendJson({ type: "end" });
+  }, [sendJson]);
 
   const sendMute = useCallback((muted: boolean) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "mute", muted }));
-    }
-  }, []);
+    sendJson({ type: "mute", muted });
+  }, [sendJson]);
 
   const sendBinary = useCallback((data: ArrayBuffer) => {
     // 녹음 시작 시 등록된 콜백도 최신 AI 발화 상태를 읽어야 한다.
@@ -275,7 +299,11 @@ export function useTrainWebSocket({
     if (aiSpeakingRef.current) return;
 
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(data);
+      try {
+        wsRef.current.send(data);
+      } catch {
+        onErrorRef.current?.("WS_CONNECTION_ERROR");
+      }
     }
   }, []);
 
