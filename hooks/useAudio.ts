@@ -23,6 +23,25 @@ const WEB_AUDIO_CONSTRAINTS = {
   noiseSuppression: true,
   autoGainControl: true,
 };
+// iOS reports the permission answer before the closing prompt makes the app active again.
+const ACTIVE_WAIT_MS = 3000;
+
+/** Resolve true once the app is active, or false if it does not come back in time. */
+function waitForActive(): Promise<boolean> {
+  if (AppState.currentState === "active") return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      clearTimeout(timer);
+      subscription.remove();
+      resolve(true);
+    });
+    const timer = setTimeout(() => {
+      subscription.remove();
+      resolve(false);
+    }, ACTIVE_WAIT_MS);
+  });
+}
 
 /** Decode only the bytes emitted by the native PCM recorder. */
 function base64ToBuffer(b64: string): ArrayBuffer {
@@ -132,7 +151,8 @@ export function useAudio(options: UseAudioOptions = {}): UseAudioReturn {
     } else {
       ({ granted } = await requestRecordingPermissionsAsync());
     }
-    if (!granted || attempt !== generation.current || AppState.currentState !== "active") return false;
+    if (!granted || attempt !== generation.current) return false;
+    if (!(await waitForActive()) || attempt !== generation.current) return false;
     try {
       await setAudioModeAsync({
         allowsRecording: true,
