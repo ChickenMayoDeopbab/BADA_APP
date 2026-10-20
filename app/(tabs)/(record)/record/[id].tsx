@@ -92,6 +92,10 @@ export default function RecordDetailScreen() {
   const { data, isLoading, isError, isRefetching, refetch } =
     useTrainingRecordDetail(recordId);
 
+  const positiveFeedbacks = Array.isArray(data?.positiveFeedbacks)
+    ? data.positiveFeedbacks.filter((feedback) => feedback && typeof feedback === "object")
+    : [];
+
   const toggleFeedback = (index: number) => {
     setExpandedFeedbackIndexes((current) => {
       const next = new Set(current);
@@ -312,7 +316,7 @@ export default function RecordDetailScreen() {
                   통화 타임라인
                 </Text>
 
-                {data.positiveFeedbacks.length === 0 ? (
+                {positiveFeedbacks.length === 0 ? (
                   <View className="items-center py-16">
                     <Ionicons
                       name="chatbubble-ellipses-outline"
@@ -325,11 +329,11 @@ export default function RecordDetailScreen() {
                   </View>
                 ) : (
                   <View className="mt-[10px]">
-                    {data.positiveFeedbacks.map((feedback, index) => {
+                    {positiveFeedbacks.map((feedback, index) => {
                       const highlight = getFeedbackHighlightText(feedback);
                       const isExpanded = expandedFeedbackIndexes.has(index);
                       const isLast =
-                        index === data.positiveFeedbacks.length - 1;
+                        index === positiveFeedbacks.length - 1;
 
                       return (
                         <Animated.View

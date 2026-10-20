@@ -119,7 +119,7 @@ function ReportLoading() {
 }
 
 const formatTrainingTime = (trainingTime: FeedbackResponse["trainingTime"]) => {
-  const [hours = "0", minutes = "0", seconds = "0"] = trainingTime.split(":");
+  const [hours = "0", minutes = "0", seconds = "0"] = (typeof trainingTime === "string" ? trainingTime : "").split(":");
   const parts: string[] = [];
   if (Number(hours) > 0) parts.push(`${Number(hours)}시간`);
   if (Number(minutes) > 0) parts.push(`${Number(minutes)}분`);
@@ -275,6 +275,10 @@ export default function Report() {
   const [expandedIndexes, setExpandedIndexes] = useState(
     () => new Set<number>([]),
   );
+
+  const goodSegments = Array.isArray(feedback?.goodSegments)
+    ? feedback.goodSegments.filter((segment) => segment && typeof segment === "object")
+    : [];
 
   const finishReport = useCallback(() => {
     goToList();
@@ -476,7 +480,7 @@ export default function Report() {
                       통화 타임라인
                     </Text>
 
-                    {feedback.goodSegments.length === 0 ? (
+                    {goodSegments.length === 0 ? (
                       <View className="items-center py-16">
                         <Ionicons
                           name="chatbubble-ellipses-outline"
@@ -492,11 +496,11 @@ export default function Report() {
                       </View>
                     ) : (
                       <View className="mt-[10px]">
-                        {feedback.goodSegments.map((segment, index) => {
+                        {goodSegments.map((segment, index) => {
                           const highlight = getFeedbackHighlightText(segment);
                           const isExpanded = expandedIndexes.has(index);
                           const isLast =
-                            index === feedback.goodSegments.length - 1;
+                            index === goodSegments.length - 1;
 
                           return (
                             <View

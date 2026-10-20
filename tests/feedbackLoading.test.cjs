@@ -347,3 +347,14 @@ test('pending requests never overlap and cancellation propagates to the active H
   controller.abort();
   await canceled;
 });
+
+for (const highlights of [null, undefined, [null]]) {
+  test(`missing or null record highlights render safely: ${JSON.stringify(highlights)}`, () => {
+    assert.doesNotThrow(() => recordScreen(highlights)());
+  });
+  test(`missing or null report highlights render safely: ${JSON.stringify(highlights)}`, async () => {
+    const s = reportScreen({ waitForFeedback: async () => ({ ...result, goodSegments: highlights }) });
+    s.render(); const cleanup = s.start(); await flush();
+    assert.doesNotThrow(() => s.render()); cleanup();
+  });
+}
