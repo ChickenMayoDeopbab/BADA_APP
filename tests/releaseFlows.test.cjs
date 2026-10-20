@@ -566,6 +566,7 @@ test("scheduled scenario IDs survive a fresh module load and are removed after u
 
 /** 앱 시작 인증 검사의 중단과 재실행을 실제 effect로 검증한다. */
 function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } = {}) {
+  const queryClient = new (require("@tanstack/query-core").QueryClient)();
   let pathname = "/";
   let refIndex = 0;
   const refs = [];
@@ -586,7 +587,7 @@ function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } 
       getItem: async () => autoLogin,
     },
     "@tanstack/react-query": {
-      QueryClient: class {},
+      QueryClient: class { constructor() { return queryClient; } },
       QueryClientProvider: () => null,
     },
     "@/components/train/ScheduledCallWatcher": { default: () => null },
@@ -657,6 +658,8 @@ function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } 
       tree = loaded.exports.default();
       return effects[1];
     },
+    queryClient,
+    runCacheEffect: () => effects[3]?.(),
     tokenResolvers,
     tokenRejecters,
     routes,
@@ -1000,4 +1003,21 @@ test('legacy cleanup errors cannot hide a valid secure token or undo a successfu
   await s.api.setAuthTokens(refreshed);
   assert.equal(await s.api.getAccessToken(), refreshed.accessToken);
   assert.equal(await s.api.getAuthLoginMethod(), 'password');
+});
+
+
+test('returning to authentication clears all previous account queries and cancels pending reads', async () => {
+  const root = rootSetup();
+  for (const key of ['trainingRecords', 'trainingRecordDates', 'community', 'notifications', 'currentUserId', 'profileImage']) {
+    root.queryClient.setQueryData([key], { owner: 'previous-user' });
+  }
+  let signal;
+  const pending = root.queryClient.fetchQuery({ queryKey: ['trainingRecord', 1], queryFn: (context) => {
+    signal = context.signal;
+    return new Promise(() => {});
+  } }).catch(() => {});
+  root.render('/auth/login'); root.runCacheEffect();
+  assert.equal(root.queryClient.getQueryCache().getAll().length, 0);
+  assert.equal(signal.aborted, true);
+  await pending;
 });

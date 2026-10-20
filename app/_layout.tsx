@@ -121,6 +121,11 @@ export default function RootLayout() {
     return () => cancelAnimationFrame(frame);
   }, [pathname, startupPath]);
 
+  useEffect(() => {
+    // Query keys are shared across accounts; discard data and pending reads at sign-in boundaries.
+    if (pathname === "/auth" || pathname.startsWith("/auth/")) queryClient.clear();
+  }, [pathname]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
