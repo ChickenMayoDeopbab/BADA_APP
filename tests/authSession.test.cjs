@@ -64,6 +64,7 @@ function refreshSetup(post) {
     'jwt-decode': require('jwt-decode'),
     '@/utils/authTokenStorage': {
       getAuthTokens: async () => tokens,
+      getAuthSessionVersion: () => 0,
       setAuthTokens: async (next) => { writes.push(next); },
     },
     '@/utils/authSessionError': authErrors,

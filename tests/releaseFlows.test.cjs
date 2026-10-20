@@ -721,6 +721,7 @@ function authStorageSetup(platform = "web") {
     },
     "react-native": { Platform: { OS: platform } },
     "jwt-decode": require("jwt-decode"),
+    "./authSessionError": loadTypeScript("../utils/authSessionError.ts"),
   };
   mocks["./trainingCallScenario"] = loadTypeScript("../utils/trainingCallScenario.ts", {
     "@react-native-async-storage/async-storage": mocks["@react-native-async-storage/async-storage"],
@@ -955,49 +956,26 @@ test('the existing push listener signals one immediate reservation check and uns
   assert.equal(unsubscribed, true);
 });
 
-/** Read the retry button from the actual root layout tree. */
-function findStartupRetry(tree) {
-  if (!tree || typeof tree !== 'object') return undefined;
-  if (Array.isArray(tree)) return tree.map(findStartupRetry).find(Boolean);
-  if (tree.props?.label === '다시 확인') return tree;
-  return findStartupRetry(tree.props?.children);
-}
-
-test('cold launch with remember-login preserves credentials on a temporary error and retries successfully', async () => {
-  let isOffline = true;
+test('temporary startup API failure preserves credentials and routes directly to login', async () => {
   const root = rootSetup({ getDestination: async (options) => {
     assert.equal(options.throwOnError, true);
-    if (isOffline) throw new Error('network unavailable');
-    return '/home';
+    throw new Error('network unavailable');
   } });
   const cleanup = root.render('/')();
   root.tokenResolvers[0]('saved-access-token');
   await flushAsync();
   assert.equal(root.clears, 0);
-  assert.deepEqual(root.routes, []);
-  root.render('/');
-  const retry = findStartupRetry(root.tree);
-  assert.ok(retry);
-  retry.props.onPress();
+  assert.deepEqual(root.routes, ['/auth']);
   cleanup();
-  isOffline = false;
-  const retryCleanup = root.render('/')();
-  root.tokenResolvers[1]('saved-access-token');
-  await flushAsync();
-  assert.equal(root.clears, 0);
-  assert.deepEqual(root.routes, ['/home']);
-  retryCleanup();
 });
 
-test('temporary secure-storage failure at cold launch does not delete login tokens', async () => {
+test('temporary secure-storage failure routes to login without deleting saved tokens', async () => {
   const root = rootSetup();
   const cleanup = root.render('/')();
   root.tokenRejecters[0](new Error('device keychain temporarily unavailable'));
   await flushAsync();
   assert.equal(root.clears, 0);
-  assert.deepEqual(root.routes, []);
-  root.render('/');
-  assert.ok(findStartupRetry(root.tree));
+  assert.deepEqual(root.routes, ['/auth']);
   cleanup();
 });
 
