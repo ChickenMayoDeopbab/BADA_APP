@@ -282,7 +282,7 @@ export default function Train() {
   const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
-    enabled: step === "training",
+    enabled: step === "training" && isAudioReady,
     onBinaryMessage: (data) => {
       streamPcmChunk(data);
     },
@@ -489,8 +489,8 @@ export default function Train() {
   }, [isMuted, sendMute, setMicrophoneMuted]);
 
   /**
-   * 훈련 시작: WS는 즉시 연결하고 오디오 권한/세션은 병렬로 준비한다.
-   * 오디오 초기화가 느리거나 실패해도 서버에 WS 연결 시도 자체가 누락되지 않는다.
+   * 훈련 시작: 통화 화면은 바로 띄우고, WS는 마이크 권한·오디오 세션이 준비된 뒤에 연다.
+   * 준비 전에 연 WS를 실패로 닫으면 서버가 세션을 끝내 다시 받을 수 없다.
    */
   const startTraining = useCallback(async () => {
     if (isStartingRef.current || endHandledRef.current || !isScreenActiveRef.current) return;
