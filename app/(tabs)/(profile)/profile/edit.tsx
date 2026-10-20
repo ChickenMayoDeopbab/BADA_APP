@@ -408,7 +408,7 @@ export default function ProfileEditScreen() {
               <View className="absolute bottom-0 right-0 items-center justify-center border-2 size-8 rounded-component border-background-normal bg-fill-neutral">
                 <FontAsweome5
                   name="pen"
-                  size={20}
+                  size={16}
                   color={SEMANTIC_COLORS.label.neutral}
                 />
               </View>
