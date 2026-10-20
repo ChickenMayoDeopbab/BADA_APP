@@ -389,7 +389,7 @@ export default function Community() {
           elevation: 5,
         }}
       >
-        <FontAsweome5 name="pen" size={29} color="white" />
+        <FontAsweome5 name="pen" size={24} color="white" />
       </Pressable>
     </SafeAreaView>
   );
