@@ -142,7 +142,7 @@ test('local stop flushes speech once before end; disposal discards and repeated 
 
 
 /** Mount the real capture hook with deterministic React refs and capture drivers. */
-function mountAudio(platform = 'android') {
+function mountAudio(platform = 'android', expoAudio = {}) {
   const effects = [], stateListeners = [], sent = [], errors = [], events = [];
   let playbackOptions, nativeListener;
   const recorder = {
@@ -173,7 +173,7 @@ function mountAudio(platform = 'android') {
       useEffect: (callback) => effects.push(callback),
     },
     'react-native': { Platform: { OS: platform }, AppState: appState },
-    'expo-audio': {},
+    'expo-audio': expoAudio,
     'react-native-audio-record': { default: recorder },
   });
   const hook = useAudio({ onRecordingError: (error) => errors.push(error) });
@@ -458,5 +458,52 @@ test('end during the initial permission request never prepares capture after the
   assert.equal(await requested, false);
   assert.ok(browser.tracks.every((track) => track.stopped));
   assert.equal(browser.contexts.length, 0);
+  s.unmount();
+});
+
+/** iOS answers the permission prompt while the prompt still keeps the app inactive. */
+function iosPermission(events) {
+  return {
+    requestRecordingPermissionsAsync: async () => { events.push('granted'); return { granted: true }; },
+    setAudioModeAsync: async () => { events.push('audio mode'); },
+  };
+}
+
+test('ios permission granted under the prompt waits for the app to become active again', async () => {
+  const events = [];
+  const s = mountAudio('ios', iosPermission(events));
+  s.setState('inactive');
+  const requested = s.hook.requestPermission();
+  await nextTick();
+  assert.deepEqual(events, ['granted']);
+  s.setState('active');
+  assert.equal(await requested, true);
+  assert.deepEqual(events, ['granted', 'audio mode']);
+  s.unmount();
+});
+
+test('ios permission still fails without touching the audio session if the app never returns', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const events = [];
+  const s = mountAudio('ios', iosPermission(events));
+  s.setState('inactive');
+  const requested = s.hook.requestPermission();
+  await nextTick();
+  t.mock.timers.tick(3000);
+  assert.equal(await requested, false);
+  assert.deepEqual(events, ['granted']);
+  s.unmount();
+});
+
+test('ending the call while the prompt closes never configures the audio session', async () => {
+  const events = [];
+  const s = mountAudio('ios', iosPermission(events));
+  s.setState('inactive');
+  const requested = s.hook.requestPermission();
+  await nextTick();
+  await s.hook.stopSendingAudio();
+  s.setState('active');
+  assert.equal(await requested, false);
+  assert.deepEqual(events, ['granted']);
   s.unmount();
 });
