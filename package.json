@@ -18,7 +18,7 @@
     "test:consent": "node --test tests/legalConsent.test.cjs",
     "test:images": "node --test tests/imagePicker.test.cjs",
     "test:audio": "node --test tests/trainPlayback.test.cjs tests/trainMicrophone.test.cjs",
-    "test:ios": "node --test tests/iosSceneLifecycle.test.cjs tests/podfileFixes.test.cjs tests/iosNativeCheck.test.cjs",
+    "test:ios": "node --test tests/iosSceneLifecycle.test.cjs tests/podfileFixes.test.cjs tests/iosNativeCheck.test.cjs tests/iosFirebaseMode.test.cjs",
     "postinstall": "patch-package"
   },
   "dependencies": {
