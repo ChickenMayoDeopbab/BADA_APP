@@ -12,6 +12,7 @@ export type WsEndReason =
   | "SCENARIO_DONE"
   | "USER_END"
   | "TIMEOUT"
+  | "NO_AUDIO"
   | "CRISIS"
   | "END_CALL";
 
@@ -130,6 +131,13 @@ export function useTrainWebSocket({
       onErrorRef.current?.(code);
     };
 
+    /** 서버 종료 메시지와 정상 close를 한 번만 통화 종료로 전달한다. */
+    const finish = (reason: WsEndReason) => {
+      if (!isActive) return;
+      stop();
+      onEndRef.current?.(reason);
+    };
+
     /** Bound secure-storage lookup, refresh, and connection establishment. */
     const startDeadline = () => {
       clearTimeout(deadline);
@@ -149,6 +157,7 @@ export function useTrainWebSocket({
         const ws = new WebSocket(`${getWsBaseUrl()}/ws/voice/${sessionId}`);
         ws.binaryType = "arraybuffer";
         wsRef.current = ws;
+        let hasSessionStarted = false;
         const isCurrent = () => isActive && wsRef.current === ws;
 
         ws.onopen = () => {
@@ -178,6 +187,7 @@ export function useTrainWebSocket({
             try {
               const msg = JSON.parse(event.data);
               if (msg?.type === "scenario_info") {
+                hasSessionStarted = true;
                 if (typeof msg.aiRole === "string" && msg.aiRole.trim()) {
                   setDisplayName(msg.aiRole.trim());
                 }
@@ -215,8 +225,7 @@ export function useTrainWebSocket({
                   }
                   break;
                 case "end":
-                  stop();
-                  onEndRef.current?.(msg.reason);
+                  finish(msg.reason);
                   break;
                 case "error":
                   fail(typeof msg.code === "string" ? msg.code : "WS_SERVER_ERROR");
@@ -237,6 +246,10 @@ export function useTrainWebSocket({
 
         ws.onclose = (event) => {
           if (!isCurrent()) return;
+          if (event.code === 1000 && hasSessionStarted) {
+            finish("END_CALL");
+            return;
+          }
           clearInterval(pingInterval);
           closeSocket();
           aiSpeakingRef.current = false;

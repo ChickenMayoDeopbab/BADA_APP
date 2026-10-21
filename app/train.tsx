@@ -290,7 +290,7 @@ export default function Train() {
     onEmotion: beginPlayback,
     onSpeakingEnd: flushPlayback,
     onInterrupt: resetStream,
-    onEnd: () => handleEndCall(),
+    onEnd: () => handleServerEndCall(),
     onError: () => handleCallFailure("통화 연결이 끊겼어요"),
   });
   const initialScript = useInitialScriptHint({
@@ -365,9 +365,7 @@ export default function Train() {
     const timeout = setTimeout(
       () =>
         router.replace({
-          pathname: isWarmupSession
-            ? "/report"
-            : "/anxiety",
+          pathname: isWarmupSession ? "/report" : "/anxiety",
           params: nextParams,
         }),
       isWarmupSession ? WARMUP_REPORT_DELAY_MS : END_STEP_DURATION_MS,
@@ -535,10 +533,13 @@ export default function Train() {
     setIsMeditationVideoVisible(false);
     startTraining();
   };
-  /** 통화 종료: WS end 메시지 전송, 녹음 중지, 재생 버퍼 정리, 타이머 정리 */
-  const handleEndCall = () => {
-    if (endHandledRef.current) return;
+  /** 종료 주체에 맞게 오디오를 정리하고 서버가 확인한 통화는 시작 effect 전에도 완료로 처리한다. */
+  const finishCall = (hasServerEnded: boolean) => {
+    if (endHandledRef.current || !isScreenActiveRef.current) return;
     endHandledRef.current = true;
+    if (hasServerEnded && callStartedAtRef.current === null) {
+      callStartedAtRef.current = Date.now();
+    }
     const callDurationSeconds = callStartedAtRef.current === null
       ? 0
       : Math.max(0, Math.floor((Date.now() - callStartedAtRef.current) / 1000));
@@ -547,10 +548,11 @@ export default function Train() {
     if (sessionId && callStartedAtRef.current !== null) {
       void saveCompletedCallDuration(sessionId, callDurationSeconds).catch(() => {});
     }
-    // Release the microphone lookahead synchronously before the end message.
-    void stopSendingAudio(true).catch(() => {});
-    resetStream("call_end"); // Flush playback stats before the server closes the socket.
-    sendEndCall();
+    // 서버가 이미 종료한 경우 남은 마이크 입력과 중복 end 메시지를 보내지 않는다.
+    void stopSendingAudio(!hasServerEnded).catch(() => {});
+    resetStream(hasServerEnded ? "server_end" : "call_end");
+    if (!hasServerEnded) sendEndCall();
+    setIsAudioReady(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -558,6 +560,12 @@ export default function Train() {
     setStep("end");
     if (callStartedAtRef.current === null) router.replace("/(tabs)/(train)/list");
   };
+
+  /** 사용자가 종료 버튼을 누르면 서버에 알리고 후속 화면으로 이동한다. */
+  const handleEndCall = () => finishCall(false);
+
+  /** 서버의 종료 신호는 즉시 앱 통화도 종료하고 후속 화면으로 이어간다. */
+  const handleServerEndCall = () => finishCall(true);
 
   /** Explain interrupted calls and release audio before leaving an unsuccessful connection. */
   const handleCallFailure = (message: string) => {

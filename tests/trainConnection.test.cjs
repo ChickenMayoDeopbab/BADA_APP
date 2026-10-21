@@ -116,6 +116,43 @@ test('a normal transport close without a protocol end still ends the call', asyn
   assert.deepEqual(s.errors, ['WS_CLOSE_1000']);
 });
 
+test('a normal server close after session confirmation ends the call without a connection error', async (t) => {
+  const s = setup(t);
+  s.start(); await flush();
+  const socket = s.sockets[0]; socket.open();
+  socket.message({ type: 'scenario_info', aiRole: '직원' });
+  const lateClose = socket.onclose;
+  socket.serverClose(1000);
+  lateClose({ code: 1000, reason: '' });
+  assert.deepEqual(s.ends, ['END_CALL']);
+  assert.deepEqual(s.errors, []);
+  assert.equal(s.render().isConnected, false);
+});
+
+for (const reason of ['SCENARIO_DONE', 'END_CALL', 'TIMEOUT', 'NO_AUDIO']) {
+  test(`server ${reason} finishes once even when close and error callbacks follow`, async (t) => {
+    const s = setup(t);
+    s.start(); await flush();
+    const socket = s.sockets[0]; socket.open();
+    const lateClose = socket.onclose, lateError = socket.onerror;
+    socket.message({ type: 'end', reason });
+    lateClose({ code: 1000, reason: '' }); lateError({});
+    assert.deepEqual(s.ends, [reason]);
+    assert.deepEqual(s.errors, []);
+    assert.equal(s.render().isConnected, false);
+  });
+}
+
+test('an abnormal disconnect during a confirmed session still reports the transport failure', async (t) => {
+  const s = setup(t);
+  s.start(); await flush();
+  const socket = s.sockets[0]; socket.open();
+  socket.message({ type: 'scenario_info', aiRole: '직원' });
+  socket.serverClose(1006);
+  assert.deepEqual(s.ends, []);
+  assert.deepEqual(s.errors, ['WS_CLOSE_1006']);
+});
+
 test('token expiry retries once and rejects repeated expiry instead of looping', async (t) => {
   let refreshes = 0;
   const s = setup(t, { refresh: async () => { refreshes++; } });

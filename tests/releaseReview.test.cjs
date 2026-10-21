@@ -214,7 +214,8 @@ test('home recommendation uses the bundled illustration without a remote image d
 
 /** Render the call screen without native audio, timers or network side effects. */
 function callScreen(initialStep, height = 568, options = {}) {
-  const states = [], refs = [], events = [], alerts = [], routes = [];
+  const states = [], refs = [], events = [], alerts = [], routes = [], savedDurations = [];
+  let effects = [];
   let socketOptions, onBack, focus, writes = 0;
   let stateIndex = 0, refIndex = 0;
   const Screen = loadSource('../app/train.tsx', {
@@ -243,15 +244,15 @@ function callScreen(initialStep, height = 568, options = {}) {
       isConnected: true, isAiSpeaking: false,
       sendEndCall: () => events.push('end'),
     }; } },
-    '@/utils/completedCallDuration': { saveCompletedCallDuration: async () => {} },
-    '@/utils/mediaVolumeControl': {},
+    '@/utils/completedCallDuration': { saveCompletedCallDuration: async (...args) => savedDurations.push(args) },
+    '@/utils/mediaVolumeControl': { setMediaVolumeControlEnabled() {} },
     '@expo/vector-icons/Ionicons': { default: 'Icon' },
     'expo-router': {
       router: { replace: route => routes.push(route), canGoBack: () => false }, useFocusEffect: callback => { focus = callback; },
-      useLocalSearchParams: () => ({ sessionId: 'session-1', scenarioId: '1' }),
+      useLocalSearchParams: () => ({ sessionId: 'session-1', scenarioId: '1', ...options.params }),
     },
     'react': {
-      useEffect() {}, useMemo: (compute) => compute(), useCallback: (callback) => callback,
+      useEffect: (effect) => effects.push(effect), useMemo: (compute) => compute(), useCallback: (callback) => callback,
       useRef: (initial) => refs[refIndex++] ??= { current: initial },
       useState: (initial) => {
         const i = stateIndex++;
@@ -267,8 +268,58 @@ function callScreen(initialStep, height = 568, options = {}) {
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 24 }) },
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
   }).default;
-  return { events, alerts, routes, get writes() { return writes; }, back: () => onBack(), enter: () => focus(), fail: () => socketOptions.onError("WS_CONNECT_TIMEOUT"), render: () => { stateIndex = 0; refIndex = 0; return Screen(); } };
+  return {
+    events, alerts, routes, savedDurations, get writes() { return writes; },
+    back: () => onBack(), enter: () => focus(),
+    fail: () => socketOptions.onError("WS_CONNECT_TIMEOUT"),
+    serverEnd: (reason = 'SCENARIO_DONE') => socketOptions.onEnd(reason),
+    runEffects: () => effects.map(effect => effect()),
+    render: () => { stateIndex = 0; refIndex = 0; effects = []; return Screen(); },
+  };
 }
+
+test('server termination before the timer effect stops the call and opens anxiety scoring once', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const s = callScreen('training'); s.render();
+  s.serverEnd(); s.serverEnd(); s.fail();
+  const tree = s.render();
+  assert.equal(findNode(tree, node => node.props?.accessibilityLabel === '통화 종료').props.disabled, true);
+  assert.deepEqual(s.events, ['stop', 'server_end']);
+  assert.deepEqual(s.alerts, []);
+  assert.deepEqual(s.savedDurations, [['session-1', 0]]);
+  assert.deepEqual(s.routes, []);
+  s.runEffects();
+  t.mock.timers.tick(1999); assert.deepEqual(s.routes, []);
+  t.mock.timers.tick(1);
+  assert.equal(s.routes.length, 1);
+  assert.equal(s.routes[0].pathname, '/anxiety');
+  assert.equal(s.routes[0].params.sessionId, 'session-1');
+  assert.equal(s.routes[0].params.callDurationSeconds, '0');
+  assert.equal(s.routes[0].params.mode, 'scenario');
+});
+
+test('a late server end after leaving the call screen cannot change the next screen', () => {
+  const s = callScreen('training'); s.render();
+  const cleanup = s.enter(); cleanup();
+  const writes = s.writes, eventCount = s.events.length;
+  s.serverEnd();
+  assert.equal(s.writes, writes);
+  assert.equal(s.events.length, eventCount);
+  assert.deepEqual(s.routes, []);
+});
+
+test('server-ended warmup calls keep going directly to their report without anxiety scoring', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const s = callScreen('training', 874, { params: { isWarmup: 'true' } });
+  s.render(); s.serverEnd('TIMEOUT'); s.render(); s.runEffects();
+  t.mock.timers.tick(2999); assert.deepEqual(s.routes, []);
+  t.mock.timers.tick(1);
+  assert.equal(s.routes.length, 1);
+  assert.equal(s.routes[0].pathname, '/report');
+  assert.equal(s.routes[0].params.mode, 'warmUp');
+  assert.equal(s.routes[0].params.sessionId, 'session-1');
+  assert.deepEqual(s.alerts, []);
+});
 
 test('receiving and active calls stay fixed while the script alone scrolls and ending still stops audio', () => {
   for (const height of [568, 874]) {
