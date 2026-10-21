@@ -31,7 +31,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function Detail() {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const maxSheetHeight = Math.max(200, height - insets.top - insets.bottom - 88);
+  const maxSheetHeight = Math.max(0, height - insets.top - insets.bottom - 22);
   const shouldStackDetails = width < 340 || fontScale > 1.2;
   // 시트의 바깥 여백 22px, 안쪽 패딩 44px, 열 간격 16px을 제외한 폭을 나눈다.
   const imageSize = shouldStackDetails ? 163 : Math.min(163, (width - 82) * 0.51);
@@ -290,27 +290,22 @@ export default function Detail() {
         style={{
           transform: [{ translateY: dragY }],
           marginBottom: insets.bottom + 11,
+          maxHeight: maxSheetHeight,
         }}
       >
         <View
           className="mx-[11px] gap-y-2 overflow-hidden rounded-dialog bg-background-normal px-[22px] pt-2 pb-[22px]"
-          style={{
-            shadowColor: "#000",
-            shadowOpacity: 0.25,
-            shadowRadius: 32.9,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 12,
-          }}
+          style={[styles.sheet, { maxHeight: maxSheetHeight }]}
         >
           <View
             {...panResponder.panHandlers}
-            className="h-6 items-center justify-center"
+            className="h-6 shrink-0 items-center justify-center"
           >
             <View className="h-[5px] w-[100px] rounded-pill bg-line-neutral" />
           </View>
 
           <ScrollView
-            style={{ maxHeight: maxSheetHeight - 64 }}
+            style={styles.scroll}
             contentContainerClassName="gap-y-2 pb-1"
             showsVerticalScrollIndicator={false}
           >
@@ -411,17 +406,34 @@ export default function Detail() {
                     </Text>
                   </View>
                 </View>
-
-                <CustomButton
-                  label="훈련 시작하기"
-                  tone="primary"
-                  onPress={handleStart}
-                />
               </>
             )}
           </ScrollView>
+          {!isPending && !isError && scenario && (
+            <CustomButton
+              label="훈련 시작하기"
+              tone="primary"
+              className="shrink-0"
+              onPress={handleStart}
+            />
+          )}
         </View>
       </Animated.View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  sheet: {
+    flexShrink: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 32.9,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
+  },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+});

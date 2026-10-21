@@ -476,9 +476,7 @@ export default function Home() {
                           : "훈련 하러가기"}
                       </Text>
                     </View>
-                    <HomeScenarioIllustration
-                      categoryIconUrl={recommendationQuery.data?.category_icon_url}
-                    />
+                    <HomeScenarioIllustration />
                   </View>
                 </Pressable>
               )}
