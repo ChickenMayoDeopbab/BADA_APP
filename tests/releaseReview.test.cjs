@@ -203,23 +203,13 @@ test('training help opens an anchored explanation and closes by tapping outside'
 });
 
 
-test('home recommendation artwork falls back after an image error and recovers for a new category icon', () => {
-  let failedImageUrl = null;
+test('home recommendation uses the bundled illustration without a remote image dependency', () => {
   const Illustration = loadSource('../components/home/HomeScenarioIllustration.tsx', {
     '@/assets/home-pizza.svg': { default: 'Pizza' },
-    '@/components/common/StyledImage': { default: 'Image' },
-    'react': { useState: () => [failedImageUrl, (url) => { failedImageUrl = url; }] },
     'react-native': { View: 'View' },
     'react/jsx-runtime': { jsx, jsxs: jsx },
   }).default;
-  assert.ok(findNode(Illustration({}), (node) => node.type === 'Pizza'));
-  const categoryIconUrl = 'https://example.test/work-icon.svg';
-  const image = findNode(Illustration({ categoryIconUrl }), (node) => node.type === 'Image');
-  assert.equal(image.props.source, categoryIconUrl);
-  image.props.onError();
-  assert.ok(findNode(Illustration({ categoryIconUrl }), (node) => node.type === 'Pizza'));
-  const nextIcon = 'https://example.test/daily-icon.svg';
-  assert.equal(findNode(Illustration({ categoryIconUrl: nextIcon }), (node) => node.type === 'Image').props.source, nextIcon);
+  assert.ok(findNode(Illustration(), (node) => node.type === 'Pizza'));
 });
 
 /** Render the call screen without native audio, timers or network side effects. */
