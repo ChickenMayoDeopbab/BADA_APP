@@ -106,7 +106,10 @@ export default function SwipeCallButton({
       },
       onPanResponderRelease: (_, { dx, dy }) => {
         resetRipple();
-        if (Math.hypot(dx, dy) >= SWIPE_TRIGGER_DISTANCE) onSwipeRef.current();
+        // 드래그 도중 처리 중 상태로 바뀌었으면 실행하지 않는다
+        if (!isDisabledRef.current && Math.hypot(dx, dy) >= SWIPE_TRIGGER_DISTANCE) {
+          onSwipeRef.current();
+        }
       },
       onPanResponderTerminate: resetRipple,
     }),
