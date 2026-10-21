@@ -66,6 +66,9 @@ function mountTrain() {
   const color = new Proxy({}, { get: () => color });
   const component = (name) => ({ __esModule: true, default: name });
   const { default: Train } = loadSource('../app/train.tsx', {
+    '@/components/train/CallControls': { __esModule: true, default: 'CallControls' },
+    '@/assets/train/call.svg': { __esModule: true, default: 'CallIcon' },
+    '@/assets/train/hangup.svg': { __esModule: true, default: 'HangupIcon' },
     '@/components/train/CallBackground': component('CallBackground'),
     '@/api/trainingCallApi': { acceptTrainingCallSchedule: async () => {}, cancelTrainingCallSchedule: async () => {} },
     '@/api/error': { getApiErrorMessage: () => '' },
@@ -111,7 +114,7 @@ function mountTrain() {
       BackHandler: { exitApp: () => {} },
       Modal: 'Modal', ScrollView: 'ScrollView', Text: 'Text', TouchableOpacity: 'TouchableOpacity', View: 'View',
       StyleSheet: { create: (styles) => styles },
-      useWindowDimensions: () => ({ height: 800, fontScale: 1 }),
+      useWindowDimensions: () => ({ width: 402, height: 800, fontScale: 1 }),
     },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },

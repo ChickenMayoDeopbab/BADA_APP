@@ -218,6 +218,9 @@ function callScreen(initialStep, height = 568, options = {}) {
   let socketOptions, onBack, focus, writes = 0;
   let stateIndex = 0, refIndex = 0;
   const Screen = loadSource('../app/train.tsx', {
+    '@/components/train/CallControls': { __esModule: true, default: 'CallControls' },
+    '@/assets/train/call.svg': { __esModule: true, default: 'CallIcon' },
+    '@/assets/train/hangup.svg': { __esModule: true, default: 'HangupIcon' },
     '@/components/train/CallBackground': { default: 'Background' },
     '@/api/trainingCallApi': {},
     '@/api/error': {},
@@ -273,7 +276,7 @@ test('receiving and active calls stay fixed while the script alone scrolls and e
     const s = callScreen('training', height);
     let tree = s.render();
     assert.equal(findNode(tree, (node) => node.type === 'ScrollView'), undefined);
-    findNode(tree, (node) => node.type === 'Button' && node.props.children?.props?.name === 'document-text').props.onPress();
+    findNode(tree, (node) => node.type === 'CallControls').props.onShowScript();
     tree = s.render();
     const script = findNode(tree, (node) => node.type === 'ScrollView');
     assert.ok(script, 'the conversation remains scrollable inside the script panel');

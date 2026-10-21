@@ -1,4 +1,7 @@
 import CallBackground from "@/components/train/CallBackground";
+import CallControls from "@/components/train/CallControls";
+import CallIcon from "@/assets/train/call.svg";
+import HangupIcon from "@/assets/train/hangup.svg";
 import { acceptTrainingCallSchedule, cancelTrainingCallSchedule } from "@/api/trainingCallApi";
 import { getApiErrorMessage } from "@/api/error";
 import type { CreateSessionResponse } from "@/api/types";
@@ -19,6 +22,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -127,38 +131,31 @@ function MeditationVideoContent({
 }
 
 /** 통화 상대 이름 · 번호 · 프로필 사진 묶음 */
-function CalleeProfile({ name, phoneNumber, isSpeaking, avatarSize = 140, isCompact = false }: {
+function CalleeProfile({ name, phoneNumber, avatarSize = 140, isCompact = false }: {
   name: string;
   phoneNumber: string;
-  isSpeaking?: boolean;
   avatarSize?: number;
   isCompact?: boolean;
 }) {
   return (
-    <View className={`w-full items-center px-4 ${isCompact ? "gap-y-3" : "gap-y-6"}`}>
+    <View className="w-full items-center px-4" style={{ gap: isCompact ? 12 : 16 }}>
       <View className="w-full items-center">
         <Text
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.7}
-          className={`w-full text-center font-bold text-label-normal ${isCompact ? "text-title2" : "text-title1"}`}
+          className={`w-full text-center font-bold text-label-normal ${isCompact ? "text-title2" : "text-display1"}`}
+          style={styles.profileText}
         >
           {name}
         </Text>
-        <Text className="w-full text-center text-body text-label-neutral">폰 {phoneNumber}</Text>
+        <Text style={styles.profileText} className="w-full text-center text-body text-label-neutral">폰 {phoneNumber}</Text>
       </View>
-      <View
+      <Image
+        source={require("@/assets/train/callee-avatar.png")}
+        resizeMode="contain"
         style={{ width: avatarSize, height: avatarSize }}
-        className={`items-center justify-center rounded-pill ${
-          isSpeaking ? "bg-primary-alternative" : "bg-fill-neutral"
-        }`}
-      >
-        <Ionicons
-          name="person"
-          size={Math.round(avatarSize * 0.57)}
-          color={PALETTE.neutral[80]}
-        />
-      </View>
+      />
     </View>
   );
 }
@@ -241,12 +238,13 @@ export default function Train() {
   const { data: scenario } = useScenario(scenarioId);
   const scenarioTitle = title ?? scenario?.title;
   /** iPhone SE·8처럼 세로가 짧은 기기에서 통화 버튼이 잘리지 않도록 값을 줄인다 */
-  const { height: windowHeight, fontScale } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth, fontScale } = useWindowDimensions();
   const availableHeight = windowHeight - insets.top - insets.bottom;
-  const isCompactScreen = availableHeight < 740 || fontScale > 1.2;
+  const isCompactScreen = availableHeight < 700 || fontScale > 1.2;
   const isShortScreen = availableHeight < 580;
-  const avatarSize = isShortScreen ? 72 : isCompactScreen ? 96 : 140;
-  const controlSize = isShortScreen ? 48 : isCompactScreen ? 56 : 72;
+  const callScale = Math.min(1, availableHeight / 700, (windowWidth - 32) / 312);
+  const spacingScale = Math.min(1, availableHeight / 786);
+  const avatarSize = isCompactScreen ? (isShortScreen ? 72 : 96) : 140;
 
   const [isMuted, setIsMuted] = useState(false);
   const isWarmupSession = isWarmup === "true";
@@ -279,7 +277,7 @@ export default function Train() {
     onRecordingError: () => handleCallFailure("마이크 연결에 실패했어요"),
   });
 
-  const { isConnected, isAiSpeaking, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
+  const { isConnected, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training" && isAudioReady,
@@ -646,6 +644,7 @@ export default function Train() {
   }
 
   const isEnd = step === "end";
+  const hangupButtonSize = { width: 80 * callScale, height: 80 * callScale };
 
   return (
     <View className={`flex-1 ${isEnd ? "bg-background-normal" : ""}`}>
@@ -654,150 +653,50 @@ export default function Train() {
       {!isEnd && <CallBackground />}
       <View className="flex-1" style={safeArea}>
         <View className="min-h-0 flex-1">
-          <View className={`shrink-0 flex-row items-center justify-center gap-x-2 ${isCompactScreen ? "mt-3" : "mt-6"}`}>
-            <Ionicons
-              name="call"
-              size={20}
-              color={isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral}
-              style={isEnd ? styles.rotatedIcon : undefined}
-            />
-            <Text
-              className="text-body font-medium"
-              style={{
-                color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.neutral,
-              }}
-            >
-              {formatTime(seconds)}
-              {isEnd
-                ? " 훈련을 종료했습니다."
-                : isAiSpeaking
-                  ? "  AI 발화 중..."
-                  : ""}
-            </Text>
-          </View>
-
-          <View className={`items-center ${isCompactScreen ? "pt-3" : "pt-10"}`}>
-            <CalleeProfile
-              name={roleName}
-              phoneNumber={generatedPhoneNumber}
-              isSpeaking={isAiSpeaking}
-              avatarSize={avatarSize}
-              isCompact={isCompactScreen}
-            />
-            {/* WS 연결 전에는 상대가 아직 응답할 수 없다는 것을 알린다 */}
-            {!isConnected && step === "training" && (
-              <Text className="text-label text-label-alternative mt-2">
-                연결 중...
+          <View style={[styles.callHeader, { paddingTop: 22 * spacingScale }]}>
+            <View style={styles.callTimer}>
+              {isEnd ? (
+                <Ionicons name="call" size={20} color={PALETTE.red[40]} style={styles.rotatedIcon} />
+              ) : <CallIcon />}
+              <Text
+                className="text-body font-medium"
+                style={[styles.profileText, { color: isEnd ? PALETTE.red[40] : SEMANTIC_COLORS.label.alternative }]}
+              >
+                {formatTime(seconds)}{isEnd ? " 훈련을 종료했습니다." : ""}
               </Text>
-            )}
+            </View>
+            <View style={[styles.profileContainer, { paddingTop: (isCompactScreen ? 20 : 40) * spacingScale }]}>
+              <CalleeProfile
+                name={roleName}
+                phoneNumber={generatedPhoneNumber}
+                avatarSize={avatarSize}
+                isCompact={isCompactScreen}
+              />
+              {!isConnected && step === "training" && (
+                <Text className="text-label text-label-alternative mt-2">연결 중...</Text>
+              )}
+            </View>
           </View>
 
-          {/* 남는 공간을 여기서 흡수해야 작은 화면에서 아래 통화 버튼이 밀려나지 않는다 */}
-          <View className={`min-h-0 flex-1 justify-center ${isCompactScreen ? "py-2" : "py-4"}`}>
+          <View style={[styles.controlsArea, { paddingBottom: (isScriptVisible ? 16 : 40) * spacingScale }]}>
             {!isEnd && !isScriptVisible && (
-              <View style={styles.gridContainer}>
-                {[
-                  /* 워밍업에서는 스크립트 보기 비활성화 */
-                  isWarmupSession
-                    ? {
-                        label: "스크립트 보기",
-                        onPress: undefined,
-                        icon: "document-text",
-                        active: false,
-                        disabled: true,
-                      }
-                    : {
-                        label: "스크립트 보기",
-                        onPress: () => setIsScriptVisible(true),
-                        icon: "document-text",
-                        active: false,
-                        disabled: false,
-                      },
-                  {
-                    label: isMuted ? "음소거 해제" : "음소거",
-                    onPress: handleToggleMute,
-                    icon: isMuted ? "mic-off" : "mic",
-                    active: isMuted,
-                    disabled: false,
-                  },
-                  /* 아래 버튼들은 UI만 제공하며 실제 동작하지 않아 비활성화 처리 */
-                  {
-                    label: "녹음",
-                    onPress: undefined,
-                    icon: "radio-button-on",
-                    active: false,
-                    disabled: true,
-                  },
-                  {
-                    label: "스피커",
-                    onPress: undefined,
-                    icon: "volume-high",
-                    active: false,
-                    disabled: true,
-                  },
-                  {
-                    label: "영상통화",
-                    onPress: undefined,
-                    icon: "videocam",
-                    active: false,
-                    disabled: true,
-                  },
-                  {
-                    label: "키패드",
-                    onPress: undefined,
-                    icon: "keypad",
-                    active: false,
-                    disabled: true,
-                  },
-                ].map((btn, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.gridItem,
-                      isCompactScreen && styles.gridItemCompact,
-                    ]}
-                  >
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      disabled={btn.disabled}
-                      style={[styles.gridButton, { width: controlSize, height: controlSize }]}
-                      onPress={btn.onPress}
-                    >
-                      <Ionicons
-                        name={btn.icon as any}
-                        size={isCompactScreen ? 28 : 32}
-                        color={
-                          btn.disabled
-                            ? SEMANTIC_COLORS.line.normal
-                            : btn.active
-                              ? PALETTE.red[40]
-                              : SEMANTIC_COLORS.label.normal
-                        }
-                      />
-                    </TouchableOpacity>
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
-                      className={`w-full text-center text-label font-medium ${isCompactScreen ? "mt-1" : "mt-2"} ${
-                        btn.disabled ? "text-line-normal" : "text-label-normal"
-                      }`}
-                    >
-                      {btn.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <CallControls
+                isWarmup={isWarmupSession}
+                isMuted={isMuted}
+                scale={callScale}
+                onShowScript={() => setIsScriptVisible(true)}
+                onToggleMute={handleToggleMute}
+              />
             )}
 
             {!isEnd && isScriptVisible && (
-              <View className="mx-[33px] min-h-0 flex-1">
+              <View className="mx-[33px] min-h-0 flex-1 mt-4">
                 <TouchableOpacity
                   onPress={() => setIsScriptVisible(false)}
                   activeOpacity={0.8}
                   style={styles.scriptHideButton}
                 >
-                  <Text className="text-body font-medium text-label-neutral">
+                  <Text style={styles.profileText} className="text-body font-medium text-label-neutral">
                     스크립트 가리기
                   </Text>
                 </TouchableOpacity>
@@ -824,6 +723,7 @@ export default function Train() {
                       {transcript.map((line, index) => (
                         <Text
                           key={index}
+                          style={styles.profileText}
                           className="text-body font-medium text-label-neutral"
                         >
                           {roleToSpeaker(line.role)} : {line.text}
@@ -838,7 +738,7 @@ export default function Train() {
           </View>
         </View>
 
-        <View className={`shrink-0 items-center ${isCompactScreen ? "pb-3" : "pb-6"}`}>
+        <View style={[styles.hangupArea, { paddingBottom: (isScriptVisible && isCompactScreen ? 24 : 58) * spacingScale }]}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="통화 종료"
@@ -847,18 +747,12 @@ export default function Train() {
             disabled={isEnd}
             style={[
               styles.callButton,
-              isCompactScreen && styles.callButtonCompact,
+              hangupButtonSize,
               { backgroundColor: PALETTE.red[40], opacity: isEnd ? 0.4 : 1 },
             ]}
           >
-            <Ionicons
-              name="call"
-              size={36}
-              color={PALETTE.common[0]}
-              style={styles.rotatedIcon}
-            />
+            <HangupIcon />
           </TouchableOpacity>
-          <ScenarioLabel title={scenarioTitle} isCompact={isCompactScreen} />
         </View>
       </View>
     </View>
@@ -872,11 +766,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 9.45,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
   },
   rotatedIcon: {
     transform: [{ rotate: "135deg" }],
@@ -886,27 +775,12 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
   },
-  gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginHorizontal: 47,
-  },
-  gridItem: {
-    width: "33.33%",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  gridItemCompact: {
-    marginBottom: 6,
-  },
-  gridButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor: "rgba(254,254,254,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  profileText: { includeFontPadding: false },
+  callHeader: { flexShrink: 0, alignItems: "center" },
+  callTimer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  profileContainer: { width: "100%", alignItems: "center" },
+  controlsArea: { minHeight: 0, flex: 1, justifyContent: "flex-end" },
+  hangupArea: { flexShrink: 0, alignItems: "center" },
   scriptHideButton: {
     alignSelf: "center",
     alignItems: "center",

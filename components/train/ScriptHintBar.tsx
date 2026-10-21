@@ -1,7 +1,7 @@
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { ScriptHint } from "@/hooks/useTrainWebSocket";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 /** 서버 script_hint level 값 (같은 시나리오 연습 횟수에 따라 서버가 결정) */
 const HINT_LEVEL = {
@@ -25,10 +25,10 @@ export default function ScriptHintBar({ hint }: ScriptHintBarProps) {
   if (!isRecommend && !isAdvice) return null;
 
   return (
-    <View className="gap-y-4 pt-4">
+    <View className="shrink-0 gap-y-4 pt-4">
       <View className="h-px bg-line-neutral" />
       {isRecommend ? (
-        <Text className="text-body font-bold text-label-strong">
+        <Text style={styles.text} className="text-body font-bold text-label-strong">
           추천 : {hint.text}
         </Text>
       ) : (
@@ -38,7 +38,7 @@ export default function ScriptHintBar({ hint }: ScriptHintBarProps) {
             size={24}
             color={SEMANTIC_COLORS.label.alternative}
           />
-          <Text className="flex-1 text-body font-medium text-label-alternative">
+          <Text style={styles.text} className="flex-1 text-body font-medium text-label-alternative">
             {hint.text}
           </Text>
         </View>
@@ -46,3 +46,7 @@ export default function ScriptHintBar({ hint }: ScriptHintBarProps) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  text: { includeFontPadding: false },
+});
