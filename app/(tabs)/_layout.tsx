@@ -90,6 +90,9 @@ export default function TabLayout() {
     ["create", "warmup", "warmup-start"].some((route) =>
       pathname.endsWith(`/${route}`),
     );
+  const isScenarioDetail =
+    segments.some((segment) => segment === "(train)") &&
+    segments.some((segment) => segment === "detail");
   const isRecordDetail =
     segments.some((segment) => segment === "(record)") &&
     (segments.some((segment) => segment === "[id]") || /\/record\/[^/]+$/.test(pathname));
@@ -102,6 +105,7 @@ export default function TabLayout() {
     pathname.endsWith("/search") ||
     (isCommunityStack && !isCommunityRoot) ||
     isTrainCreation ||
+    isScenarioDetail ||
     isRecordDetail ||
     isProfileSubscreen;
 
