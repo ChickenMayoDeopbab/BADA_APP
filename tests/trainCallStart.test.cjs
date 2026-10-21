@@ -69,6 +69,7 @@ function mountTrain() {
     '@/components/train/CallControls': { __esModule: true, default: 'CallControls' },
     '@/assets/train/call.svg': { __esModule: true, default: 'CallIcon' },
     '@/assets/train/hangup.svg': { __esModule: true, default: 'HangupIcon' },
+    '@/hooks/useInitialScriptHint': { useInitialScriptHint: ({ scriptHint }) => ({ hint: scriptHint }) },
     '@/components/train/CallBackground': component('CallBackground'),
     '@/api/trainingCallApi': { acceptTrainingCallSchedule: async () => {}, cancelTrainingCallSchedule: async () => {} },
     '@/api/error': { getApiErrorMessage: () => '' },

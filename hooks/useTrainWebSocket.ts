@@ -45,6 +45,7 @@ export interface UseTrainWebSocketReturn {
   isConnected: boolean;
   isAiSpeaking: boolean;
   displayName: string | null;
+  scriptLevel: number | null;
   setPlaybackBlocked: (blocked: boolean) => void;
   sendJson: (payload: object) => boolean;
   sendEndCall: () => void;
@@ -70,6 +71,7 @@ export function useTrainWebSocket({
   const [isConnected, setIsConnected] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [scriptLevel, setScriptLevel] = useState<number | null>(null);
 
   const onEmotionRef = useRef(onEmotion);
   const onSpeakingEndRef = useRef(onSpeakingEnd);
@@ -118,6 +120,7 @@ export function useTrainWebSocket({
       setIsConnected(false);
       setIsAiSpeaking(false);
       setDisplayName(null);
+      setScriptLevel(null);
     };
 
     /** Report each terminal connection failure once, with no live resources left. */
@@ -174,12 +177,13 @@ export function useTrainWebSocket({
           if (typeof event.data === "string") {
             try {
               const msg = JSON.parse(event.data);
-              if (
-                msg?.type === "scenario_info" &&
-                typeof msg?.aiRole === "string" &&
-                msg.aiRole.trim()
-              ) {
-                setDisplayName(msg.aiRole.trim());
+              if (msg?.type === "scenario_info") {
+                if (typeof msg.aiRole === "string" && msg.aiRole.trim()) {
+                  setDisplayName(msg.aiRole.trim());
+                }
+                if ([1, 2, 3].includes(msg.scriptLevel)) {
+                  setScriptLevel(msg.scriptLevel);
+                }
               }
               switch (msg.type) {
                 case "emotion":
@@ -311,6 +315,7 @@ export function useTrainWebSocket({
     isConnected,
     isAiSpeaking,
     displayName,
+    scriptLevel,
     setPlaybackBlocked,
     sendJson,
     sendEndCall,

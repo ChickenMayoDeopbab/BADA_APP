@@ -14,6 +14,7 @@ import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
+import { useInitialScriptHint } from "@/hooks/useInitialScriptHint";
 import { ScriptHint, TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
 import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
 import { setMediaVolumeControlEnabled } from "@/utils/mediaVolumeControl";
@@ -277,7 +278,7 @@ export default function Train() {
     onRecordingError: () => handleCallFailure("마이크 연결에 실패했어요"),
   });
 
-  const { isConnected, displayName, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
+  const { isConnected, displayName, scriptLevel, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training" && isAudioReady,
@@ -291,6 +292,13 @@ export default function Train() {
     onInterrupt: resetStream,
     onEnd: () => handleEndCall(),
     onError: () => handleCallFailure("통화 연결이 끊겼어요"),
+  });
+  const initialScript = useInitialScriptHint({
+    scenarioId,
+    isEnabled: step === "training" && !isWarmupSession,
+    scriptLevel,
+    transcript,
+    scriptHint,
   });
   /**
    * 통화가 끝나면 WS가 끊기며 displayName이 비워진다.
@@ -731,7 +739,12 @@ export default function Train() {
                       ))}
                     </ScrollView>
                   )}
-                  <ScriptHintBar hint={scriptHint} />
+                  <ScriptHintBar
+                    hint={initialScript.hint}
+                    isLoading={initialScript.isLoading}
+                    hasError={initialScript.hasError}
+                    onRetry={() => { void initialScript.retry(); }}
+                  />
                 </View>
               </View>
             )}

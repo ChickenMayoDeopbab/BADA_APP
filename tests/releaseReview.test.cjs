@@ -221,6 +221,7 @@ function callScreen(initialStep, height = 568, options = {}) {
     '@/components/train/CallControls': { __esModule: true, default: 'CallControls' },
     '@/assets/train/call.svg': { __esModule: true, default: 'CallIcon' },
     '@/assets/train/hangup.svg': { __esModule: true, default: 'HangupIcon' },
+    '@/hooks/useInitialScriptHint': { useInitialScriptHint: ({ scriptHint }) => ({ hint: scriptHint }) },
     '@/components/train/CallBackground': { default: 'Background' },
     '@/api/trainingCallApi': {},
     '@/api/error': {},

@@ -142,3 +142,19 @@ test('authentication precedes all data and the microphone gate tracks current pl
   assert.deepEqual(s.ends, ['USER_END']);
   assert.deepEqual(s.errors, []);
 });
+
+test('scenario metadata supplies the authoritative script level even when the role name is empty', async (t) => {
+  const s = setup(t);
+  s.start(); await flush();
+  const socket = s.sockets[0]; socket.open();
+  assert.equal(s.render().scriptLevel, null);
+  for (const level of [1, 2, 3]) {
+    socket.message({ type: 'scenario_info', aiRole: '', scriptLevel: level });
+    assert.equal(s.render().scriptLevel, level);
+  }
+  socket.message({ type: 'scenario_info', aiRole: '직원', scriptLevel: '1' });
+  assert.equal(s.render().scriptLevel, 3);
+  assert.equal(s.render().displayName, '직원');
+  s.stop();
+  assert.equal(s.render(false).scriptLevel, null);
+});
