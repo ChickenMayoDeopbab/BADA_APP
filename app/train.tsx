@@ -7,6 +7,7 @@ import { getApiErrorMessage } from "@/api/error";
 import type { CreateSessionResponse } from "@/api/types";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import { getTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
+import SwipeCallButton from "@/components/train/SwipeCallButton";
 import ScriptHintBar from "@/components/train/ScriptHintBar";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
@@ -603,39 +604,43 @@ export default function Train() {
             </View>
             <View className={`shrink-0 items-center ${isCompactScreen ? "pb-3" : "pb-6"}`}>
               <View className="w-full max-w-[300px] flex-row items-center justify-between px-4">
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="전화 받기"
-                  onPress={() => void handleAccept()}
-                  disabled={isHandlingSchedule}
-                  accessibilityState={{
-                    disabled: isHandlingSchedule,
-                    busy: isHandlingSchedule,
-                  }}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.callButton,
-                    isCompactScreen && styles.callButtonCompact,
-                    { backgroundColor: PALETTE.green[40] },
-                  ]}
-                >
-                  <Ionicons name="call" size={36} color={PALETTE.common[0]} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="전화 거절하기"
-                  onPress={() => void handleDecline()}
-                  disabled={isHandlingSchedule}
-                  activeOpacity={0.8}
-                  style={[styles.callButton, isCompactScreen && styles.callButtonCompact, { backgroundColor: PALETTE.red[40] }]}
-                >
-                  <Ionicons
-                    name="call"
-                    size={36}
-                    color={PALETTE.common[0]}
-                    style={styles.rotatedIcon}
-                  />
-                </TouchableOpacity>
+                <SwipeCallButton isDisabled={isHandlingSchedule} onSwipe={() => void handleAccept()}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="전화 받기"
+                    onPress={() => void handleAccept()}
+                    disabled={isHandlingSchedule}
+                    accessibilityState={{
+                      disabled: isHandlingSchedule,
+                      busy: isHandlingSchedule,
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.callButton,
+                      isCompactScreen && styles.callButtonCompact,
+                      { backgroundColor: PALETTE.green[40] },
+                    ]}
+                  >
+                    <Ionicons name="call" size={36} color={PALETTE.common[0]} />
+                  </TouchableOpacity>
+                </SwipeCallButton>
+                <SwipeCallButton isDisabled={isHandlingSchedule} onSwipe={() => void handleDecline()}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="전화 거절하기"
+                    onPress={() => void handleDecline()}
+                    disabled={isHandlingSchedule}
+                    activeOpacity={0.8}
+                    style={[styles.callButton, isCompactScreen && styles.callButtonCompact, { backgroundColor: PALETTE.red[40] }]}
+                  >
+                    <Ionicons
+                      name="call"
+                      size={36}
+                      color={PALETTE.common[0]}
+                      style={styles.rotatedIcon}
+                    />
+                  </TouchableOpacity>
+                </SwipeCallButton>
               </View>
               <ScenarioLabel title={scenarioTitle} isCompact={isCompactScreen} />
             </View>
