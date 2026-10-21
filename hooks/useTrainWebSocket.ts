@@ -18,6 +18,7 @@ export type WsEndReason =
 
 /** 실시간 대화 스크립트 한 줄 (role: "user"=나 / "ai"=상대) */
 export interface TranscriptTurn {
+  id: number; // 수신 순서로 매기는 고유 번호 (목록 key용)
   role: string;
   text: string;
 }
@@ -83,6 +84,7 @@ export function useTrainWebSocket({
   const onTranscriptRef = useRef(onTranscript);
   const onScriptHintRef = useRef(onScriptHint);
   const aiSpeakingRef = useRef(false);
+  const transcriptIdRef = useRef(0); // 다음 스크립트 줄에 붙일 번호
   onEmotionRef.current = onEmotion;
   onSpeakingEndRef.current = onSpeakingEnd;
   onInterruptRef.current = onInterrupt;
@@ -211,6 +213,7 @@ export function useTrainWebSocket({
                 case "transcript":
                   if (typeof msg.text === "string" && msg.text.trim()) {
                     onTranscriptRef.current?.({
+                      id: transcriptIdRef.current++,
                       role: typeof msg.role === "string" ? msg.role : "",
                       text: msg.text,
                     });

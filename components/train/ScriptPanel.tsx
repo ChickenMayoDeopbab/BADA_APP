@@ -57,8 +57,8 @@ export default function ScriptPanel({ transcript, isAiTyping, onHide, children }
           contentContainerStyle={styles.chatContent}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
-          {transcript.map((line, index) => (
-            <ScriptBubble key={index} isMine={line.role === "user"} text={line.text} />
+          {transcript.map((line) => (
+            <ScriptBubble key={line.id} isMine={line.role === "user"} text={line.text} />
           ))}
           {/* AI 발화 중 대사가 오기 전까지 상대 말풍선 자리에 로딩 점을 띄운다 */}
           {isAiTyping && (
