@@ -28,3 +28,9 @@ export const SUBTLE_CARD_SHADOW = cardShadow(
   "0px 2px 5.3px 0px rgba(0,0,0,0.04)",
   1,
 );
+
+/** Training call script panel: 0px 4px 16px rgba(26, 102, 51, 0.1). */
+export const SCRIPT_PANEL_SHADOW = cardShadow(
+  "0px 4px 16px 0px rgba(26,102,51,0.1)",
+  4,
+);

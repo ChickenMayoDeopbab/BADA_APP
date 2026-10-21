@@ -7,7 +7,9 @@ import { getApiErrorMessage } from "@/api/error";
 import type { CreateSessionResponse } from "@/api/types";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import { getTrainingCallScenario, removeTrainingCallScenario } from "@/utils/trainingCallScenario";
+import SwipeCallButton from "@/components/train/SwipeCallButton";
 import ScriptHintBar from "@/components/train/ScriptHintBar";
+import ScriptPanel from "@/components/train/ScriptPanel";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
@@ -24,7 +26,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -39,10 +40,6 @@ type TrainStep = "receive" | "training" | "end";
 const END_STEP_DURATION_MS = 2000;
 /** 워밍업은 불안 점수를 받지 않으므로 피드백 생성 시간을 따로 기다린다(ms) */
 const WARMUP_REPORT_DELAY_MS = 3000;
-
-/** WebSocket transcript role → 화면 표시 이름 (user=나, ai=상대) */
-const roleToSpeaker = (role: string): string =>
-  role === "user" ? "나" : "상대";
 
 /** 경과 시간을 MM:SS 형식으로 변환 */
 const formatTime = (totalSeconds: number): string => {
@@ -230,7 +227,6 @@ export default function Train() {
   const isScreenActiveRef = useRef(true);
   const isStartingRef = useRef(false);
   const startAttemptRef = useRef(0);
-  const scriptScrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   /**
    * 즉시 발신에서 시나리오 정보가 생략되어도 scenarioId로 조회한다.
@@ -278,7 +274,7 @@ export default function Train() {
     onRecordingError: () => handleCallFailure("마이크 연결에 실패했어요"),
   });
 
-  const { isConnected, displayName, scriptLevel, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
+  const { isConnected, isAiSpeaking, displayName, scriptLevel, sendEndCall, sendBinary, sendMute, sendJson, setPlaybackBlocked } = useTrainWebSocket({
     sessionId: sessionId ?? null,
     wsUrl: wsUrl ?? null,
     enabled: step === "training" && isAudioReady,
@@ -293,6 +289,8 @@ export default function Train() {
     onEnd: () => handleServerEndCall(),
     onError: () => handleCallFailure("통화 연결이 끊겼어요"),
   });
+  /** AI가 말하는 중인데 이번 턴 대사가 아직 오지 않았으면 스크립트에 로딩 점을 띄운다 */
+  const isAiTyping = isAiSpeaking && (transcript.at(-1)?.role ?? "user") === "user";
   const initialScript = useInitialScriptHint({
     scenarioId,
     isEnabled: step === "training" && !isWarmupSession,
@@ -603,39 +601,51 @@ export default function Train() {
             </View>
             <View className={`shrink-0 items-center ${isCompactScreen ? "pb-3" : "pb-6"}`}>
               <View className="w-full max-w-[300px] flex-row items-center justify-between px-4">
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="전화 받기"
-                  onPress={() => void handleAccept()}
-                  disabled={isHandlingSchedule}
-                  accessibilityState={{
-                    disabled: isHandlingSchedule,
-                    busy: isHandlingSchedule,
-                  }}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.callButton,
-                    isCompactScreen && styles.callButtonCompact,
-                    { backgroundColor: PALETTE.green[40] },
-                  ]}
+                <SwipeCallButton
+                  rippleColor={PALETTE.green[40]}
+                  isDisabled={isHandlingSchedule}
+                  onSwipe={() => void handleAccept()}
                 >
-                  <Ionicons name="call" size={36} color={PALETTE.common[0]} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="전화 거절하기"
-                  onPress={() => void handleDecline()}
-                  disabled={isHandlingSchedule}
-                  activeOpacity={0.8}
-                  style={[styles.callButton, isCompactScreen && styles.callButtonCompact, { backgroundColor: PALETTE.red[40] }]}
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="전화 받기"
+                    onPress={() => void handleAccept()}
+                    disabled={isHandlingSchedule}
+                    accessibilityState={{
+                      disabled: isHandlingSchedule,
+                      busy: isHandlingSchedule,
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.callButton,
+                      isCompactScreen && styles.callButtonCompact,
+                      { backgroundColor: PALETTE.green[40] },
+                    ]}
+                  >
+                    <Ionicons name="call" size={36} color={PALETTE.common[0]} />
+                  </TouchableOpacity>
+                </SwipeCallButton>
+                <SwipeCallButton
+                  rippleColor={PALETTE.red[40]}
+                  isDisabled={isHandlingSchedule}
+                  onSwipe={() => void handleDecline()}
                 >
-                  <Ionicons
-                    name="call"
-                    size={36}
-                    color={PALETTE.common[0]}
-                    style={styles.rotatedIcon}
-                  />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="전화 거절하기"
+                    onPress={() => void handleDecline()}
+                    disabled={isHandlingSchedule}
+                    activeOpacity={0.8}
+                    style={[styles.callButton, isCompactScreen && styles.callButtonCompact, { backgroundColor: PALETTE.red[40] }]}
+                  >
+                    <Ionicons
+                      name="call"
+                      size={36}
+                      color={PALETTE.common[0]}
+                      style={styles.rotatedIcon}
+                    />
+                  </TouchableOpacity>
+                </SwipeCallButton>
               </View>
               <ScenarioLabel title={scenarioTitle} isCompact={isCompactScreen} />
             </View>
@@ -707,53 +717,18 @@ export default function Train() {
 
             {!isEnd && isScriptVisible && (
               <View className="mx-[33px] min-h-0 flex-1 mt-4">
-                <TouchableOpacity
-                  onPress={() => setIsScriptVisible(false)}
-                  activeOpacity={0.8}
-                  style={styles.scriptHideButton}
+                <ScriptPanel
+                  transcript={transcript}
+                  isAiTyping={isAiTyping}
+                  onHide={() => setIsScriptVisible(false)}
                 >
-                  <Text style={styles.profileText} className="text-body font-medium text-label-neutral">
-                    스크립트 가리기
-                  </Text>
-                </TouchableOpacity>
-                <View style={styles.scriptContainer}>
-                  {transcript.length === 0 ? (
-                    <View className="items-center justify-center flex-1">
-                      <Text className="text-label text-label-alternative">
-                        아직 대화 내용이 없어요.
-                      </Text>
-                    </View>
-                  ) : (
-                    <ScrollView
-                      ref={scriptScrollRef}
-                      className="min-h-0 flex-1"
-                      bounces={false}
-                      overScrollMode="never"
-                      nestedScrollEnabled
-                      showsVerticalScrollIndicator={false}
-                      contentContainerClassName="gap-y-[10px]"
-                      onContentSizeChange={() =>
-                        scriptScrollRef.current?.scrollToEnd({ animated: true })
-                      }
-                    >
-                      {transcript.map((line, index) => (
-                        <Text
-                          key={index}
-                          style={styles.profileText}
-                          className="text-body font-medium text-label-neutral"
-                        >
-                          {roleToSpeaker(line.role)} : {line.text}
-                        </Text>
-                      ))}
-                    </ScrollView>
-                  )}
                   <ScriptHintBar
                     hint={initialScript.hint}
                     isLoading={initialScript.isLoading}
                     hasError={initialScript.hasError}
                     onRetry={() => { void initialScript.retry(); }}
                   />
-                </View>
+                </ScriptPanel>
               </View>
             )}
           </View>
@@ -802,23 +777,6 @@ const styles = StyleSheet.create({
   profileContainer: { width: "100%", alignItems: "center" },
   controlsArea: { minHeight: 0, flex: 1, justifyContent: "flex-end" },
   hangupArea: { flexShrink: 0, alignItems: "center" },
-  scriptHideButton: {
-    alignSelf: "center",
-    alignItems: "center",
-    minWidth: 178,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: SEMANTIC_COLORS.background.normal,
-    marginBottom: 8,
-  },
-  scriptContainer: {
-    flex: 1,
-    minHeight: 0,
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: "rgba(254,254,254,0.72)",
-  },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",
