@@ -1,6 +1,6 @@
-import { SEMANTIC_COLORS } from "@/design-system/colors";
+import HelpIcon from "@/assets/train/help.svg";
+import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { ScriptHint } from "@/hooks/useTrainWebSocket";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 /** 서버 script_hint level 값 (같은 시나리오 연습 횟수에 따라 서버가 결정) */
@@ -17,21 +17,23 @@ interface ScriptHintBarProps {
 }
 
 /**
- * 스크립트 박스 하단에 고정되는 대답 힌트.
+ * 스크립트 패널 하단에 고정되는 대답 힌트 카드.
  * 추천 문장·조언만 그리고, 힌트 없음(level 3)이나 빈 문장은 영역째 숨긴다.
  */
 export default function ScriptHintBar({ hint, isLoading, hasError, onRetry }: ScriptHintBarProps) {
   if (!hint?.text && (isLoading || hasError)) {
     return (
-      <View className="shrink-0 gap-y-2 pt-4">
-        <Text style={styles.text} className="text-label text-label-alternative">
-          {isLoading ? "첫 답변 예시를 준비하고 있어요." : "첫 답변 예시를 불러오지 못했어요."}
-        </Text>
-        {hasError && (
-          <TouchableOpacity accessibilityRole="button" onPress={onRetry}>
-            <Text style={styles.text} className="text-label font-medium text-label-neutral">다시 시도</Text>
-          </TouchableOpacity>
-        )}
+      <View style={styles.wrap}>
+        <View style={[styles.card, styles.adviceCard, styles.statusCard]}>
+          <Text style={styles.text} className="text-label text-label-alternative">
+            {isLoading ? "첫 답변 예시를 준비하고 있어요." : "첫 답변 예시를 불러오지 못했어요."}
+          </Text>
+          {hasError && (
+            <TouchableOpacity accessibilityRole="button" onPress={onRetry}>
+              <Text style={styles.text} className="text-label font-medium text-label-neutral">다시 시도</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   }
@@ -42,20 +44,22 @@ export default function ScriptHintBar({ hint, isLoading, hasError, onRetry }: Sc
   if (!isRecommend && !isAdvice) return null;
 
   return (
-    <View className="shrink-0 gap-y-4 pt-4">
-      <View className="h-px bg-line-neutral" />
+    <View style={styles.wrap}>
       {isRecommend ? (
-        <Text style={styles.text} className="text-body font-bold text-label-strong">
-          추천 : {hint.text}
-        </Text>
+        <View style={[styles.card, styles.recommendCard]}>
+          <View style={styles.chip}>
+            <Text style={[styles.text, styles.chipText]} className="text-caption font-bold">
+              추천
+            </Text>
+          </View>
+          <Text style={styles.text} className="flex-1 text-label font-bold text-label-normal">
+            {hint.text}
+          </Text>
+        </View>
       ) : (
-        <View className="flex-row items-center gap-x-2">
-          <Ionicons
-            name="help-circle"
-            size={24}
-            color={SEMANTIC_COLORS.label.alternative}
-          />
-          <Text style={styles.text} className="flex-1 text-body font-medium text-label-alternative">
+        <View style={[styles.card, styles.adviceCard]}>
+          <HelpIcon />
+          <Text style={styles.text} className="flex-1 text-label font-medium text-label-alternative">
             {hint.text}
           </Text>
         </View>
@@ -65,5 +69,25 @@ export default function ScriptHintBar({ hint, isLoading, hasError, onRetry }: Sc
 }
 
 const styles = StyleSheet.create({
+  wrap: { flexShrink: 0, paddingHorizontal: 12, paddingBottom: 12 },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingLeft: 12,
+    paddingRight: 14,
+    paddingVertical: 11,
+    borderRadius: 14,
+  },
+  recommendCard: { backgroundColor: SEMANTIC_COLORS.train.scriptHintBackground },
+  adviceCard: { backgroundColor: SEMANTIC_COLORS.fill.field },
+  statusCard: { flexDirection: "column", alignItems: "flex-start" },
+  chip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: PALETTE.green[40],
+  },
+  chipText: { color: PALETTE.common[0] },
   text: { includeFontPadding: false },
 });
