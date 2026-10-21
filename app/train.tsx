@@ -604,7 +604,11 @@ export default function Train() {
             </View>
             <View className={`shrink-0 items-center ${isCompactScreen ? "pb-3" : "pb-6"}`}>
               <View className="w-full max-w-[300px] flex-row items-center justify-between px-4">
-                <SwipeCallButton isDisabled={isHandlingSchedule} onSwipe={() => void handleAccept()}>
+                <SwipeCallButton
+                  rippleColor={PALETTE.green[40]}
+                  isDisabled={isHandlingSchedule}
+                  onSwipe={() => void handleAccept()}
+                >
                   <TouchableOpacity
                     accessibilityRole="button"
                     accessibilityLabel="전화 받기"
@@ -624,7 +628,11 @@ export default function Train() {
                     <Ionicons name="call" size={36} color={PALETTE.common[0]} />
                   </TouchableOpacity>
                 </SwipeCallButton>
-                <SwipeCallButton isDisabled={isHandlingSchedule} onSwipe={() => void handleDecline()}>
+                <SwipeCallButton
+                  rippleColor={PALETTE.red[40]}
+                  isDisabled={isHandlingSchedule}
+                  onSwipe={() => void handleDecline()}
+                >
                   <TouchableOpacity
                     accessibilityRole="button"
                     accessibilityLabel="전화 거절하기"
