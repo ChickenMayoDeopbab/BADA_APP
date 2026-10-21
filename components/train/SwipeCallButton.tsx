@@ -60,6 +60,8 @@ export default function SwipeCallButton({
         false,
       );
     }
+    // 언마운트(통화 수락/거절 후 화면 이동) 시에도 무한 반복을 멈춘다
+    return () => cancelAnimation(pulse);
   }, [isDisabled, pulse]);
 
   const pulseStyle = useAnimatedStyle(() => ({
