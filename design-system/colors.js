@@ -121,6 +121,7 @@ const SEMANTIC_COLORS = {
   train: {
     callGradientStart: "#F5F5F5",
     callGradientEnd: "#ABEFA8",
+    scriptHintBackground: "#E5FAEB",
   },
 };
 

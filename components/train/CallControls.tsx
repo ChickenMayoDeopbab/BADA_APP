@@ -46,13 +46,13 @@ export default function CallControls({
               label === "음소거" && isMuted && styles.selectedButton,
             ]}
           >
-            <Icon />
+            <Icon style={isDisabled && styles.disabledContent} />
           </TouchableOpacity>
           <Text
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.7}
-            style={[styles.label, { marginTop: 2 * scale }, isDisabled && styles.disabledLabel]}
+            style={[styles.label, { marginTop: 2 * scale }, isDisabled && styles.disabledContent]}
           >
             {label}
           </Text>
@@ -77,5 +77,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: SEMANTIC_COLORS.label.neutral,
   },
-  disabledLabel: { opacity: 0.4 },
+  /** 비활성 버튼의 아이콘과 라벨을 같은 투명도로 흐리게 한다 */
+  disabledContent: { opacity: 0.4 },
 });
