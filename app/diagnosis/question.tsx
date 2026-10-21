@@ -26,6 +26,7 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
         {options.map((option) => {
           const isActive = value === option.value;
           const outerSize = option.size === 'lg' ? 50 : 40;
+          const innerSize = Math.round(outerSize * 0.4); // 안쪽 원 지름 (바깥 원의 40%)
 
           return (
             <TouchableOpacity
@@ -43,7 +44,15 @@ const CheckBtns = ({ options, value, onChange }: RadioProps) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-              />
+              >
+                {/* 선택된 옵션: 안쪽 채움 원 */}
+                {isActive && (
+                  <View
+                    className="rounded-pill bg-primary-normal"
+                    style={{ width: innerSize, height: innerSize }}
+                  />
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
