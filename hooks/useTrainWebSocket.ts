@@ -12,6 +12,7 @@ export type WsEndReason =
   | "SCENARIO_DONE"
   | "USER_END"
   | "TIMEOUT"
+  | "NO_AUDIO"
   | "CRISIS"
   | "END_CALL";
 
@@ -45,6 +46,7 @@ export interface UseTrainWebSocketReturn {
   isConnected: boolean;
   isAiSpeaking: boolean;
   displayName: string | null;
+  scriptLevel: number | null;
   setPlaybackBlocked: (blocked: boolean) => void;
   sendJson: (payload: object) => boolean;
   sendEndCall: () => void;
@@ -70,6 +72,7 @@ export function useTrainWebSocket({
   const [isConnected, setIsConnected] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [scriptLevel, setScriptLevel] = useState<number | null>(null);
 
   const onEmotionRef = useRef(onEmotion);
   const onSpeakingEndRef = useRef(onSpeakingEnd);
@@ -118,6 +121,7 @@ export function useTrainWebSocket({
       setIsConnected(false);
       setIsAiSpeaking(false);
       setDisplayName(null);
+      setScriptLevel(null);
     };
 
     /** Report each terminal connection failure once, with no live resources left. */
@@ -125,6 +129,13 @@ export function useTrainWebSocket({
       if (!isActive) return;
       stop();
       onErrorRef.current?.(code);
+    };
+
+    /** 서버 종료 메시지와 정상 close를 한 번만 통화 종료로 전달한다. */
+    const finish = (reason: WsEndReason) => {
+      if (!isActive) return;
+      stop();
+      onEndRef.current?.(reason);
     };
 
     /** Bound secure-storage lookup, refresh, and connection establishment. */
@@ -146,6 +157,7 @@ export function useTrainWebSocket({
         const ws = new WebSocket(`${getWsBaseUrl()}/ws/voice/${sessionId}`);
         ws.binaryType = "arraybuffer";
         wsRef.current = ws;
+        let hasSessionStarted = false;
         const isCurrent = () => isActive && wsRef.current === ws;
 
         ws.onopen = () => {
@@ -174,12 +186,14 @@ export function useTrainWebSocket({
           if (typeof event.data === "string") {
             try {
               const msg = JSON.parse(event.data);
-              if (
-                msg?.type === "scenario_info" &&
-                typeof msg?.aiRole === "string" &&
-                msg.aiRole.trim()
-              ) {
-                setDisplayName(msg.aiRole.trim());
+              if (msg?.type === "scenario_info") {
+                hasSessionStarted = true;
+                if (typeof msg.aiRole === "string" && msg.aiRole.trim()) {
+                  setDisplayName(msg.aiRole.trim());
+                }
+                if ([1, 2, 3].includes(msg.scriptLevel)) {
+                  setScriptLevel(msg.scriptLevel);
+                }
               }
               switch (msg.type) {
                 case "emotion":
@@ -211,8 +225,7 @@ export function useTrainWebSocket({
                   }
                   break;
                 case "end":
-                  stop();
-                  onEndRef.current?.(msg.reason);
+                  finish(msg.reason);
                   break;
                 case "error":
                   fail(typeof msg.code === "string" ? msg.code : "WS_SERVER_ERROR");
@@ -233,6 +246,10 @@ export function useTrainWebSocket({
 
         ws.onclose = (event) => {
           if (!isCurrent()) return;
+          if (event.code === 1000 && hasSessionStarted) {
+            finish("END_CALL");
+            return;
+          }
           clearInterval(pingInterval);
           closeSocket();
           aiSpeakingRef.current = false;
@@ -311,6 +328,7 @@ export function useTrainWebSocket({
     isConnected,
     isAiSpeaking,
     displayName,
+    scriptLevel,
     setPlaybackBlocked,
     sendJson,
     sendEndCall,
