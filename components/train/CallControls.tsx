@@ -28,34 +28,40 @@ export default function CallControls({
     { label: "키패드", Icon: KeypadIcon, isDisabled: true },
   ];
   const buttonSize = { width: 72 * scale, height: 72 * scale, borderRadius: 24 * scale };
+  // flexWrap은 소수 scale의 폭 오차로 3번째 버튼이 줄바꿈되므로 3개씩 행을 직접 나눈다
+  const rows = [controls.slice(0, 3), controls.slice(3)];
 
   return (
     <View style={[styles.grid, { width: 312 * scale, rowGap: 16 * scale }]}>
-      {controls.map(({ label, Icon, isDisabled, onPress }) => (
-        <View key={label} style={[styles.item, { width: 104 * scale }]}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={label === "음소거" && isMuted ? "음소거 해제" : label}
-            accessibilityState={{ disabled: isDisabled, ...(label === "음소거" ? { selected: isMuted } : {}) }}
-            disabled={isDisabled}
-            onPress={onPress}
-            activeOpacity={0.8}
-            style={[
-              styles.button,
-              buttonSize,
-              label === "음소거" && isMuted && styles.selectedButton,
-            ]}
-          >
-            <Icon style={isDisabled && styles.disabledContent} />
-          </TouchableOpacity>
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-            style={[styles.label, { marginTop: 2 * scale }, isDisabled && styles.disabledContent]}
-          >
-            {label}
-          </Text>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map(({ label, Icon, isDisabled, onPress }) => (
+            <View key={label} style={[styles.item, { width: 104 * scale }]}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={label === "음소거" && isMuted ? "음소거 해제" : label}
+                accessibilityState={{ disabled: isDisabled, ...(label === "음소거" ? { selected: isMuted } : {}) }}
+                disabled={isDisabled}
+                onPress={onPress}
+                activeOpacity={0.8}
+                style={[
+                  styles.button,
+                  buttonSize,
+                  label === "음소거" && isMuted && styles.selectedButton,
+                ]}
+              >
+                <Icon style={isDisabled && styles.disabledContent} />
+              </TouchableOpacity>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                style={[styles.label, { marginTop: 2 * scale }, isDisabled && styles.disabledContent]}
+              >
+                {label}
+              </Text>
+            </View>
+          ))}
         </View>
       ))}
     </View>
@@ -63,7 +69,8 @@ export default function CallControls({
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", alignSelf: "center" },
+  grid: { alignSelf: "center" },
+  row: { flexDirection: "row" },
   item: { alignItems: "center" },
   button: { alignItems: "center", justifyContent: "center", backgroundColor: "rgba(254,254,254,0.6)" },
   selectedButton: { backgroundColor: SEMANTIC_COLORS.primary.alternative },
