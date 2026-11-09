@@ -3,6 +3,7 @@ import CustomButton from "@/components/common/CustomButton";
 import AccordionContent from "@/components/common/AccordionContent";
 import Top from "@/components/common/Top";
 import {
+  BIOSIGNAL_SECTIONS,
   LegalDocumentSection,
   PROFILE_IMAGE_SECTIONS,
   SENSITIVE_INFORMATION_SECTIONS,
@@ -10,6 +11,7 @@ import {
 } from "@/constants/legalDocuments";
 import { PRIVACY_POLICY_TEXT } from "@/constants/privacyPolicyText";
 import { SEMANTIC_COLORS } from "@/design-system";
+import { isBiosignalSupported } from "@/utils/biosignalSettings";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -148,7 +150,13 @@ function InlineTextDocument({ text }: { text: string }) {
   );
 }
 
-type ExpandedConsent = "terms" | "privacy" | "sensitive" | "profileImage" | null;
+type ExpandedConsent =
+  | "terms"
+  | "privacy"
+  | "sensitive"
+  | "profileImage"
+  | "biosignal"
+  | null;
 
 export default function SignupLegalConsentScreen({
   confirmLabel = "동의하고 가입하기",
@@ -171,12 +179,18 @@ export default function SignupLegalConsentScreen({
   const [isProfileImageAccepted, setIsProfileImageAccepted] = useState(
     initialConsents?.profileImageAgreed ?? false,
   );
+  const [isBiosignalAccepted, setIsBiosignalAccepted] = useState(
+    initialConsents?.biosignalAgreed ?? false,
+  );
   const [expandedConsent, setExpandedConsent] =
     useState<ExpandedConsent>(null);
 
   const requiredAccepted = termsAccepted && privacyAccepted;
   const allAccepted =
-    requiredAccepted && sensitiveAccepted && isProfileImageAccepted;
+    requiredAccepted &&
+    sensitiveAccepted &&
+    isProfileImageAccepted &&
+    (!isBiosignalSupported || isBiosignalAccepted);
 
   const toggleDocument = (document: Exclude<ExpandedConsent, null>) => {
     setExpandedConsent((current) =>
@@ -228,6 +242,7 @@ export default function SignupLegalConsentScreen({
                 setPrivacyAccepted(nextChecked);
                 setSensitiveAccepted(nextChecked);
                 setIsProfileImageAccepted(nextChecked);
+                if (isBiosignalSupported) setIsBiosignalAccepted(nextChecked);
               }}
             />
           </View>
@@ -285,11 +300,28 @@ export default function SignupLegalConsentScreen({
                 <InlineSectionDocument sections={PROFILE_IMAGE_SECTIONS} />
               </AccordionContent>
             </View>
+            {/* 워치 측정은 Android에서만 제공하므로 iOS에서는 항목을 숨긴다 */}
+            {isBiosignalSupported ? (
+              <View className="overflow-hidden">
+                <ConsentRow
+                  checked={isBiosignalAccepted}
+                  expanded={expandedConsent === "biosignal"}
+                  label="생체신호 처리 선택 동의"
+                  onToggle={() => setIsBiosignalAccepted((current) => !current)}
+                  onOpen={() => toggleDocument("biosignal")}
+                />
+                <AccordionContent expanded={expandedConsent === "biosignal"}>
+                  <InlineSectionDocument sections={BIOSIGNAL_SECTIONS} />
+                </AccordionContent>
+              </View>
+            ) : null}
           </View>
 
           <Text className="px-2 pt-3 text-label leading-6 text-label-alternative">
             선택 항목에 동의하지 않아도 일반 서비스를 이용할 수 있습니다.
-            민감정보 미동의 시 진단·분석 기능이, 프로필 이미지 미동의 시 사진 등록이 제한됩니다.
+            {isBiosignalSupported
+              ? " 민감정보 미동의 시 진단·분석 기능이, 프로필 이미지 미동의 시 사진 등록이, 생체신호 미동의 시 워치 측정이 제한됩니다."
+              : " 민감정보 미동의 시 진단·분석 기능이, 프로필 이미지 미동의 시 사진 등록이 제한됩니다."}
           </Text>
         </ScrollView>
 
@@ -306,6 +338,8 @@ export default function SignupLegalConsentScreen({
               onConfirm({
                 sensitiveInformationAgreed: sensitiveAccepted,
                 profileImageAgreed: isProfileImageAccepted,
+                // false는 서버에서 기존 상태 유지로 처리되므로 iOS에서 기존 동의가 사라지지 않는다.
+                biosignalAgreed: isBiosignalSupported && isBiosignalAccepted,
               })
             }
           />

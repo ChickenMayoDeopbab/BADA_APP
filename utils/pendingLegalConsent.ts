@@ -37,11 +37,18 @@ export const getPendingLegalConsent = async (): Promise<
     ) {
       return null;
     }
+    if (
+      pending.biosignalAgreed !== undefined &&
+      typeof pending.biosignalAgreed !== "boolean"
+    ) {
+      return null;
+    }
     return {
       username: typeof pending.username === "string" ? pending.username : null,
       sensitiveInformationAgreed: pending.sensitiveInformationAgreed,
-      // 이전 앱에서 저장한 값에는 이미지 동의가 없으므로 미동의로 처리한다.
+      // 이전 앱에서 저장한 값에는 이미지·생체신호 동의가 없으므로 미동의로 처리한다.
       profileImageAgreed: pending.profileImageAgreed ?? false,
+      biosignalAgreed: pending.biosignalAgreed ?? false,
     };
   } catch {
     return null;
