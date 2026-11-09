@@ -9,12 +9,12 @@ import {
 import { useAppAlert } from "@/context/AppAlertContext";
 import { useBiosignalConsentGuard } from "@/hooks/useBiosignalConsentGuard";
 import {
-  loadBiosignalReportEnabled,
   saveBiosignalReportEnabled,
+  syncBiosignalReportEnabled,
 } from "@/utils/biosignalSettings";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 export default function BodyReactionSettingsScreen() {
   const { showAlert } = useAppAlert();
@@ -22,27 +22,28 @@ export default function BodyReactionSettingsScreen() {
   const [initialEnabled, setInitialEnabled] = useState<boolean | null>(null); // 저장된 설정 값
   const [isEnabled, setIsEnabled] = useState(false); // 화면에서 바꾼 설정 값
   const [isSaving, setIsSaving] = useState(false);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0); // 다시 시도할 때마다 늘려 설정을 다시 불러온다
 
   useEffect(() => {
     let isActive = true;
+    setHasLoadError(false);
     void (async () => {
-      const isStoredEnabled = await loadBiosignalReportEnabled();
-      let isAgreed = true;
       try {
-        // 다른 기기에서 동의를 철회했다면 켜져 있어도 꺼진 상태로 보여준다.
-        isAgreed = (await getLegalConsentStatus()).biosignalAgreed;
+        // 동의 상태를 확인하지 못하면 저장된 값을 믿지 않고 다시 시도하게 한다.
+        const { biosignalAgreed } = await getLegalConsentStatus();
+        const nextEnabled = await syncBiosignalReportEnabled(biosignalAgreed);
+        if (!isActive) return;
+        setInitialEnabled(nextEnabled);
+        setIsEnabled(nextEnabled);
       } catch {
-        // 상태 조회에 실패하면 저장된 값을 그대로 보여주고, 켤 때 동의 확인에서 다시 조회한다.
+        if (isActive) setHasLoadError(true);
       }
-      if (!isActive) return;
-      const nextEnabled = isStoredEnabled && isAgreed;
-      setInitialEnabled(nextEnabled);
-      setIsEnabled(nextEnabled);
     })();
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const hasChanges = initialEnabled !== null && isEnabled !== initialEnabled;
 
@@ -73,7 +74,22 @@ export default function BodyReactionSettingsScreen() {
       hasChanges={hasChanges && !isSaving}
       onSave={() => void save()}
     >
-      {initialEnabled === null ? (
+      {hasLoadError ? (
+        <View className="items-center justify-center gap-3 py-16">
+          <Text className="font-medium text-body text-label-neutral">
+            몸 반응 리포트 설정을 불러오지 못했어요.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setLoadAttempt((current) => current + 1)}
+            className="rounded-component bg-primary-normal px-4 py-2 active:opacity-70"
+          >
+            <Text className="font-medium text-body text-static-white">
+              다시 시도
+            </Text>
+          </Pressable>
+        </View>
+      ) : initialEnabled === null ? (
         <View className="items-center justify-center py-16">
           <LoadingIndicator />
         </View>

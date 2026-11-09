@@ -24,3 +24,19 @@ export const saveBiosignalReportEnabled = async (
     isEnabled ? "true" : "false",
   );
 };
+
+/**
+ * 서버에서 확인한 동의 상태에 맞춰 설정 값을 돌려준다.
+ * 동의가 없으면 저장된 켜짐 값도 꺼짐으로 바꿔, 다른 기기에서 철회한 뒤 다시 켜진 것으로 보이지 않게 한다.
+ */
+export const syncBiosignalReportEnabled = async (
+  isAgreed: boolean,
+): Promise<boolean> => {
+  const isStoredEnabled = await loadBiosignalReportEnabled();
+  if (isAgreed) return isStoredEnabled;
+  if (isStoredEnabled) {
+    // 저장에 실패해도 화면에는 꺼짐으로 보여주고, 다음 진입 때 다시 맞춘다.
+    await saveBiosignalReportEnabled(false).catch(() => undefined);
+  }
+  return false;
+};
