@@ -302,3 +302,37 @@ test("biosignal features are offered only on Android", () => {
   assert.equal(createBiosignalSettings({ os: "android" }).isBiosignalSupported, true);
   assert.equal(createBiosignalSettings({ os: "ios" }).isBiosignalSupported, false);
 });
+
+test("a confirmed missing consent turns the stored report setting off", async () => {
+  const writes = [];
+  let stored = "true";
+  const settings = loadTypeScript("../utils/biosignalSettings.ts", {
+    "@react-native-async-storage/async-storage": {
+      getItem: async () => stored,
+      setItem: async (_key, value) => { writes.push(value); stored = value; },
+    },
+    "react-native": { Platform: { OS: "android" } },
+  });
+  assert.equal(await settings.syncBiosignalReportEnabled(false), false);
+  assert.deepEqual(writes, ["false"]);
+  // 다음 진입에서 상태 조회가 실패해도 철회 전 켜짐 값이 남아 있지 않다.
+  assert.equal(await settings.loadBiosignalReportEnabled(), false);
+});
+
+test("an agreed account keeps its stored report setting without rewriting it", async () => {
+  for (const initialValue of ["true", "false", null]) {
+    const settings = createBiosignalSettings({ initialValue });
+    assert.equal(await settings.syncBiosignalReportEnabled(true), initialValue === "true");
+  }
+});
+
+test("a failed write while syncing still shows the setting as off", async () => {
+  const settings = loadTypeScript("../utils/biosignalSettings.ts", {
+    "@react-native-async-storage/async-storage": {
+      getItem: async () => "true",
+      setItem: async () => { throw new Error("Storage unavailable"); },
+    },
+    "react-native": { Platform: { OS: "android" } },
+  });
+  assert.equal(await settings.syncBiosignalReportEnabled(false), false);
+});
