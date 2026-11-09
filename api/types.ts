@@ -77,6 +77,9 @@ export interface LegalConsentStatus {
   profileImageAgreed: boolean;
   profileImageAgreedAt: string | null;
   profileImageWithdrawnAt: string | null;
+  biosignalAgreed: boolean; // 워치 생체신호 처리 동의 여부
+  biosignalAgreedAt: string | null;
+  biosignalWithdrawnAt: string | null;
   legalActionRequired: boolean;
 }
 
@@ -85,11 +88,12 @@ export interface AcceptLegalConsentRequest {
   privacyPolicyAcknowledged: true;
   sensitiveInformationAgreed: boolean;
   profileImageAgreed: boolean;
+  biosignalAgreed?: boolean; // true만 저장, false·생략은 기존 상태 유지 (철회는 DELETE로만)
 }
 
 export type OptionalLegalConsents = Pick<
   AcceptLegalConsentRequest,
-  "sensitiveInformationAgreed" | "profileImageAgreed"
+  "sensitiveInformationAgreed" | "profileImageAgreed" | "biosignalAgreed"
 >;
 
 export type OAuthProvider = 'google' | 'naver' | 'apple';

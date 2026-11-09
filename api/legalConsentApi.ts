@@ -48,3 +48,11 @@ export const withdrawProfileImageConsent = async (): Promise<LegalConsentStatus>
   );
   return unwrapLegalConsentStatus(response.data);
 };
+
+/** 생체신호 처리 동의를 철회한다. 서버가 생체신호 기록을 파기하지 못하면 5xx로 실패하고 철회도 기록되지 않는다. */
+export const withdrawBiosignalConsent = async (): Promise<LegalConsentStatus> => {
+  const response = await apiClient.delete<LegalConsentResponse>(
+    "/api/v1/legal-consents/biosignal",
+  );
+  return unwrapLegalConsentStatus(response.data);
+};
