@@ -39,20 +39,22 @@ function createPendingConsentStore(initialValue = null) {
 test("signup selections survive until login for every combination of optional consents", async () => {
   for (const sensitiveInformationAgreed of [false, true]) {
     for (const profileImageAgreed of [false, true]) {
-      const store = createPendingConsentStore();
-      const selections = { sensitiveInformationAgreed, profileImageAgreed };
-      await store.savePendingLegalConsent(selections, "test-user");
-      assert.deepEqual(await store.getPendingLegalConsent(), {
-        username: "test-user",
-        ...selections,
-      });
-      await store.clearPendingLegalConsent();
-      assert.equal(await store.getPendingLegalConsent(), null);
+      for (const biosignalAgreed of [false, true]) {
+        const store = createPendingConsentStore();
+        const selections = { sensitiveInformationAgreed, profileImageAgreed, biosignalAgreed };
+        await store.savePendingLegalConsent(selections, "test-user");
+        assert.deepEqual(await store.getPendingLegalConsent(), {
+          username: "test-user",
+          ...selections,
+        });
+        await store.clearPendingLegalConsent();
+        assert.equal(await store.getPendingLegalConsent(), null);
+      }
     }
   }
 });
 
-test("pending consent from the previous app does not imply image consent", async () => {
+test("pending consent from the previous app does not imply image or biosignal consent", async () => {
   const store = createPendingConsentStore(JSON.stringify({
     username: "existing-user",
     sensitiveInformationAgreed: true,
@@ -61,12 +63,14 @@ test("pending consent from the previous app does not imply image consent", async
     username: "existing-user",
     sensitiveInformationAgreed: true,
     profileImageAgreed: false,
+    biosignalAgreed: false,
   });
 });
 
 test("malformed stored consent is rejected rather than treated as agreement", async () => {
   for (const value of ["invalid-json", '{"sensitiveInformationAgreed":"true"}',
-    '{"sensitiveInformationAgreed":true,"profileImageAgreed":"false"}']) {
+    '{"sensitiveInformationAgreed":true,"profileImageAgreed":"false"}',
+    '{"sensitiveInformationAgreed":true,"biosignalAgreed":"true"}']) {
     assert.equal(await createPendingConsentStore(value).getPendingLegalConsent(), null);
   }
 });
@@ -172,4 +176,163 @@ test("failed status lookup or consent registration blocks photo saving and shows
     assert.equal(await guard(), false);
     assert.equal(alerts.at(-1), failure === "lookup" ? "동의 상태를 확인하지 못했어요" : "동의를 저장하지 못했어요");
   }
+});
+
+test("biosignal withdrawal calls its own endpoint and returns the updated status", async () => {
+  const status = { biosignalAgreed: false, legalActionRequired: false };
+  const api = loadTypeScript("../api/legalConsentApi.ts", {
+    "./client": {
+      delete: async (url) => {
+        assert.equal(url, "/api/v1/legal-consents/biosignal");
+        return { data: { data: status } };
+      },
+    },
+  });
+  assert.deepEqual(await api.withdrawBiosignalConsent(), status);
+});
+
+/** 서버 응답과 사용자 선택을 지정하여 생체신호 동의 확인을 실행한다. */
+function createBiosignalGuard(api, showAlert) {
+  const { useBiosignalConsentGuard } = loadTypeScript("../hooks/useBiosignalConsentGuard.ts", {
+    "@/api/legalConsentApi": api,
+    "@/constants/legalDocuments": { BIOSIGNAL_SECTIONS: [{ body: "Biosignal processing notice" }] },
+    "@/context/AppAlertContext": { useAppAlert: () => ({ showAlert }) },
+    react: { useCallback: (callback) => callback },
+  });
+  return useBiosignalConsentGuard();
+}
+
+test("an existing biosignal consent proceeds without prompting or registering again", async () => {
+  const guard = createBiosignalGuard({
+    getLegalConsentStatus: async () => ({ biosignalAgreed: true }),
+    acceptLegalConsents: () => assert.fail("Must not register again"),
+  }, () => assert.fail("Must not prompt"));
+  assert.equal(await guard(), true);
+});
+
+test("canceling biosignal consent keeps measurement off without registering consent", async () => {
+  const guard = createBiosignalGuard({
+    getLegalConsentStatus: async () => ({ biosignalAgreed: false }),
+    acceptLegalConsents: () => assert.fail("Must not register on cancel"),
+  }, (alert) => alert.onCancel());
+  assert.equal(await guard(), false);
+});
+
+test("agreeing to biosignal processing preserves the other optional consents", async () => {
+  for (const sensitiveInformationAgreed of [false, true]) {
+    for (const profileImageAgreed of [false, true]) {
+      const guard = createBiosignalGuard({
+        getLegalConsentStatus: async () => ({
+          biosignalAgreed: false, sensitiveInformationAgreed, profileImageAgreed,
+        }),
+        acceptLegalConsents: async (body) => {
+          assert.deepEqual(body, {
+            termsOfServiceAgreed: true,
+            privacyPolicyAcknowledged: true,
+            sensitiveInformationAgreed,
+            profileImageAgreed,
+            biosignalAgreed: true,
+          });
+          return { biosignalAgreed: true };
+        },
+      }, (alert) => alert.onConfirm());
+      assert.equal(await guard(), true);
+    }
+  }
+});
+
+test("measurement stays off when the server does not confirm biosignal consent", async () => {
+  const guard = createBiosignalGuard({
+    getLegalConsentStatus: async () => ({
+      biosignalAgreed: false, sensitiveInformationAgreed: false, profileImageAgreed: false,
+    }),
+    acceptLegalConsents: async () => ({ biosignalAgreed: false }),
+  }, (alert) => alert.onConfirm());
+  assert.equal(await guard(), false);
+});
+
+test("failed status lookup or biosignal consent registration keeps measurement off and shows an error", async () => {
+  for (const failure of ["lookup", "register"]) {
+    const alerts = [];
+    const guard = createBiosignalGuard({
+      getLegalConsentStatus: async () => {
+        if (failure === "lookup") throw new Error("Network unavailable");
+        return { biosignalAgreed: false, sensitiveInformationAgreed: true, profileImageAgreed: false };
+      },
+      acceptLegalConsents: async () => { throw new Error("Network unavailable"); },
+    }, (alert) => {
+      alerts.push(alert.title);
+      alert.onConfirm?.();
+    });
+    assert.equal(await guard(), false);
+    assert.equal(alerts.at(-1), failure === "lookup" ? "동의 상태를 확인하지 못했어요" : "동의를 저장하지 못했어요");
+  }
+});
+
+/** 기기 저장소와 플랫폼을 지정하여 몸 반응 리포트 설정 코드를 불러온다. */
+function createBiosignalSettings({ os = "android", initialValue = null, failRead = false } = {}) {
+  let stored = initialValue;
+  return loadTypeScript("../utils/biosignalSettings.ts", {
+    "@react-native-async-storage/async-storage": {
+      getItem: async () => {
+        if (failRead) throw new Error("Storage unavailable");
+        return stored;
+      },
+      setItem: async (_key, value) => { stored = value; },
+    },
+    "react-native": { Platform: { OS: os } },
+  });
+}
+
+test("body reaction report setting is off until the user turns it on", async () => {
+  const settings = createBiosignalSettings();
+  assert.equal(await settings.loadBiosignalReportEnabled(), false);
+  await settings.saveBiosignalReportEnabled(true);
+  assert.equal(await settings.loadBiosignalReportEnabled(), true);
+  await settings.saveBiosignalReportEnabled(false);
+  assert.equal(await settings.loadBiosignalReportEnabled(), false);
+});
+
+test("unreadable or unexpected stored settings are treated as off", async () => {
+  assert.equal(await createBiosignalSettings({ failRead: true }).loadBiosignalReportEnabled(), false);
+  assert.equal(await createBiosignalSettings({ initialValue: "yes" }).loadBiosignalReportEnabled(), false);
+});
+
+test("biosignal features are offered only on Android", () => {
+  assert.equal(createBiosignalSettings({ os: "android" }).isBiosignalSupported, true);
+  assert.equal(createBiosignalSettings({ os: "ios" }).isBiosignalSupported, false);
+});
+
+test("a confirmed missing consent turns the stored report setting off", async () => {
+  const writes = [];
+  let stored = "true";
+  const settings = loadTypeScript("../utils/biosignalSettings.ts", {
+    "@react-native-async-storage/async-storage": {
+      getItem: async () => stored,
+      setItem: async (_key, value) => { writes.push(value); stored = value; },
+    },
+    "react-native": { Platform: { OS: "android" } },
+  });
+  assert.equal(await settings.syncBiosignalReportEnabled(false), false);
+  assert.deepEqual(writes, ["false"]);
+  // 다음 진입에서 상태 조회가 실패해도 철회 전 켜짐 값이 남아 있지 않다.
+  assert.equal(await settings.loadBiosignalReportEnabled(), false);
+});
+
+test("an agreed account keeps its stored report setting without rewriting it", async () => {
+  for (const initialValue of ["true", "false", null]) {
+    const settings = createBiosignalSettings({ initialValue });
+    assert.equal(await settings.syncBiosignalReportEnabled(true), initialValue === "true");
+  }
+});
+
+test("a failed write while syncing still shows the setting as off", async () => {
+  const settings = loadTypeScript("../utils/biosignalSettings.ts", {
+    "@react-native-async-storage/async-storage": {
+      getItem: async () => "true",
+      setItem: async () => { throw new Error("Storage unavailable"); },
+    },
+    "react-native": { Platform: { OS: "android" } },
+  });
+  assert.equal(await settings.syncBiosignalReportEnabled(false), false);
 });

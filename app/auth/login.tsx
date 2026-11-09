@@ -141,6 +141,7 @@ export default function LoginScreen() {
             sensitiveInformationAgreed:
               pendingConsent.sensitiveInformationAgreed,
             profileImageAgreed: pendingConsent.profileImageAgreed,
+            biosignalAgreed: pendingConsent.biosignalAgreed,
           });
           await clearPendingLegalConsent();
         } catch {

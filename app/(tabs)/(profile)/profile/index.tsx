@@ -13,6 +13,7 @@ import { useMyPage, myPageQueryKeys } from "@/hooks/useMyPage";
 import { useQueryClient } from "@tanstack/react-query";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens, getAuthLoginMethod } from "@/utils/authTokenStorage";
+import { isBiosignalSupported } from "@/utils/biosignalSettings";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Href, router, useFocusEffect } from "expo-router";
@@ -284,6 +285,17 @@ function ProfileScreen() {
                   router.push("/(tabs)/(profile)/profile/settings/notification")
                 }
               />
+              {/* 워치 측정은 Android에서만 제공한다 */}
+              {isBiosignalSupported ? (
+                <MenuRow
+                  label="몸 반응 리포트"
+                  onPress={() =>
+                    router.push(
+                      "/(tabs)/(profile)/profile/settings/body-reaction" as Href,
+                    )
+                  }
+                />
+              ) : null}
               <MenuRow
                 label="개인정보 관리"
                 onPress={() =>

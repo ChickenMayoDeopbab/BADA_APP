@@ -1,6 +1,7 @@
 import {
   acceptLegalConsents,
   getLegalConsentStatus,
+  withdrawBiosignalConsent,
   withdrawProfileImageConsent,
   withdrawSensitiveInformationConsent,
 } from "@/api/legalConsentApi";
@@ -10,6 +11,7 @@ import CustomButton from "@/components/common/CustomButton";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import Top from "@/components/common/Top";
 import {
+  BIOSIGNAL_SECTIONS,
   LegalDocumentSection,
   PROFILE_IMAGE_SECTIONS,
   SENSITIVE_INFORMATION_SECTIONS,
@@ -18,6 +20,10 @@ import {
 import { PRIVACY_POLICY_TEXT } from "@/constants/privacyPolicyText";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { SEMANTIC_COLORS } from "@/design-system";
+import {
+  isBiosignalSupported,
+  saveBiosignalReportEnabled,
+} from "@/utils/biosignalSettings";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -80,7 +86,13 @@ function TextDocument({ text }: { text: string }) {
   );
 }
 
-type ExpandedDocument = "terms" | "privacy" | "sensitive" | "profileImage" | null;
+type ExpandedDocument =
+  | "terms"
+  | "privacy"
+  | "sensitive"
+  | "profileImage"
+  | "biosignal"
+  | null;
 
 export default function PrivacySettingsScreen() {
   const { showAlert } = useAppAlert();
@@ -89,6 +101,9 @@ export default function PrivacySettingsScreen() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [expandedDocument, setExpandedDocument] =
     useState<ExpandedDocument>(null);
+  // iOS는 워치를 쓸 수 없지만, 이미 동의한 계정은 철회할 수 있도록 생체신호 항목을 보여준다.
+  const shouldShowBiosignal =
+    isBiosignalSupported || status?.biosignalAgreed === true;
 
   const toggleDocument = (
     document: Exclude<ExpandedDocument, null>,
@@ -222,6 +237,63 @@ export default function PrivacySettingsScreen() {
     });
   };
 
+  /** 다른 선택 동의를 유지하며 생체신호 처리 동의를 등록한다. */
+  const agreeBiosignal = async () => {
+    if (isUpdating || !status) return;
+    setIsUpdating(true);
+    try {
+      const currentStatus = await getLegalConsentStatus();
+      const nextStatus = await acceptLegalConsents({
+        termsOfServiceAgreed: true,
+        privacyPolicyAcknowledged: true,
+        sensitiveInformationAgreed: currentStatus.sensitiveInformationAgreed,
+        profileImageAgreed: currentStatus.profileImageAgreed,
+        biosignalAgreed: true,
+      });
+      setStatus(nextStatus);
+      showAlert({ title: "생체신호 처리에 동의했어요" });
+    } catch {
+      showAlert({
+        title: "동의를 저장하지 못했어요",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  /** 생체신호 동의를 철회하고 '몸 반응 리포트' 설정도 끈다. 서버 파기가 실패하면 철회되지 않은 상태로 남는다. */
+  const withdrawBiosignal = async () => {
+    if (isUpdating || !status) return;
+    setIsUpdating(true);
+    try {
+      setStatus(await withdrawBiosignalConsent());
+      // 다시 켤 때 동의 확인을 거치도록 설정을 끈다. 저장 실패는 철회 결과에 영향을 주지 않는다.
+      await saveBiosignalReportEnabled(false).catch(() => undefined);
+      showAlert({ title: "생체신호 처리 동의를 철회했어요" });
+    } catch {
+      showAlert({
+        title: "동의를 철회하지 못했어요",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  /** 철회 시 몸 반응 기록이 삭제된다는 점을 확인한 후 철회 요청을 보낸다. */
+  const confirmBiosignalWithdrawal = () => {
+    showAlert({
+      title: "생체신호 처리 동의를 철회할까요?",
+      description:
+        "지금까지의 몸 반응 기록이 삭제됩니다. 철회 후 워치로 몸 반응을 측정하려면 다시 동의해야 합니다.",
+      cancelLabel: "취소",
+      confirmLabel: "철회하기",
+      confirmTone: "danger",
+      onConfirm: () => void withdrawBiosignal(),
+    });
+  };
+
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background-normal">
       <Top title="개인정보 관리" back safeArea={false} />
@@ -274,6 +346,21 @@ export default function PrivacySettingsScreen() {
               <SectionDocument sections={PROFILE_IMAGE_SECTIONS} />
             </AccordionContent>
           </View>
+          {shouldShowBiosignal ? (
+            <>
+              <View className="mx-4 h-px bg-line-alternative" />
+              <View className="overflow-hidden">
+                <DocumentRow
+                  expanded={expandedDocument === "biosignal"}
+                  label="생체신호 처리 안내"
+                  onPress={() => toggleDocument("biosignal")}
+                />
+                <AccordionContent expanded={expandedDocument === "biosignal"}>
+                  <SectionDocument sections={BIOSIGNAL_SECTIONS} />
+                </AccordionContent>
+              </View>
+            </>
+          ) : null}
         </View>
         <View className="gap-3 rounded-component bg-background-normal p-5">
           <Text className="text-headline2 font-bold text-label-normal">
@@ -344,6 +431,43 @@ export default function PrivacySettingsScreen() {
             </>
           )}
         </View>
+
+        {shouldShowBiosignal ? (
+          <View className="gap-3 rounded-component bg-background-normal p-5">
+            <Text className="text-headline2 font-bold text-label-normal">
+              생체신호 처리 동의
+            </Text>
+            {isLoading ? (
+              <View className="items-center py-5">
+                <LoadingIndicator size="small" />
+              </View>
+            ) : (
+              <>
+                <Text className="text-body leading-6 text-label-alternative">
+                  {status?.biosignalAgreed
+                    ? "현재 동의 상태입니다. 철회하면 지금까지의 몸 반응 기록이 삭제되고 워치 측정이 제한됩니다."
+                    : "현재 미동의 상태입니다. 통화 훈련은 그대로 이용할 수 있습니다."}
+                </Text>
+                <CustomButton
+                  label={
+                    isUpdating
+                      ? "처리 중..."
+                      : status?.biosignalAgreed
+                        ? "동의 철회하기"
+                        : "동의하기"
+                  }
+                  tone={status?.biosignalAgreed ? "neutral" : "primary"}
+                  disabled={isUpdating || !status}
+                  onPress={
+                    status?.biosignalAgreed
+                      ? confirmBiosignalWithdrawal
+                      : () => void agreeBiosignal()
+                  }
+                />
+              </>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
