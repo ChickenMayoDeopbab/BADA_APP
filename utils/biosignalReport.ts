@@ -12,6 +12,8 @@ type BiosignalFusion = NonNullable<BiosignalReportResponse["metrics"]>["fusion"]
 const SIMILAR_DELTA_BPM = 3;
 /** 이만큼 넘게 빨랐으면 '조금'을 뺀다(bpm). 서버가 턴을 '몸 반응 큼'으로 보는 기준과 같다. */
 const FASTER_DELTA_BPM = 10;
+/** 통화 칸 중 값이 있는 칸이 이 비율보다 적으면 곡선을 숨긴다. 서버가 구간 평균을 내는 최소 비율(MIN_COVERAGE)과 같다. */
+const MIN_CALL_BIN_RATIO = 0.5;
 
 /** 칸별 문장. 몸 반응이 작은 칸은 기존 음성 피드백만 쓰므로 문장이 없다. */
 const QUADRANT_SENTENCES: Partial<Record<BiosignalQuadrant, string>> = {
@@ -58,7 +60,10 @@ const describeCallDelta = (delta: number): string => {
   return "통화하는 동안 심박이 평소보다 빨랐어요.";
 };
 
-/** 심박 곡선. 그릴 점이 두 개 미만이면 숨긴다. */
+/**
+ * 심박 곡선. 그릴 점이 두 개 미만이거나 값이 있는 통화 칸이 절반보다 적으면 숨긴다.
+ * 손을 움직이며 통화하면 서버가 그 초의 심박을 버려 통화 칸이 거의 비는데, 끊긴 점만 남은 곡선은 오류처럼 보인다.
+ */
 const toChart = (timeline: BiosignalReportTimeline | undefined): BiosignalChart | null => {
   if (
     !timeline ||
@@ -75,6 +80,9 @@ const toChart = (timeline: BiosignalReportTimeline | undefined): BiosignalChart 
     const phase = Array.isArray(timeline.phase) ? timeline.phase[index] : null;
     return typeof phase === "string" ? phase : null;
   });
+  const callBpm = bpm.filter((_, index) => phases[index] === "listen" || phases[index] === "speak");
+  const filledCallBinCount = callBpm.filter((value) => value !== null).length;
+  if (callBpm.length === 0 || filledCallBinCount < callBpm.length * MIN_CALL_BIN_RATIO) return null;
   return { binSec: timeline.bin_sec, startSec: timeline.start_sec, bpm, phases };
 };
 
