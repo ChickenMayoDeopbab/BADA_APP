@@ -1,5 +1,6 @@
 import CallBackground from "@/components/train/CallBackground";
 import CallControls from "@/components/train/CallControls";
+import RestBaselineScreen from "@/components/train/RestBaselineScreen";
 import CallIcon from "@/assets/train/call.svg";
 import HangupIcon from "@/assets/train/hangup.svg";
 import { acceptTrainingCallSchedule, cancelTrainingCallSchedule } from "@/api/trainingCallApi";
@@ -16,8 +17,17 @@ import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
 import { useScenario } from "@/hooks/useScenarios";
 import { useIncomingCallRinging } from "@/hooks/useIncomingCallRinging";
 import { useAudio } from "@/hooks/useAudio";
+import { useBiosignalMeasurement } from "@/hooks/useBiosignalMeasurement";
 import { useInitialScriptHint } from "@/hooks/useInitialScriptHint";
 import { ScriptHint, TranscriptTurn, useTrainWebSocket } from "@/hooks/useTrainWebSocket";
+import {
+  cancelBiosignalMeasurement,
+  isBiosignalMeasuring,
+  markBiosignalCallEnd,
+  markBiosignalMeditationEnd,
+  markBiosignalMeditationStart,
+  markBiosignalWsAuthSent,
+} from "@/services/biosignal/measurementSession";
 import { saveCompletedCallDuration } from "@/utils/completedCallDuration";
 import { setMediaVolumeControlEnabled } from "@/utils/mediaVolumeControl";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -245,6 +255,11 @@ export default function Train() {
 
   const [isMuted, setIsMuted] = useState(false);
   const isWarmupSession = isWarmup === "true";
+  /** 워치 측정 준비. 측정할 수 있으면 수신 화면 전에 조건 확인·휴식 단계를 거친다 */
+  const { phase: biosignalPhase, finishRest } = useBiosignalMeasurement({
+    isEnabled: !isWarmupSession,
+    sessionId: sessionId ?? null,
+  });
   const generatedPhoneNumber = useMemo(() => {
     const source = sessionId ?? "";
     const hash = Array.from(source).reduce((acc, char) => {
@@ -288,6 +303,8 @@ export default function Train() {
     onInterrupt: resetStream,
     onEnd: () => handleServerEndCall(),
     onError: () => handleCallFailure("통화 연결이 끊겼어요"),
+    onAuthSent: markBiosignalWsAuthSent,
+    shouldSendBiosignalIntent: isBiosignalMeasuring,
   });
   /** AI가 말하는 중인데 이번 턴 대사가 아직 오지 않았으면 스크립트에 로딩 점을 띄운다 */
   const isAiTyping = isAiSpeaking && (transcript.at(-1)?.role ?? "user") === "user";
@@ -419,9 +436,9 @@ export default function Train() {
     }, [stopSendingAudio, resetStream, setMicrophoneMuted])
   );
 
-  // 벨소리·진동은 벨이 울리는 동안만 — 전화를 받으면(명상 안내가 뜨면) 바로 멈춘다
+  // 벨소리·진동은 벨이 울리는 동안만 — 휴식 중에는 울리지 않고, 전화를 받으면(명상 안내가 뜨면) 바로 멈춘다
   useIncomingCallRinging(
-    step === "receive" && !isMeditationVisible &&
+    step === "receive" && biosignalPhase === "ready" && !isMeditationVisible &&
       !isMeditationVideoVisible && !isHandlingSchedule,
   );
 
@@ -525,10 +542,12 @@ export default function Train() {
   const handleMeditationStart = () => {
     setIsMeditationVisible(false);
     setIsMeditationVideoVisible(true);
+    markBiosignalMeditationStart();
   };
   /** 명상 영상 종료(건너뛰기 또는 재생 완료): 영상 닫고 훈련 시작 */
   const handleMeditationVideoEnd = () => {
     setIsMeditationVideoVisible(false);
+    markBiosignalMeditationEnd();
     startTraining();
   };
   /** 종료 주체에 맞게 오디오를 정리하고 서버가 확인한 통화는 시작 effect 전에도 완료로 처리한다. */
@@ -550,6 +569,9 @@ export default function Train() {
     void stopSendingAudio(!hasServerEnded).catch(() => {});
     resetStream(hasServerEnded ? "server_end" : "call_end");
     if (!hasServerEnded) sendEndCall();
+    // 시작한 통화는 끊은 뒤 회복 구간까지 재고, 시작하지 못한 통화의 측정은 버린다.
+    if (callStartedAtRef.current === null) cancelBiosignalMeasurement();
+    else markBiosignalCallEnd();
     setIsAudioReady(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -578,6 +600,17 @@ export default function Train() {
   };
 
   const safeArea = { paddingTop: insets.top, paddingBottom: insets.bottom };
+
+  // 워치 측정 조건을 확인하는 동안은 배경만, 기준선이 필요하면 벨을 울리기 전에 휴식 화면을 보여 준다
+  if (step === "receive" && biosignalPhase !== "ready") {
+    return biosignalPhase === "rest" ? (
+      <RestBaselineScreen onFinish={finishRest} />
+    ) : (
+      <View className="flex-1">
+        <CallBackground />
+      </View>
+    );
+  }
 
   if (step === "receive") {
     return (
