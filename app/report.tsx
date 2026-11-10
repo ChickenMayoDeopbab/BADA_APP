@@ -280,6 +280,7 @@ export default function Report() {
   const biosignalView = useBiosignalReport({
     sessionId,
     isEnabled: mode === "scenario",
+    shouldSaveBaselineSource: true,
   });
 
   const goodSegments = Array.isArray(feedback?.goodSegments)

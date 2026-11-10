@@ -31,9 +31,11 @@ const shouldRetry = (failureCount: number, error: unknown) =>
 export function useBiosignalReport({
   sessionId,
   isEnabled,
+  shouldSaveBaselineSource,
 }: {
   sessionId: string | undefined;
   isEnabled: boolean; // 시나리오 훈련만(워밍업은 측정하지 않는다)
+  shouldSaveBaselineSource: boolean; // 방금 끝낸 통화만. 지난 기록의 기준선 출처로 다음 통화 휴식 여부를 덮어쓰면 안 된다
 }) {
   const [isReportEnabled, setIsReportEnabled] = useState(false);
 
@@ -54,7 +56,7 @@ export function useBiosignalReport({
       const report = await getBiosignalReport(sessionId as string);
       // 업로드 응답을 놓친 경우(409 ALREADY_ANALYZED)에도 다음 통화의 휴식 필요 여부를 맞춘다.
       const source = report.metrics?.cardiac?.baseline?.source;
-      if (report.status === "ANALYZED" && source) {
+      if (shouldSaveBaselineSource && report.status === "ANALYZED" && source) {
         await saveLastBaselineSource(source).catch(() => undefined);
       }
       return report;
