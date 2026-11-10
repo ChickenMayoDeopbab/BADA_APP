@@ -7,9 +7,11 @@ import AudioSegmentButton from "@/components/audio/AudioSegmentButton";
 import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGroup";
 import CustomButton from "@/components/common/CustomButton";
 import Top from "@/components/common/Top";
+import BiosignalReportCard from "@/components/report/BiosignalReportCard";
 import { FONT_WEIGHT, PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useBiosignalReport } from "@/hooks/useBiosignalReport";
 import { getCompletedCallDuration } from "@/utils/completedCallDuration";
 import { getFeedbackHighlightText } from "@/utils/feedbackHighlight";
 import { Ionicons } from "@expo/vector-icons";
@@ -275,6 +277,10 @@ export default function Report() {
   const [expandedIndexes, setExpandedIndexes] = useState(
     () => new Set<number>([]),
   );
+  const biosignalView = useBiosignalReport({
+    sessionId,
+    isEnabled: mode === "scenario",
+  });
 
   const goodSegments = Array.isArray(feedback?.goodSegments)
     ? feedback.goodSegments.filter((segment) => segment && typeof segment === "object")
@@ -577,6 +583,20 @@ export default function Report() {
                       </View>
                     )}
                   </View>
+
+                  {biosignalView && (
+                    <View className="mt-8 px-[33px]">
+                      <Text
+                        className="text-label text-label-alternative"
+                        style={reportTextStyles.medium}
+                      >
+                        몸의 반응
+                      </Text>
+                      <View className="mt-[10px]">
+                        <BiosignalReportCard view={biosignalView} />
+                      </View>
+                    </View>
+                  )}
                 </ScrollView>
 
                 <View
