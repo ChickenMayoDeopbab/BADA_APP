@@ -23,7 +23,9 @@ cd watch
 
 1. https://developer.samsung.com/health/sensor/overview.html 의 SDK download에서 zip을 받아 `libs/samsung-health-sensor-api-1.4.1.aar`를 `watch/app/libs/`에 넣는다. 라이선스 확인 전까지 커밋하지 않는다(`.gitignore`).
    - aar가 없으면 가짜 센서 debug 빌드만 된다. release와 `-Pbada.sensor=samsung` 빌드는 안내 메시지와 함께 멈춘다.
-2. 워치에서 Health Sensor Service 개발자 모드를 켠다. 설정 → 애플리케이션 → Health Sensor Service(펌웨어에 따라 Health Platform) → 제목을 10번쯤 탭 → Developer mode → 라이선스 동의 후 켬.
+2. 워치에서 Health Platform 개발자 모드를 켠다. 설정 → 애플리케이션의 앱 정보 화면이 아니라 Health Platform 자체 설정 화면에서 해야 한다.
+   - `adb shell am start -a com.samsung.android.service.health.intent.action.START_SETTINGS_ACTIVITY`로 그 화면을 연다.
+   - 맨 위 "헬스 플랫폼" 제목을 빠르게 10번 탭하고, 나오는 개발자 모드를 켠다(라이선스 동의).
    - 꺼져 있으면 측정이 `sdk_policy` 오류로 끝나고 폰은 측정 없이 통화를 이어간다.
 3. 워치 앱을 처음 열 때 센서·신체 활동 권한을 허용한다. 신체 활동(가속도)을 거부해도 심박은 잰다.
 
