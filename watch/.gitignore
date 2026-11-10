@@ -1,0 +1,9 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+# Samsung Health Sensor SDK는 라이선스 확인 전까지 각자 받아 넣는다.
+app/libs/*.aar
+keystore.properties

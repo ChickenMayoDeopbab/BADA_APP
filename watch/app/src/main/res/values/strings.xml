@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">바다 워치</string>
+    <string name="notification_channel_name">통화 측정</string>
+    <string name="notification_measuring">통화 중 몸의 반응을 재고 있어요</string>
+    <string name="ongoing_status">측정 중</string>
+</resources>

@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.wearbiosignal'
+version = '1.0.0'
+
+android {
+  namespace 'expo.modules.wearbiosignal'
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+  // 워치 앱(watch/)과 같이 빌드하는 Data Layer 규약
+  sourceSets {
+    main.java.srcDirs += 'src/protocol/java'
+  }
+}
+
+dependencies {
+  implementation 'com.google.android.gms:play-services-wearable:19.0.0'
+}
