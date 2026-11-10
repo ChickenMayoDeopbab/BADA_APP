@@ -7,7 +7,11 @@ import { saveLastBaselineSource } from "@/utils/biosignalSettings";
 
 import { withoutPpg } from "./uploadBody";
 
-/** 통화가 끝나고 이 시간이 지나면 서버가 받지 않는다(409 EXPIRED). 기기에서도 지운다. */
+/**
+ * 통화가 끝나고 이 시간이 지나면 서버가 받지 않는다(409 EXPIRED). 기기에서도 지운다.
+ * 기기 시계(epoch ms)로 재므로 시간대가 바뀌어도 영향이 없다. 시계를 뒤로 돌려 남은 본문은 서버가 409로 거절해 지워지고,
+ * 앞으로 돌리면 조금 일찍 지워질 수 있다. 측정 기록을 기기에 오래 두지 않는 것을 우선한다.
+ */
 const UPLOAD_RETENTION_MS = 24 * 60 * 60 * 1000;
 /** 세션 id를 파일 이름으로 쓰므로 영문·숫자·-·_만 받는다(워치 측정 id 규칙과 같다). */
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
