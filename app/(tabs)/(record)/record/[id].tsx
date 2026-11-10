@@ -4,10 +4,12 @@ import { AudioPlaybackGroupProvider } from "@/components/audio/AudioPlaybackGrou
 import Top from "@/components/common/Top";
 import LoadingIndicator from "@/components/common/LoadingIndicator";
 import DeleteTrainingRecordModal from "@/components/record/DeleteTrainingRecordModal";
+import BiosignalReportCard from "@/components/report/BiosignalReportCard";
 import { useAppAlert } from "@/context/AppAlertContext";
 import { PALETTE, SEMANTIC_COLORS } from "@/design-system/colors";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { useBiosignalReport } from "@/hooks/useBiosignalReport";
 import { useTrainingRecordDetail } from "@/hooks/useTrainingRecordDetail";
 import { getFeedbackHighlightText } from "@/utils/feedbackHighlight";
 import { Ionicons } from "@expo/vector-icons";
@@ -91,6 +93,12 @@ export default function RecordDetailScreen() {
   );
   const { data, isLoading, isError, isRefetching, refetch } =
     useTrainingRecordDetail(recordId);
+  // 워밍업은 측정하지 않는다. 측정하지 않은 다른 통화는 서버가 404를 줘서 카드가 없다.
+  const biosignalView = useBiosignalReport({
+    sessionId: data?.sessionId,
+    isEnabled: data !== undefined && data.sessionType !== "WARMUP",
+    shouldSaveBaselineSource: false,
+  });
 
   const positiveFeedbacks = Array.isArray(data?.positiveFeedbacks)
     ? data.positiveFeedbacks.filter((feedback) => feedback && typeof feedback === "object")
@@ -413,6 +421,18 @@ export default function RecordDetailScreen() {
                   </View>
                 )}
               </View>
+
+              {/* 측정·분석이 끝난 통화만 카드 내용이 있다. 없으면 구역째 숨긴다. */}
+              {biosignalView && (
+                <View className="mt-8 px-[33px]">
+                  <Text className="font-medium text-label text-label-alternative">
+                    몸의 반응
+                  </Text>
+                  <View className="mt-[10px]">
+                    <BiosignalReportCard view={biosignalView} />
+                  </View>
+                </View>
+              )}
             </ScrollView>
           </View>
         )}

@@ -301,7 +301,7 @@ test("only network errors and server errors are retried", () => {
 
 test("an analyzed result updates whether the next call needs rest", async () => {
   const hook = loadReportHook();
-  hook.render({ sessionId: "session-1", isEnabled: true });
+  hook.render({ sessionId: "session-1", isEnabled: true, shouldSaveBaselineSource: true });
   const { queryFn } = hook.records.queryOptions;
 
   hook.responses.push({ session_id: "session-1", status: "AWAITING_DATA" });
@@ -315,5 +315,16 @@ test("an analyzed result updates whether the next call needs rest", async () => 
   assert.deepEqual(hook.records.requests, ["session-1", "session-1"]);
 
   hook.records.data = analyzed;
-  assert.equal(hook.render({ sessionId: "session-1", isEnabled: true }).baselineBpm, null);
+  assert.equal(
+    hook.render({ sessionId: "session-1", isEnabled: true, shouldSaveBaselineSource: true }).baselineBpm,
+    null,
+  );
+});
+
+test("an old record does not change whether the next call needs rest", async () => {
+  const hook = loadReportHook();
+  hook.render({ sessionId: "session-1", isEnabled: true, shouldSaveBaselineSource: false });
+  hook.responses.push(analyzedReport({ baseline: { status: "INSUFFICIENT_DATA", source: "none" } }));
+  assert.equal((await hook.records.queryOptions.queryFn()).status, "ANALYZED");
+  assert.deepEqual(hook.records.savedSources, []);
 });
