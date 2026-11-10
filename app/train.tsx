@@ -538,7 +538,7 @@ export default function Train() {
     setIsMeditationVisible(false);
     startTraining();
   };
-  /** 명상하기: 다이얼로그 닫고 명상 영상 재생 */
+  /** 명상하기: 다이얼로그 닫고 명상 영상 재생. 다이얼로그는 고르는 단계라 명상 구간은 영상부터 잰다. */
   const handleMeditationStart = () => {
     setIsMeditationVisible(false);
     setIsMeditationVideoVisible(true);
