@@ -666,3 +666,65 @@ export interface CommunityCommentThread extends CommunityCommentResponse {
 export interface CommunityCommentListResponse {
   comments: CommunityCommentThread[];
 }
+
+/** 폰 시계 epoch ms 구간 [시작, 끝] */
+export type PhoneTimeRange = [number, number];
+
+/** 생체신호 행 [워치 ms, 값, status]. 가속도는 [워치 ms, 크기 평균 g, 크기 표준편차 g] */
+export type BiosignalRow = [number, number, number];
+
+export interface BiosignalPpgBatch {
+  t0: number; // 첫 표본의 워치 ms
+  hz: number;
+  green: number[];
+}
+
+export interface BiosignalDevice {
+  model: string; // 64자 이하
+  sdk: string; // 32자 이하
+}
+
+/** 통화 생체신호 업로드 본문. 정의되지 않은 필드를 넣으면 서버가 422로 거절한다. */
+export interface BiosignalUploadRequest {
+  v: 1;
+  source: "samsung_sensor_sdk";
+  device: BiosignalDevice | null;
+  clock: {
+    phone_ws_open_ms: number; // 통화 WS에 auth를 보낸 시각
+    phone_call_end_ms: number; // 통화가 끝난 시각
+    watch_minus_phone_ms: number; // 워치 시각 − 폰 시각
+  };
+  markers: {
+    ringing_ms: number; // 수신 화면이 뜬 시각
+    rest_baseline: PhoneTimeRange | null; // 2분 이상 휴식 구간
+    meditation: PhoneTimeRange | null;
+    recovery_end_ms: number; // 측정을 멈춘 시각
+  };
+  hr: BiosignalRow[];
+  ibi: BiosignalRow[];
+  eda: BiosignalRow[];
+  skin_temp: BiosignalRow[];
+  acc: BiosignalRow[];
+  ppg: BiosignalPpgBatch[];
+}
+
+export type BiosignalReportStatus = "AWAITING_DATA" | "ANALYZED" | "EXPIRED" | "REJECTED";
+
+/** 기준선 출처. none이면 다음 측정 통화 전에 휴식 화면을 띄운다. */
+export type BiosignalBaselineSource = "rest" | "previous_sessions" | "none";
+
+/** 생체신호 분석 결과(업로드 성공 응답·조회 응답). metrics는 화면에서 쓰는 필드만 적는다. */
+export interface BiosignalReportResponse {
+  session_id: string;
+  status: BiosignalReportStatus;
+  source?: string;
+  analyzed_at?: string;
+  metrics?: {
+    cardiac?: {
+      baseline?: {
+        value: number | null; // bpm
+        source: BiosignalBaselineSource;
+      };
+    };
+  };
+}
