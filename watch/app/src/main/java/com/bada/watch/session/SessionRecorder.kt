@@ -32,6 +32,7 @@ class SessionRecorder(private val limits: Limits = Limits()) : SensorSink {
         hr.addCapped(Row3(watchMs, bpm, status), limits.rows)
         // IBI 행 시각은 그 박동이 끝난 때다. 마지막 박동을 포인트 시각에 두고 앞 박동은 뒤 간격 합만큼 당긴다.
         // 화면이 꺼졌다 켜지면 20초 넘는 IBI가 한 포인트에 몰려 와서, 그대로 두면 한 시각에 쌓인다.
+        // 당긴 시각이 이전 포인트보다 앞설 수 있는데, 박동이 실제로 그때 있었으므로 맞다(서버는 IBI를 시각순으로 다시 정렬한다).
         var laterMs = ibiMs.sumOf { it.toLong() }
         ibiMs.forEachIndexed { index, value ->
             laterMs -= value

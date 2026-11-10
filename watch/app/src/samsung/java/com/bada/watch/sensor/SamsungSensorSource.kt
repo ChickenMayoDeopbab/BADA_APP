@@ -186,6 +186,8 @@ class SamsungSensorSource(context: Context) : SensorSource {
         /** flush 완료가 오지 않아도 이 시간이 지나면 받은 값까지로 끝낸다. 폰은 30초 뒤 파일을 다시 요청한다. */
         const val FLUSH_TIMEOUT_MS = 10_000L
 
+        // DataPoint.timestamp는 부팅 기준 시간이 아니라 벽시계 epoch ms다(Galaxy Watch6 실기: System.currentTimeMillis와 수십 ms 차이).
+        // 그래서 변환 없이 넘기고, SessionRecorder가 IBI 시각을 이 값에서 당겨도 음수가 되지 않는다.
         fun readHeartRate(point: DataPoint, sink: SensorSink) {
             val bpm = point.getValue(ValueKey.HeartRateSet.HEART_RATE) ?: return
             val status = point.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS) ?: return
