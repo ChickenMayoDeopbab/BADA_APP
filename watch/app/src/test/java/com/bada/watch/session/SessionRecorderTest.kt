@@ -25,8 +25,8 @@ class SessionRecorderTest {
         assertEquals("SM-R960", json.getJSONObject("device").getString("model"))
         assertEquals("1.4.1", json.getJSONObject("device").getString("sdk"))
         assertEquals("[[1000,72,1]]", json.getJSONArray("hr").toString())
-        // 심박 포인트 하나의 IBI를 한 줄씩 펼친다.
-        assertEquals("[[1000,820,0],[1000,830,0]]", json.getJSONArray("ibi").toString())
+        // 심박 포인트 하나의 IBI를 한 줄씩 펼치고, 앞 박동은 뒤 간격(830)만큼 당긴다.
+        assertEquals("[[170,820,0],[1000,830,0]]", json.getJSONArray("ibi").toString())
         assertEquals("[[1000,2.5,0]]", json.getJSONArray("eda").toString())
         assertEquals("[[1000,33.1,0]]", json.getJSONArray("skin_temp").toString())
         assertEquals(5, json.getJSONArray("acc").length())

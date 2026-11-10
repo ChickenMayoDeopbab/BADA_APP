@@ -3,11 +3,11 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
 
-    <!-- 심박 측정. Wear OS 6(API 36)부터는 READ_HEART_RATE로 대체된다. -->
-    <uses-permission
-        android:name="android.permission.BODY_SENSORS"
-        android:maxSdkVersion="35" />
-    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <!-- 심박·PPG·피부 온도 측정. targetSdk 35 앱은 Wear OS 6(API 36) 기기에서도 BODY_SENSORS로 확인한다.
+         targetSdk를 36으로 올리면 READ_HEART_RATE·READ_SKIN_TEMPERATURE·READ_ADDITIONAL_HEALTH_DATA로 바꿔야 한다. -->
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <!-- Samsung Health Sensor SDK 가속도 트래커 -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <!-- health 타입 포그라운드 서비스의 실행 조건을 채우는 일반 권한(자동 허용) -->
     <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

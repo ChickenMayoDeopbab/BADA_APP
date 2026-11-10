@@ -12,6 +12,13 @@ if (!phoneDebugKeystore.exists()) {
     logger.warn("경고: ${phoneDebugKeystore.path}가 없어 기본 debug 키로 서명합니다. 폰 앱과 연결되지 않으니 폰 앱을 먼저 prebuild하세요.")
 }
 
+// 센서 구현: debug는 가짜 센서(에뮬레이터에서 전송 경로 확인)가 기본이고, -Pbada.sensor=samsung이면 실제 센서를 쓴다.
+// release는 항상 실제 센서(Samsung Health Sensor SDK)를 쓴다.
+val debugSensor = providers.gradleProperty("bada.sensor").getOrElse("fake")
+require(debugSensor == "fake" || debugSensor == "samsung") { "bada.sensor는 fake 또는 samsung이어야 합니다: $debugSensor" }
+// SDK aar는 라이선스 확인 전까지 커밋하지 않고 각자 app/libs/에 넣는다(watch/README.md).
+val hasSensorSdk = file("libs").listFiles { file -> file.extension == "aar" }?.isNotEmpty() == true
+
 android {
     namespace = "com.bada.watch"
     compileSdk = 35
@@ -62,6 +69,12 @@ android {
         getByName("main") {
             java.srcDir(rootProject.file("../modules/wear-biosignal/android/src/protocol/java"))
         }
+        getByName("debug") {
+            java.srcDir("src/$debugSensor/java")
+        }
+        getByName("release") {
+            java.srcDir("src/samsung/java")
+        }
     }
 }
 
@@ -73,8 +86,23 @@ dependencies {
     implementation("androidx.wear:wear-ongoing:1.0.0")
     implementation("com.google.android.gms:play-services-wearable:19.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // Samsung Health Sensor SDK. 가짜 센서 빌드는 없어도 된다.
+    implementation(fileTree("libs") { include("*.aar") })
 
     testImplementation("junit:junit:4.13.2")
     // 단위 테스트에서 android.jar의 빈 org.json 대신 실제 구현을 쓴다.
     testImplementation("org.json:json:20240303")
+}
+
+// 실제 센서 빌드에 SDK가 없으면 컴파일 오류 대신 받는 방법을 알려 주고 멈춘다.
+tasks.configureEach {
+    val needsSensorSdk = name == "preReleaseBuild" || (debugSensor == "samsung" && name == "preDebugBuild")
+    if (needsSensorSdk && !hasSensorSdk) {
+        doFirst {
+            throw GradleException(
+                "Samsung Health Sensor SDK aar가 없습니다. https://developer.samsung.com/health/sensor/overview.html 에서 받아 " +
+                    "watch/app/libs/에 넣어 주세요.",
+            )
+        }
+    }
 }

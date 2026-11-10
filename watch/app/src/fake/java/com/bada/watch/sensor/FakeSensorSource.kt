@@ -25,7 +25,7 @@ class FakeSensorSource(private val random: Random = Random.Default) : SensorSour
 
     private var executor: ScheduledExecutorService? = null
 
-    override fun start(sink: SensorSink) {
+    override fun start(sink: SensorSink, onError: (String) -> Unit) {
         val startMs = System.currentTimeMillis()
         var tick = 0L
         executor = Executors.newSingleThreadScheduledExecutor().apply {

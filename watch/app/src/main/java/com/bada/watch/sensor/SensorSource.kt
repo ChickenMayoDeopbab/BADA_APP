@@ -8,10 +8,14 @@ interface SensorSource {
     /** 세션 파일 device.sdk 값 */
     val sdkVersion: String
 
-    /** 이 기기에서 켤 수 있는 트래커. status 메시지 trackers 값과 같다. */
+    /** 켜져 있는 트래커. status 메시지 trackers 값과 같다. 실제 센서는 연결이 끝난 뒤에 채워진다. */
     val trackers: List<String>
 
-    fun start(sink: SensorSink)
+    /**
+     * 측정을 시작한다. 측정을 이어갈 수 없게 되면 [onError]에 MeasurementError 값을 넘긴다(메인 스레드).
+     * 오류가 나도 [stop]은 불러야 한다.
+     */
+    fun start(sink: SensorSink, onError: (String) -> Unit)
 
     /** 남은 데이터를 모두 넘긴 뒤 멈추고 [onStopped]를 부른다. */
     fun stop(onStopped: () -> Unit)
@@ -19,7 +23,10 @@ interface SensorSource {
 
 /** 센서 콜백. 어느 스레드에서든 불릴 수 있다. */
 interface SensorSink {
-    /** 심박 포인트 하나. [ibiMs]·[ibiStatus]는 0~4개이고 길이가 같다. */
+    /**
+     * 심박 포인트 하나. [ibiMs]·[ibiStatus]는 길이가 같고 오래된 박동부터 온다. 마지막 값을 [watchMs]에 끝난 박동으로 본다.
+     * 보통 0~4개지만 늦게 몰려 오면 20개를 넘기도 한다(Galaxy Watch6 실기 확인).
+     */
     fun onHeartRate(watchMs: Long, bpm: Int, status: Int, ibiMs: List<Int>, ibiStatus: List<Int>)
 
     /** 가속도 벡터(g). */
