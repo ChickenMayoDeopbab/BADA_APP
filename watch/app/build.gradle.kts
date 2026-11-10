@@ -6,7 +6,11 @@ plugins {
 
 // Data Layer는 폰·워치 앱의 패키지명과 서명 인증서가 같아야 연결된다.
 // 개발 중에는 폰 dev 빌드와 같은 android/app/debug.keystore로 워치 debug 빌드를 서명한다(release에는 쓰지 않는다).
+// android/는 폰 앱 prebuild로 생기므로 워치보다 먼저 만들어 둬야 한다(watch/README.md).
 val phoneDebugKeystore = rootProject.file("../android/app/debug.keystore")
+if (!phoneDebugKeystore.exists()) {
+    logger.warn("경고: ${phoneDebugKeystore.path}가 없어 기본 debug 키로 서명합니다. 폰 앱과 연결되지 않으니 폰 앱을 먼저 prebuild하세요.")
+}
 
 android {
     namespace = "com.bada.watch"
@@ -51,6 +55,13 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // 폰 모듈과 같이 빌드하는 Data Layer 규약(경로·id 규칙)
+    sourceSets {
+        getByName("main") {
+            java.srcDir(rootProject.file("../modules/wear-biosignal/android/src/protocol/java"))
+        }
     }
 }
 

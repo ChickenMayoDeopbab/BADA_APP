@@ -3,6 +3,7 @@ package com.bada.watch
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.bada.biosignal.BioLinkContract
 import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.Wearable
 import java.io.File
@@ -21,13 +22,13 @@ class PhoneLink(context: Context) {
         error: String? = null,
     ) {
         val payload = BioProtocol.statusPayload(id, state, System.currentTimeMillis(), trackers, error)
-        messageClient.sendMessage(nodeId, BioProtocol.PATH_STATUS, payload)
+        messageClient.sendMessage(nodeId, BioLinkContract.PATH_STATUS, payload)
             .addOnFailureListener { Log.w(TAG, "status 전송 실패", it) }
     }
 
     /** 채널로 파일을 보내고, 폰이 끝까지 받았는지를 [onDone]으로 한 번 알린다. */
     fun sendFile(nodeId: String, id: String, file: File, onDone: (Boolean) -> Unit) {
-        channelClient.openChannel(nodeId, BioProtocol.dataPath(id))
+        channelClient.openChannel(nodeId, BioLinkContract.dataPath(id))
             .addOnSuccessListener { channel ->
                 val isDone = AtomicBoolean(false)
                 lateinit var callback: ChannelClient.ChannelCallback

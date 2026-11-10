@@ -1,5 +1,6 @@
 package com.bada.watch
 
+import com.bada.biosignal.BioLinkContract
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,20 +14,20 @@ class BioProtocolTest {
     fun `명령 경로별로 해석한다`() {
         assertEquals(
             Command.Start("abc-1", 1_762_300_000_000L),
-            BioProtocol.parseCommand(BioProtocol.PATH_START, bytes("""{"id":"abc-1","phone_ms":1762300000000}""")),
+            BioProtocol.parseCommand(BioLinkContract.PATH_START, bytes("""{"id":"abc-1","phone_ms":1762300000000}""")),
         )
-        assertEquals(Command.Stop("abc-1"), BioProtocol.parseCommand(BioProtocol.PATH_STOP, bytes("""{"id":"abc-1"}""")))
-        assertEquals(Command.Cancel("abc-1"), BioProtocol.parseCommand(BioProtocol.PATH_CANCEL, bytes("""{"id":"abc-1"}""")))
-        assertEquals(Command.Ack("abc-1"), BioProtocol.parseCommand(BioProtocol.PATH_ACK, bytes("""{"id":"abc-1"}""")))
+        assertEquals(Command.Stop("abc-1"), BioProtocol.parseCommand(BioLinkContract.PATH_STOP, bytes("""{"id":"abc-1"}""")))
+        assertEquals(Command.Cancel("abc-1"), BioProtocol.parseCommand(BioLinkContract.PATH_CANCEL, bytes("""{"id":"abc-1"}""")))
+        assertEquals(Command.Ack("abc-1"), BioProtocol.parseCommand(BioLinkContract.PATH_ACK, bytes("""{"id":"abc-1"}""")))
     }
 
     @Test
     fun `잘못된 명령은 버린다`() {
-        assertNull(BioProtocol.parseCommand(BioProtocol.PATH_START, bytes("not json")))
-        assertNull(BioProtocol.parseCommand(BioProtocol.PATH_STOP, bytes("""{"id":""}""")))
+        assertNull(BioProtocol.parseCommand(BioLinkContract.PATH_START, bytes("not json")))
+        assertNull(BioProtocol.parseCommand(BioLinkContract.PATH_STOP, bytes("""{"id":""}""")))
         // id는 파일 이름에 쓰이므로 경로 문자를 막는다.
-        assertNull(BioProtocol.parseCommand(BioProtocol.PATH_STOP, bytes("""{"id":"../x"}""")))
-        assertNull(BioProtocol.parseCommand(BioProtocol.PATH_STATUS, bytes("""{"id":"abc"}""")))
+        assertNull(BioProtocol.parseCommand(BioLinkContract.PATH_STOP, bytes("""{"id":"../x"}""")))
+        assertNull(BioProtocol.parseCommand(BioLinkContract.PATH_STATUS, bytes("""{"id":"abc"}""")))
     }
 
     @Test
@@ -52,7 +53,10 @@ class BioProtocolTest {
     }
 
     @Test
-    fun `데이터 채널 경로에 id를 붙인다`() {
-        assertEquals("/bada/bio/data/abc", BioProtocol.dataPath("abc"))
+    fun `데이터 채널 경로와 id를 오간다`() {
+        assertEquals("/bada/bio/data/abc", BioLinkContract.dataPath("abc"))
+        assertEquals("abc", BioLinkContract.dataId("/bada/bio/data/abc"))
+        assertNull(BioLinkContract.dataId("/bada/bio/data/../abc"))
+        assertNull(BioLinkContract.dataId("/bada/bio/status"))
     }
 }

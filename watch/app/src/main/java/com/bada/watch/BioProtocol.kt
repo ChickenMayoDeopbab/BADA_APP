@@ -1,28 +1,19 @@
 package com.bada.watch
 
+import com.bada.biosignal.BioLinkContract
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 폰 앱(modules/wear-biosignal)과 맞춘 Data Layer 규약. 경로·필드를 바꾸면 폰 쪽도 같이 바꾼다. */
+/** 폰 명령 해석과 status 본문. 경로와 id 규칙은 폰과 같이 빌드하는 [BioLinkContract]. 필드를 바꾸면 폰 쪽도 같이 바꾼다. */
 object BioProtocol {
-    const val PATH_PREFIX = "/bada/bio/"
-    const val PATH_START = "/bada/bio/start"
-    const val PATH_STOP = "/bada/bio/stop"
-    const val PATH_CANCEL = "/bada/bio/cancel"
-    const val PATH_ACK = "/bada/bio/ack"
-    const val PATH_STATUS = "/bada/bio/status"
-    const val DATA_PATH_PREFIX = "/bada/bio/data/"
-
-    fun dataPath(id: String) = DATA_PATH_PREFIX + id
-
     fun parseCommand(path: String, data: ByteArray): Command? {
         val json = runCatching { JSONObject(String(data, Charsets.UTF_8)) }.getOrNull() ?: return null
-        val id = json.optString("id").takeIf { isValidId(it) } ?: return null
+        val id = json.optString("id").takeIf(BioLinkContract::isValidId) ?: return null
         return when (path) {
-            PATH_START -> Command.Start(id, json.optLong("phone_ms"))
-            PATH_STOP -> Command.Stop(id)
-            PATH_CANCEL -> Command.Cancel(id)
-            PATH_ACK -> Command.Ack(id)
+            BioLinkContract.PATH_START -> Command.Start(id, json.optLong("phone_ms"))
+            BioLinkContract.PATH_STOP -> Command.Stop(id)
+            BioLinkContract.PATH_CANCEL -> Command.Cancel(id)
+            BioLinkContract.PATH_ACK -> Command.Ack(id)
             else -> null
         }
     }
@@ -43,9 +34,6 @@ object BioProtocol {
         if (error != null) json.put("error", error)
         return json.toString().toByteArray(Charsets.UTF_8)
     }
-
-    /** id는 파일 이름과 채널 경로에 쓰이므로 uuid 형태 문자만 받는다. */
-    fun isValidId(id: String) = id.length in 1..64 && id.all { it.isLetterOrDigit() || it == '-' || it == '_' }
 }
 
 sealed interface Command {

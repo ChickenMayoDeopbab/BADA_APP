@@ -12,6 +12,10 @@ android {
     versionCode 1
     versionName '1.0.0'
   }
+  // 워치 앱(watch/)과 같이 빌드하는 Data Layer 규약
+  sourceSets {
+    main.java.srcDirs += 'src/protocol/java'
+  }
 }
 
 dependencies {
