@@ -267,8 +267,8 @@ test("awaiting results are polled a bounded number of times", () => {
   const interval = hook.records.queryOptions.refetchInterval;
   const query = (status, dataUpdateCount) => ({ state: { data: status ? { status } : undefined, dataUpdateCount } });
   assert.equal(interval(query("AWAITING_DATA", 1)), 5_000);
-  assert.equal(interval(query("AWAITING_DATA", 35)), 5_000);
-  assert.equal(interval(query("AWAITING_DATA", 36)), false);
+  assert.equal(interval(query("AWAITING_DATA", 59)), 5_000);
+  assert.equal(interval(query("AWAITING_DATA", 60)), false);
   assert.equal(interval(query("ANALYZED", 1)), false);
   assert.equal(interval(query(undefined, 0)), false);
 });
