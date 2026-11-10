@@ -3,6 +3,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { uploadBiosignals } from "@/api/biosignalApi";
 import { getApiErrorStatus } from "@/api/error";
 import type { BiosignalReportResponse, BiosignalUploadRequest } from "@/api/types";
+import { getAccessToken } from "@/utils/authTokenStorage";
 import { saveLastBaselineSource } from "@/utils/biosignalSettings";
 
 import { withoutPpg } from "./uploadBody";
@@ -69,6 +70,8 @@ export function flushBiosignalUploads(): Promise<void> {
         shouldFlushAgain = false;
         await sendPendingUploads();
       } while (shouldFlushAgain);
+    } catch {
+      // 파일을 읽지 못하는 등 예상하지 못한 오류는 다음 앱 시작·복귀 때 다시 시도한다.
     } finally {
       runningFlush = null;
     }
@@ -76,9 +79,10 @@ export function flushBiosignalUploads(): Promise<void> {
   return runningFlush;
 }
 
+/** 로그인한 계정으로만 보낸다. 토큰 없이 보내면 401 처리에서 로그인 화면으로 이동하게 된다. */
 async function sendPendingUploads(): Promise<void> {
   const directory = getUploadDirectory();
-  if (!directory.exists) return;
+  if (!directory.exists || !(await getAccessToken())) return;
   for (const entry of directory.list()) {
     if (entry instanceof File && entry.name.endsWith(".json")) await sendPendingUpload(entry);
   }

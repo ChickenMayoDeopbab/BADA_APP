@@ -629,6 +629,7 @@ function rootSetup({ autoLogin = "true", getDestination = async () => "/home" } 
       },
     },
     "@/hooks/usePushNotifications": {},
+    "@/hooks/useBiosignalUploadRetry": {},
     "@/services/pushNotifications": {
       unregisterForPushNotifications: async () => {},
     },

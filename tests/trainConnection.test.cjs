@@ -13,7 +13,7 @@ const deferred = () => {
 };
 
 /** Run the real connection hook with controlled tokens and transport events. */
-function setup(t, { token = async () => 'access', refresh = async () => {} } = {}) {
+function setup(t, { token = async () => 'access', refresh = async () => {}, props = {} } = {}) {
   const previousSocket = global.WebSocket;
   const previousBase = process.env.EXPO_PUBLIC_AI_API_URL;
   const sockets = [], states = [], refs = [], errors = [], ends = [];
@@ -59,7 +59,7 @@ function setup(t, { token = async () => 'access', refresh = async () => {} } = {
   }).outputText, filename);
   const render = (enabled = true) => {
     stateIndex = refIndex = 0;
-    return loaded.exports.useTrainWebSocket({ sessionId: 'session-1', wsUrl: null, enabled, onError: (code) => errors.push(code), onEnd: (reason) => ends.push(reason) });
+    return loaded.exports.useTrainWebSocket({ sessionId: 'session-1', wsUrl: null, enabled, onError: (code) => errors.push(code), onEnd: (reason) => ends.push(reason), ...props });
   };
   const start = () => { render(); cleanup = effect(); };
   const stop = () => { cleanup?.(); cleanup = undefined; };
@@ -194,4 +194,41 @@ test('scenario metadata supplies the authoritative script level even when the ro
   assert.equal(s.render().displayName, '직원');
   s.stop();
   assert.equal(s.render(false).scriptLevel, null);
+});
+
+test('a measured call sends biosignal_intent once per connection after the playback frame', async (t) => {
+  const authTimes = [];
+  const s = setup(t, {
+    props: { shouldSendBiosignalIntent: () => true, onAuthSent: (phoneMs) => authTimes.push(phoneMs) },
+  });
+  const before = Date.now();
+  s.start(); await flush();
+  s.sockets[0].open();
+  const frames = s.sockets[0].sent.map((data) => JSON.parse(data));
+  assert.deepEqual(frames.map(({ type }) => type), ['auth', 'playback_capabilities', 'biosignal_intent']);
+  assert.deepEqual(Object.keys(frames[2]).sort(), ['phone_ms', 'source', 'type', 'v']);
+  assert.equal(frames[2].v, 1);
+  assert.equal(frames[2].source, 'samsung_sensor_sdk');
+  assert.ok(frames[2].phone_ms >= before);
+  assert.equal(authTimes.length, 1);
+  assert.ok(authTimes[0] >= before && authTimes[0] <= frames[2].phone_ms);
+
+  // 토큰 만료로 다시 연결하면 새 연결에도 한 번 보내고 auth 시각을 덮어쓴다.
+  s.sockets[0].serverClose(1008, 'TOKEN_EXPIRED'); await flush();
+  s.sockets[1].open();
+  assert.deepEqual(s.sockets[1].sent.map((data) => JSON.parse(data).type), ['auth', 'playback_capabilities', 'biosignal_intent']);
+  assert.equal(authTimes.length, 2);
+});
+
+test('an unmeasured call sends no biosignal frame but ping and end carry the phone clock', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 1_762_300_000_000 });
+  const s = setup(t, { props: { shouldSendBiosignalIntent: () => false } });
+  s.start(); await flush();
+  const socket = s.sockets[0]; socket.open();
+  t.mock.timers.tick(30000);
+  s.render().sendEndCall();
+  const frames = socket.sent.map((data) => JSON.parse(data));
+  assert.deepEqual(frames.map(({ type }) => type), ['auth', 'playback_capabilities', 'ping', 'end']);
+  assert.deepEqual(frames[2], { type: 'ping', phone_ms: 1_762_300_030_000 });
+  assert.deepEqual(frames[3], { type: 'end', phone_ms: 1_762_300_030_000 });
 });

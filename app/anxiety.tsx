@@ -11,6 +11,7 @@ import {
 } from "@/constants/train";
 import { SEMANTIC_COLORS } from "@/design-system/colors";
 import { useAndroidBackHandler } from "@/hooks/useAndroidBackHandler";
+import { finishBiosignalRecovery } from "@/services/biosignal/measurementSession";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -84,6 +85,9 @@ export default function Anxiety() {
 
   // 안드로이드 뒤로 가기로는 훈련 중간 상태로 되돌아갈 수 없게 막는다
   useAndroidBackHandler(() => true);
+
+  // 통화를 끊고 60초 안에 이 화면을 떠나면 그때 워치 회복 측정을 멈춘다
+  useEffect(() => () => finishBiosignalRecovery(), []);
 
   // 점수 입력이 열리면 이모지·문구가 위로 올라간다
   const headerTop = useSharedValue(messageHeaderTop);

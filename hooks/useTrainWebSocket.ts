@@ -41,6 +41,8 @@ interface UseTrainWebSocketProps {
   onBinaryMessage?: (data: ArrayBuffer) => void;
   onTranscript?: (turn: TranscriptTurn) => void; // 실시간 대화 스크립트 수신
   onScriptHint?: (hint: ScriptHint) => void; // 연습 횟수별 대답 힌트 수신
+  onAuthSent?: (phoneMs: number) => void; // 연결마다 auth를 보낸 시각(폰 ms)
+  shouldSendBiosignalIntent?: () => boolean; // 연결할 때 워치로 측정 중인지 (측정 중이면 biosignal_intent를 보낸다)
 }
 
 export interface UseTrainWebSocketReturn {
@@ -68,6 +70,8 @@ export function useTrainWebSocket({
   onBinaryMessage,
   onTranscript,
   onScriptHint,
+  onAuthSent,
+  shouldSendBiosignalIntent,
 }: UseTrainWebSocketProps): UseTrainWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -83,6 +87,8 @@ export function useTrainWebSocket({
   const onBinaryMessageRef = useRef(onBinaryMessage);
   const onTranscriptRef = useRef(onTranscript);
   const onScriptHintRef = useRef(onScriptHint);
+  const onAuthSentRef = useRef(onAuthSent);
+  const shouldSendBiosignalIntentRef = useRef(shouldSendBiosignalIntent);
   const aiSpeakingRef = useRef(false);
   const transcriptIdRef = useRef(0); // 다음 스크립트 줄에 붙일 번호
   onEmotionRef.current = onEmotion;
@@ -93,6 +99,8 @@ export function useTrainWebSocket({
   onBinaryMessageRef.current = onBinaryMessage;
   onTranscriptRef.current = onTranscript;
   onScriptHintRef.current = onScriptHint;
+  onAuthSentRef.current = onAuthSent;
+  shouldSendBiosignalIntentRef.current = shouldSendBiosignalIntent;
 
   useEffect(() => {
     let isActive = enabled && !!sessionId;
@@ -166,14 +174,26 @@ export function useTrainWebSocket({
           if (!isCurrent()) return;
           try {
             // Authentication must precede microphone PCM and all other frames.
+            const authSentMs = Date.now();
             ws.send(JSON.stringify({ type: "auth", token }));
             ws.send(JSON.stringify({ type: "playback_capabilities", completion_ack: true }));
+            // 서버는 연결마다 생체신호 사건표를 따로 쌓으므로 재연결해도 연결마다 한 번 보낸다.
+            if (shouldSendBiosignalIntentRef.current?.()) {
+              ws.send(JSON.stringify({
+                type: "biosignal_intent",
+                v: 1,
+                source: "samsung_sensor_sdk",
+                phone_ms: Date.now(),
+              }));
+            }
+            onAuthSentRef.current?.(authSentMs);
             clearTimeout(deadline);
             setIsConnected(true);
             pingInterval = setInterval(() => {
               if (!isCurrent() || ws.readyState !== WebSocket.OPEN) return;
               try {
-                ws.send(JSON.stringify({ type: "ping" }));
+                // phone_ms는 워치 시계 맞춤용이다. 기능이 꺼진 서버는 무시한다.
+                ws.send(JSON.stringify({ type: "ping", phone_ms: Date.now() }));
               } catch {
                 fail("WS_CONNECTION_ERROR");
               }
@@ -306,7 +326,7 @@ export function useTrainWebSocket({
   }, []);
 
   const sendEndCall = useCallback(() => {
-    sendJson({ type: "end" });
+    sendJson({ type: "end", phone_ms: Date.now() });
   }, [sendJson]);
 
   const sendMute = useCallback((muted: boolean) => {

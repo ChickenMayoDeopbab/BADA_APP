@@ -250,7 +250,7 @@ function createFileSystem() {
 }
 
 /** 서버 응답을 순서대로 돌려주는 대기열을 만든다. 응답이 Error면 실패로 던진다. */
-function createQueue(responses = []) {
+function createQueue(responses = [], { token = "access" } = {}) {
   const fileSystem = createFileSystem();
   const uploads = [];
   const savedSources = [];
@@ -266,6 +266,7 @@ function createQueue(responses = []) {
       },
     },
     "@/api/error": { getApiErrorStatus: (error) => error?.response?.status },
+    "@/utils/authTokenStorage": { getAccessToken: async () => token },
     "@/utils/biosignalSettings": {
       saveLastBaselineSource: async (source) => { savedSources.push(source); },
     },
@@ -367,6 +368,14 @@ test("overlapping flushes upload each body once and pick up bodies saved meanwhi
   await Promise.all([first, second]);
   assert.deepEqual(uploads.map(({ sessionId }) => sessionId), ["s1", "s2"]);
   assert.equal(files.size, 0);
+});
+
+test("bodies wait while signed out instead of sending without a token", async () => {
+  const { queue, uploads, files } = createQueue([], { token: null });
+  queue.saveBiosignalUpload("s1", createBody());
+  await queue.flushBiosignalUploads();
+  assert.equal(uploads.length, 0);
+  assert.equal(files.size, 1);
 });
 
 test("session ids that are not safe file names are refused and clearing removes every body", () => {

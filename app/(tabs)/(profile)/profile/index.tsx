@@ -11,6 +11,7 @@ import { useProfileImage } from "@/hooks/useProfileImage";
 import { useSensitiveConsentGuard } from "@/hooks/useSensitiveConsentGuard";
 import { useMyPage, myPageQueryKeys } from "@/hooks/useMyPage";
 import { useQueryClient } from "@tanstack/react-query";
+import { discardBiosignalData } from "@/services/biosignal/measurementSession";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { clearAuthTokens, getAuthLoginMethod } from "@/utils/authTokenStorage";
 import { isBiosignalSupported } from "@/utils/biosignalSettings";
@@ -95,6 +96,8 @@ function ProfileScreen() {
       // 서버 로그아웃에 실패해도 기기의 로그인 정보는 반드시 제거합니다.
     }
 
+    // 다른 계정으로 로그인했을 때 이 계정의 측정 기록을 올리지 않도록 지운다.
+    discardBiosignalData();
     await Promise.all([
       clearAuthTokens(),
       AsyncStorage.multiRemove([

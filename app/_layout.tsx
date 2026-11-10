@@ -20,6 +20,7 @@ import {
   clearAuthTokens,
   getAccessToken,
 } from "@/utils/authTokenStorage";
+import { useBiosignalUploadRetry } from "@/hooks/useBiosignalUploadRetry";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { unregisterForPushNotifications } from "@/services/pushNotifications";
 import { View } from "react-native";
@@ -43,6 +44,11 @@ const queryClient = new QueryClient({
 
 function PushNotificationManager() {
   usePushNotifications();
+  return null;
+}
+
+function BiosignalUploadManager() {
+  useBiosignalUploadRetry();
   return null;
 }
 
@@ -131,6 +137,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AppAlertProvider>
           <PushNotificationManager />
+          <BiosignalUploadManager />
           <ScheduledCallWatcher />
           <View className="flex-1">
             <Stack
