@@ -58,7 +58,7 @@ class SamsungSensorSource(context: Context) : SensorSource {
             override fun onConnectionEnded() = Unit
 
             override fun onConnectionFailed(error: HealthTrackerException) {
-                // Health Sensor Service가 없거나 오래된 기기
+                // Health Platform(com.samsung.android.service.health)이 없거나 오래된 기기
                 Log.w(TAG, "connection failed: ${error.errorCode}")
                 handler.post { if (!isStopping) onError(MeasurementError.NO_SENSOR) }
             }
@@ -117,8 +117,14 @@ class SamsungSensorSource(context: Context) : SensorSource {
         override fun onError(error: HealthTracker.TrackerError) {
             Log.w(TAG, "tracker error: ${spec.type} $error")
             handler.post {
-                if (isStopping || !spec.isRequired) return@post
-                // SDK_POLICY_ERROR: 등록되지 않은 앱이라 Health Sensor Service 개발자 모드가 필요하다.
+                // 오류 난 트래커는 값을 더 보내지 않으니 끄고 목록에서 뺀다. 멈추는 중이면 그 flush도 기다리지 않는다.
+                if (running.remove(tracker)) {
+                    runCatching { tracker.unsetEventListener() }
+                    activeTrackers = activeTrackers - spec.names.toSet()
+                }
+                if (isStopping) return@post onFlushed(tracker)
+                if (!spec.isRequired) return@post
+                // SDK_POLICY_ERROR: 등록되지 않은 앱이라 Health Platform 개발자 모드가 필요하다.
                 reportError(
                     if (error == HealthTracker.TrackerError.PERMISSION_ERROR) {
                         MeasurementError.PERMISSION
