@@ -139,16 +139,29 @@ test("metrics that are not measured are hidden quietly", () => {
 
 test("the chart keeps gaps and needs two points", () => {
   const chart = (timeline) => buildBiosignalReportView(analyzedReport({ timeline })).chart;
-  assert.deepEqual(chart({ hr: [70, "x", -1, 75], phase: ["baseline"] }), {
+  assert.deepEqual(chart({ hr: [70, "x", -1, 75], phase: ["listen"] }), {
     binSec: 5,
     startSec: -10,
     bpm: [70, null, null, 75],
-    phases: ["baseline", null, null, null],
+    phases: ["listen", null, null, null],
   });
   assert.equal(chart({ hr: [70, null, null] }), null);
   assert.equal(chart({ bin_sec: 0 }), null);
   assert.equal(chart({ start_sec: null }), null);
   assert.equal(chart({ hr: null }), null);
+});
+
+test("the chart is hidden when most of the call is empty", () => {
+  const phase = ["anticipation", "listen", "listen", "speak", "speak", "recovery"];
+  const view = (hr, phases = phase) => buildBiosignalReportView(analyzedReport({ timeline: { hr, phase: phases } }));
+  // 통화 칸 4개 중 2개에 값이 있으면 그린다.
+  assert.notEqual(view([70, 80, null, 85, null, 75]).chart, null);
+  // 1개뿐이면 끊긴 점만 남으므로 곡선만 숨기고 나머지 줄은 그대로 보여 준다.
+  const sparse = view([70, 80, null, null, null, 95]);
+  assert.equal(sparse.chart, null);
+  assert.deepEqual(sparse.peak, { atSec: 83.4, phase: "speak", bpm: 95.3 });
+  // 통화 칸이 없으면 통화 중 반응을 보여 줄 수 없다.
+  assert.equal(view([70, 71, 72, 73, 74, 75], ["baseline"]).chart, null);
 });
 
 test("recovery is a whole percent up to 100 and a call that did not come back is not shown", () => {
