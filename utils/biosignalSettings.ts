@@ -1,7 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
+import type { BiosignalBaselineSource } from "@/api/types";
+
 const BIOSIGNAL_REPORT_ENABLED_KEY = "biosignalReportEnabled";
+const LAST_BASELINE_SOURCE_KEY = "biosignalLastBaselineSource"; // 마지막 분석 결과의 기준선 출처
 
 /** Galaxy Watch는 Android 폰과만 연결되므로 생체신호 기능은 Android에서만 제공한다. */
 export const isBiosignalSupported = Platform.OS === "android";
@@ -39,4 +42,24 @@ export const syncBiosignalReportEnabled = async (
     await saveBiosignalReportEnabled(false).catch(() => undefined);
   }
   return false;
+};
+
+/**
+ * 다음 측정 통화 전에 2분 휴식 화면이 필요한지 알려 준다.
+ * 이 기기에서 아직 분석 결과를 받은 적이 없거나(처음 측정) 직전 결과에 기준선이 없었으면 필요하다.
+ */
+export const loadIsRestBaselineNeeded = async (): Promise<boolean> => {
+  try {
+    const source = await AsyncStorage.getItem(LAST_BASELINE_SOURCE_KEY);
+    return source === null || source === "none";
+  } catch {
+    return true;
+  }
+};
+
+/** 분석 결과의 기준선 출처를 기기에 저장한다. */
+export const saveLastBaselineSource = async (
+  source: BiosignalBaselineSource,
+): Promise<void> => {
+  await AsyncStorage.setItem(LAST_BASELINE_SOURCE_KEY, source);
 };
