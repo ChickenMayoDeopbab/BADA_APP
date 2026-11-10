@@ -1,6 +1,7 @@
 package expo.modules.wearbiosignal
 
 import android.net.Uri
+import com.bada.biosignal.BioLinkContract
 import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
@@ -10,7 +11,7 @@ import org.json.JSONObject
 /** 워치가 보내는 status 메시지와 세션 파일 채널을 받는다. 앱이 백그라운드여도 파일은 저장된다. */
 class WatchEventService : WearableListenerService() {
   override fun onMessageReceived(event: MessageEvent) {
-    if (event.path != WatchProtocol.PATH_STATUS) return
+    if (event.path != BioLinkContract.PATH_STATUS) return
     val phoneReceivedMs = System.currentTimeMillis()
     val json = runCatching { JSONObject(String(event.data, Charsets.UTF_8)) }.getOrNull() ?: return
     val trackers = json.optJSONArray("trackers")
@@ -28,17 +29,19 @@ class WatchEventService : WearableListenerService() {
   }
 
   override fun onChannelOpened(channel: ChannelClient.Channel) {
-    val id = WatchProtocol.dataId(channel.path) ?: return
-    val file = ReceivedFiles(this).prepare(id)
+    val id = BioLinkContract.dataId(channel.path) ?: return
+    val files = ReceivedFiles(filesDir)
+    files.deleteExpired()
+    val file = files.prepare(id)
     Wearable.getChannelClient(this)
       .receiveFile(channel, Uri.fromFile(file), false)
       .addOnFailureListener { WatchEvents.emitError(id, ERROR_RECEIVE_FAILED, it.message) }
   }
 
   override fun onInputClosed(channel: ChannelClient.Channel, closeReason: Int, appSpecificErrorCode: Int) {
-    val id = WatchProtocol.dataId(channel.path) ?: return
+    val id = BioLinkContract.dataId(channel.path) ?: return
     val phoneReceivedMs = System.currentTimeMillis()
-    val files = ReceivedFiles(this)
+    val files = ReceivedFiles(filesDir)
     Wearable.getChannelClient(this).close(channel)
     if (closeReason != ChannelClient.ChannelCallback.CLOSE_REASON_NORMAL) {
       files.partial(id).delete()

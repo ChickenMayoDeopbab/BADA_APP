@@ -1,6 +1,7 @@
 package expo.modules.wearbiosignal
 
 import android.content.Context
+import com.bada.biosignal.BioLinkContract
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
@@ -21,7 +22,13 @@ class WearBiosignalModule : Module() {
 
     Events(WatchEvents.STATUS, WatchEvents.DATA, WatchEvents.ERROR)
 
-    OnCreate { WatchEvents.attach(emit) }
+    OnCreate {
+      WatchEvents.attach(emit)
+      // 앱이 ack하지 못하고 남은 세션 파일을 정리한다.
+      appContext.reactContext?.filesDir?.let { filesDir ->
+        Thread { ReceivedFiles(filesDir).deleteExpired() }.start()
+      }
+    }
 
     OnDestroy { WatchEvents.detach(emit) }
 
@@ -34,19 +41,19 @@ class WearBiosignalModule : Module() {
     }
 
     AsyncFunction("start") { id: String, phoneMs: Double, promise: Promise ->
-      send(WatchProtocol.PATH_START, id, phoneMs.toLong(), promise)
+      send(BioLinkContract.PATH_START, id, phoneMs.toLong(), promise)
     }
 
     AsyncFunction("stop") { id: String, promise: Promise ->
-      send(WatchProtocol.PATH_STOP, id, null, promise)
+      send(BioLinkContract.PATH_STOP, id, null, promise)
     }
 
     AsyncFunction("cancel") { id: String, promise: Promise ->
-      send(WatchProtocol.PATH_CANCEL, id, null, promise)
+      send(BioLinkContract.PATH_CANCEL, id, null, promise)
     }
 
     AsyncFunction("ack") { id: String, promise: Promise ->
-      send(WatchProtocol.PATH_ACK, id, null, promise)
+      send(BioLinkContract.PATH_ACK, id, null, promise)
     }
   }
 
@@ -59,13 +66,13 @@ class WearBiosignalModule : Module() {
   /** 측정 앱이 깔린, 지금 닿는 워치. 여러 대면 블루투스로 바로 붙은 쪽을 고른다. */
   private fun findWatch(onResult: (Node?) -> Unit, onFailure: (Exception) -> Unit) {
     Wearable.getCapabilityClient(context)
-      .getCapability(WatchProtocol.CAPABILITY, CapabilityClient.FILTER_REACHABLE)
+      .getCapability(BioLinkContract.CAPABILITY, CapabilityClient.FILTER_REACHABLE)
       .addOnSuccessListener { info -> onResult(info.nodes.maxByOrNull { if (it.isNearby) 1 else 0 }) }
       .addOnFailureListener(onFailure)
   }
 
   private fun send(path: String, id: String, phoneMs: Long?, promise: Promise) {
-    if (!WatchProtocol.isValidId(id)) {
+    if (!BioLinkContract.isValidId(id)) {
       promise.reject(ERROR_INVALID_ID, "측정 id 형식이 맞지 않아요: $id", null)
       return
     }
