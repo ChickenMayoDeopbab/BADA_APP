@@ -59,6 +59,9 @@ enum class MeasurementState(val wire: String) {
 object MeasurementError {
     const val PERMISSION = "permission"
     const val NO_SENSOR = "no_sensor"
+
+    /** Samsung Health Sensor Service가 이 앱을 허용하지 않음(개발자 모드 꺼짐 또는 서명 불일치) */
+    const val SDK_POLICY = "sdk_policy"
     const val BACKGROUND_START = "background_start"
     const val SEND_FAILED = "send_failed"
     const val WRITE_FAILED = "write_failed"

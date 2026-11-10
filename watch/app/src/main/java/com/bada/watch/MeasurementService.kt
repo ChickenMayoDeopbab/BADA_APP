@@ -129,11 +129,18 @@ class MeasurementService : Service() {
         val recorder = SessionRecorder()
         session = ActiveSession(id, source, recorder)
         wakeLock.acquire(MAX_MEASUREMENT_MS + WAKE_LOCK_MARGIN_MS)
-        source.start(recorder)
+        source.start(recorder) { error -> onSensorError(id, error) }
         MeasurementStatus.publish(MeasurementState.MEASURING, id)
         handler.removeCallbacks(statusTicker)
         handler.post(statusTicker)
         handler.postDelayed(maxDurationStop, MAX_MEASUREMENT_MS)
+    }
+
+    /** 센서가 측정을 이어갈 수 없으면 측정을 버리고 폰에 알린다. 폰은 측정 없이 통화를 이어간다. */
+    private fun onSensorError(id: String, error: String) {
+        val active = session?.takeIf { it.id == id } ?: return
+        discard(active)
+        fail(id, error)
     }
 
     /** 센서를 멈추고 세션 파일을 써서 폰으로 보낸다. */

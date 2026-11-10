@@ -90,6 +90,7 @@ private fun statusMessage(snapshot: MeasurementStatus.Snapshot): Pair<String, St
     MeasurementState.ERROR -> when (snapshot.error) {
         MeasurementError.PERMISSION -> "측정하지 못했어요" to "센서 권한을 허용해 주세요."
         MeasurementError.NO_SENSOR -> "측정하지 못했어요" to "이 워치에서는 측정할 수 없어요."
+        MeasurementError.SDK_POLICY -> "측정하지 못했어요" to "Health Sensor Service 개발자 모드를 켜 주세요."
         MeasurementError.BACKGROUND_START -> "측정하지 못했어요" to "워치 앱을 열어 둔 채로 다시 시작해 주세요."
         MeasurementError.SEND_FAILED -> "보내지 못했어요" to "측정 기록은 워치에 남아 있어요. 폰과 가까이 두면 다시 보내요."
         else -> "측정하지 못했어요" to "다시 시도해 주세요."

@@ -8,10 +8,14 @@ interface SensorSource {
     /** 세션 파일 device.sdk 값 */
     val sdkVersion: String
 
-    /** 이 기기에서 켤 수 있는 트래커. status 메시지 trackers 값과 같다. */
+    /** 켜져 있는 트래커. status 메시지 trackers 값과 같다. 실제 센서는 연결이 끝난 뒤에 채워진다. */
     val trackers: List<String>
 
-    fun start(sink: SensorSink)
+    /**
+     * 측정을 시작한다. 측정을 이어갈 수 없게 되면 [onError]에 MeasurementError 값을 넘긴다(메인 스레드).
+     * 오류가 나도 [stop]은 불러야 한다.
+     */
+    fun start(sink: SensorSink, onError: (String) -> Unit)
 
     /** 남은 데이터를 모두 넘긴 뒤 멈추고 [onStopped]를 부른다. */
     fun stop(onStopped: () -> Unit)
