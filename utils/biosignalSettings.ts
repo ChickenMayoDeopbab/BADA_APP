@@ -63,3 +63,19 @@ export const saveLastBaselineSource = async (
 ): Promise<void> => {
   await AsyncStorage.setItem(LAST_BASELINE_SOURCE_KEY, source);
 };
+
+const CALL_CONSENT_ASKED_KEY = "biosignalCallConsentAsked"; // 첫 측정 통화 전 동의 팝업을 띄웠는지
+
+/** 통화 전 생체신호 동의 팝업을 이 기기에서 이미 띄웠는지. 거부한 사용자에게 통화마다 다시 묻지 않는다. */
+export const loadIsCallConsentAsked = async (): Promise<boolean> => {
+  try {
+    return (await AsyncStorage.getItem(CALL_CONSENT_ASKED_KEY)) === "true";
+  } catch {
+    return false;
+  }
+};
+
+/** 통화 전 생체신호 동의 팝업을 띄웠다고 기록한다. */
+export const saveCallConsentAsked = async (): Promise<void> => {
+  await AsyncStorage.setItem(CALL_CONSENT_ASKED_KEY, "true");
+};
