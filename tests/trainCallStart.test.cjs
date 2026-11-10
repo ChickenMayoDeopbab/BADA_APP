@@ -60,13 +60,31 @@ function find(node, predicate) {
 }
 
 /** Mount the call screen with the socket and microphone replaced by recorders. */
-function mountTrain() {
-  const runtime = hookRuntime(), permission = deferred(), sockets = [], alerts = [];
+function mountTrain({ biosignalPhase = 'ready' } = {}) {
+  const runtime = hookRuntime(), permission = deferred(), sockets = [], alerts = [], biosignal = [];
+  let socketProps;
   const jsx = (type, props) => ({ type, props });
   const color = new Proxy({}, { get: () => color });
   const component = (name) => ({ __esModule: true, default: name });
   const { default: Train } = loadSource('../app/train.tsx', {
     '@/components/train/CallControls': { __esModule: true, default: 'CallControls' },
+    '@/components/train/RestBaselineScreen': component('RestBaselineScreen'),
+    '@/components/train/SwipeCallButton': component('SwipeCallButton'),
+    '@/components/train/ScriptPanel': component('ScriptPanel'),
+    '@/hooks/useBiosignalMeasurement': {
+      useBiosignalMeasurement: (props) => {
+        biosignal.push(['hook', props]);
+        return { phase: biosignalPhase, finishRest: () => biosignal.push(['finishRest']) };
+      },
+    },
+    '@/services/biosignal/measurementSession': {
+      cancelBiosignalMeasurement: () => biosignal.push(['cancel']),
+      isBiosignalMeasuring: () => true,
+      markBiosignalCallEnd: () => biosignal.push(['callEnd']),
+      markBiosignalMeditationEnd: () => biosignal.push(['meditationEnd']),
+      markBiosignalMeditationStart: () => biosignal.push(['meditationStart']),
+      markBiosignalWsAuthSent: (phoneMs) => biosignal.push(['wsAuthSent', phoneMs]),
+    },
     '@/assets/train/call.svg': { __esModule: true, default: 'CallIcon' },
     '@/assets/train/hangup.svg': { __esModule: true, default: 'HangupIcon' },
     '@/hooks/useInitialScriptHint': { useInitialScriptHint: ({ scriptHint }) => ({ hint: scriptHint }) },
@@ -94,8 +112,9 @@ function mountTrain() {
       }),
     },
     '@/hooks/useTrainWebSocket': {
-      useTrainWebSocket: ({ enabled }) => {
-        sockets.push(enabled);
+      useTrainWebSocket: (props) => {
+        socketProps = props;
+        sockets.push(props.enabled);
         return {
           isConnected: false, isAiSpeaking: false, displayName: null,
           sendEndCall: () => {}, sendBinary: () => {}, sendMute: () => {}, sendJson: () => {}, setPlaybackBlocked: () => {},
@@ -113,7 +132,7 @@ function mountTrain() {
     'react': runtime.react,
     'react-native': {
       BackHandler: { exitApp: () => {} },
-      Modal: 'Modal', ScrollView: 'ScrollView', Text: 'Text', TouchableOpacity: 'TouchableOpacity', View: 'View',
+      Image: 'Image', Modal: 'Modal', ScrollView: 'ScrollView', Text: 'Text', TouchableOpacity: 'TouchableOpacity', View: 'View',
       StyleSheet: { create: (styles) => styles },
       useWindowDimensions: () => ({ width: 402, height: 800, fontScale: 1 }),
     },
@@ -127,7 +146,7 @@ function mountTrain() {
     find(render(), (node) => typeof node.props.onSkip === 'function').props.onSkip();
     return render();
   };
-  return { render, startCall, permission, sockets, alerts };
+  return { render, startCall, permission, sockets, alerts, biosignal, get socketProps() { return socketProps; } };
 }
 
 test('a failed microphone setup returns to the incoming call without ever opening the session socket', async () => {
@@ -150,4 +169,39 @@ test('the session socket opens only after the microphone is ready', async () => 
   s.render();
   assert.equal(s.sockets.at(-1), true);
   assert.deepEqual(s.alerts, []);
+});
+
+test('the bell waits while the watch check runs and the rest screen comes before the incoming call', () => {
+  const checking = mountTrain({ biosignalPhase: 'checking' });
+  const checkingTree = checking.render();
+  assert.equal(find(checkingTree, (node) => node.props.accessibilityLabel === '전화 받기'), undefined);
+  assert.ok(find(checkingTree, (node) => node.type === 'CallBackground'));
+
+  const rest = mountTrain({ biosignalPhase: 'rest' });
+  const restScreen = find(rest.render(), (node) => node.type === 'RestBaselineScreen');
+  assert.ok(restScreen);
+  restScreen.props.onFinish();
+  assert.deepEqual(rest.biosignal.at(-1), ['finishRest']);
+  assert.deepEqual(rest.biosignal[0], ['hook', { isEnabled: true, sessionId: 'session-1' }]);
+});
+
+test('the call socket reports the auth time and asks whether to announce the watch measurement', () => {
+  const s = mountTrain();
+  s.render();
+  assert.equal(s.socketProps.shouldSendBiosignalIntent(), true);
+  s.socketProps.onAuthSent(123);
+  assert.deepEqual(s.biosignal.at(-1), ['wsAuthSent', 123]);
+});
+
+test('meditation is marked and hanging up before the call starts cancels the measurement', async () => {
+  const s = mountTrain();
+  find(s.render(), (node) => node.props.accessibilityLabel === '전화 받기').props.onPress();
+  find(s.render(), (node) => typeof node.props.onMeditate === 'function').props.onMeditate();
+  find(s.render(), (node) => typeof node.props.onEnd === 'function').props.onEnd();
+  const events = () => s.biosignal.filter(([name]) => name !== 'hook');
+  assert.deepEqual(events(), [['meditationStart'], ['meditationEnd']]);
+  s.permission.resolve(true);
+  await nextTick();
+  find(s.render(), (node) => node.props.accessibilityLabel === '통화 종료').props.onPress();
+  assert.deepEqual(events().at(-1), ['cancel']);
 });

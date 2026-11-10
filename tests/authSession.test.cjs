@@ -221,6 +221,7 @@ for (const scenario of [
         clearAuthTokens: async () => { clears++; },
       },
       '@/hooks/usePushNotifications': { usePushNotifications() {} },
+      '@/hooks/useBiosignalUploadRetry': { useBiosignalUploadRetry() {} },
       '@/services/pushNotifications': { unregisterForPushNotifications: async () => {} },
       'react-native': { View: 'View' },
       'react/jsx-runtime': { jsx, jsxs: jsx },

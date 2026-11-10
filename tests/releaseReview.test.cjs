@@ -220,6 +220,14 @@ function callScreen(initialStep, height = 568, options = {}) {
   let stateIndex = 0, refIndex = 0;
   const Screen = loadSource('../app/train.tsx', {
     '@/components/train/CallControls': { __esModule: true, default: 'CallControls' },
+    '@/components/train/RestBaselineScreen': { default: 'RestBaselineScreen' },
+    '@/components/train/SwipeCallButton': { default: 'SwipeCallButton' },
+    '@/components/train/ScriptPanel': { default: 'ScriptPanel' },
+    '@/hooks/useBiosignalMeasurement': { useBiosignalMeasurement: () => ({ phase: 'ready', finishRest() {} }) },
+    '@/services/biosignal/measurementSession': {
+      cancelBiosignalMeasurement() {}, isBiosignalMeasuring: () => false, markBiosignalCallEnd() {},
+      markBiosignalMeditationEnd() {}, markBiosignalMeditationStart() {}, markBiosignalWsAuthSent() {},
+    },
     '@/assets/train/call.svg': { __esModule: true, default: 'CallIcon' },
     '@/assets/train/hangup.svg': { __esModule: true, default: 'HangupIcon' },
     '@/hooks/useInitialScriptHint': { useInitialScriptHint: ({ scriptHint }) => ({ hint: scriptHint }) },
@@ -261,7 +269,7 @@ function callScreen(initialStep, height = 568, options = {}) {
       },
     },
     'react-native': {
-      View: 'View', Text: 'Text', TouchableOpacity: 'Button', Modal: 'Modal', ScrollView: 'ScrollView',
+      View: 'View', Text: 'Text', TouchableOpacity: 'Button', Modal: 'Modal', ScrollView: 'ScrollView', Image: 'Image',
       StyleSheet: { create: (styles) => styles }, BackHandler: {},
       useWindowDimensions: () => ({ width: 320, height, fontScale: 1 }),
     },
@@ -330,12 +338,10 @@ test('receiving and active calls stay fixed while the script alone scrolls and e
     assert.equal(findNode(tree, (node) => node.type === 'ScrollView'), undefined);
     findNode(tree, (node) => node.type === 'CallControls').props.onShowScript();
     tree = s.render();
-    const script = findNode(tree, (node) => node.type === 'ScrollView');
-    assert.ok(script, 'the conversation remains scrollable inside the script panel');
-    const scrolls = [];
-    script.props.ref.current = { scrollToEnd: (options) => scrolls.push(options) };
-    script.props.onContentSizeChange();
-    assert.deepEqual(scrolls, [{ animated: true }]);
+    // 스크롤과 자동 내림은 ScriptPanel이 맡는다.
+    const script = findNode(tree, (node) => node.type === 'ScriptPanel');
+    assert.ok(script, 'the conversation is shown inside the script panel');
+    assert.deepEqual(script.props.transcript, [{ role: 'user', text: '안녕하세요' }]);
     findNode(tree, (node) => node.props?.accessibilityLabel === '통화 종료').props.onPress();
     assert.deepEqual(s.events, ['stop', 'call_end', 'end']);
     assert.equal(findNode(s.render(), (node) => node.props?.accessibilityLabel === '통화 종료').props.disabled, true);
