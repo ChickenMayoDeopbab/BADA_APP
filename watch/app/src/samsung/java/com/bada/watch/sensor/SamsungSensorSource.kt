@@ -92,7 +92,12 @@ class SamsungSensorSource(context: Context) : SensorSource {
             if (spec.type !in supported) continue
             val tracker = runCatching { spec.open(connected) }
                 .onFailure { Log.w(TAG, "tracker unavailable: ${spec.type}", it) }
-                .getOrNull() ?: continue
+                .getOrNull()
+            if (tracker == null) {
+                // 심박 트래커를 못 열면 심박을 못 재는 기기와 같이 끝낸다. 나머지는 그 값만 빠진다.
+                if (spec.isRequired) return onError(MeasurementError.NO_SENSOR)
+                continue
+            }
             tracker.setEventListener(eventListener(tracker, spec, sink, onError))
             running += tracker
             started += spec.names
