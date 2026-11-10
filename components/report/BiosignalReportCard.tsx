@@ -1,4 +1,4 @@
-import { SEMANTIC_COLORS } from "@/design-system";
+import { PALETTE, SEMANTIC_COLORS } from "@/design-system";
 import { SUBTLE_CARD_SHADOW } from "@/design-system/effects";
 import type { BiosignalPhase } from "@/api/types";
 import {
@@ -7,9 +7,10 @@ import {
   type BiosignalPeak,
   type BiosignalReportView,
 } from "@/utils/biosignalReport";
+import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { LayoutChangeEvent, Pressable, Text, View } from "react-native";
-import { Circle, Path, Rect, Svg } from "react-native-svg";
+import { Circle, Line, Path, Svg } from "react-native-svg";
 
 const CHART_HEIGHT = 120;
 const CHART_PADDING_Y = 12;
@@ -17,6 +18,10 @@ const CHART_PADDING_Y = 12;
 const MIN_BPM_SPAN = 10;
 /** 구간이 이보다 좁으면 이름이 옆 구간 이름과 겹치므로 적지 않는다. */
 const MIN_LABEL_WIDTH = 56;
+/** 심박 선과 최고점 색. 리포트 통화 타임라인 마커와 같은 초록이다. */
+const CHART_COLOR = PALETTE.green[40];
+/** 최고점 표시(타임라인 마커를 줄인 테두리 원)의 바깥 반지름 */
+const PEAK_RADIUS = 7;
 
 type Region = "before" | "call" | "after";
 
@@ -24,12 +29,6 @@ const REGION_LABELS: Record<Region, string> = {
   before: "통화 전",
   call: "통화 중",
   after: "통화 후",
-};
-
-const REGION_FILLS: Record<Region, string> = {
-  before: SEMANTIC_COLORS.fill.normal,
-  call: SEMANTIC_COLORS.primary.alternative,
-  after: SEMANTIC_COLORS.record.iconBackground,
 };
 
 const toRegion = (phase: BiosignalPhase | null): Region | null => {
@@ -68,6 +67,18 @@ const buildSegments = (points: ({ x: number; y: number } | null)[]) => {
   return segments;
 };
 
+/** 리포트 통화 타임라인 마커를 줄인 표시. 그래프의 최고점과 '가장 높았던 순간' 줄을 잇는다. */
+function PeakMarker() {
+  return (
+    <View
+      className="items-center justify-center w-4 h-4 border-[3px] rounded-pill bg-background-normal"
+      style={{ borderColor: CHART_COLOR }}
+    >
+      <View className="w-1.5 h-1.5 rounded-pill" style={{ backgroundColor: CHART_COLOR }} />
+    </View>
+  );
+}
+
 function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: BiosignalPeak | null }) {
   const [width, setWidth] = useState(0);
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
@@ -84,10 +95,9 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
   const yOf = (bpm: number) =>
     CHART_PADDING_Y + ((maxBpm - bpm) / (maxBpm - minBpm)) * (CHART_HEIGHT - CHART_PADDING_Y * 2);
   const binWidth = width / chart.bpm.length;
-  // 최고점 시각은 곡선과 따로 오므로, 곡선 구간 끝을 살짝 넘어도 점이 곡선 범위(구간 가운데) 안에 그려지게 한다.
-  const peakX = peak
-    ? Math.min(width - binWidth / 2, Math.max(binWidth / 2, xOf(peak.atSec)))
-    : 0;
+  // 최고점 시각은 곡선과 따로 오므로, 곡선 구간 끝을 살짝 넘거나 가장자리에 붙어도 표시가 잘리지 않게 안쪽으로 당긴다.
+  const peakEdge = Math.max(binWidth / 2, PEAK_RADIUS + 1);
+  const peakX = peak ? Math.min(width - peakEdge, Math.max(peakEdge, xOf(peak.atSec))) : 0;
 
   const regions = groupRegions(chart.phases);
   const segments = buildSegments(
@@ -112,24 +122,35 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
       <View style={{ height: CHART_HEIGHT }}>
         {width > 0 && (
           <Svg width={width} height={CHART_HEIGHT}>
-            {regions.map((group) => (
-              <Rect
-                key={`${group.region}-${group.start}`}
-                x={group.start * binWidth}
-                y={0}
-                width={(group.end - group.start) * binWidth}
-                height={CHART_HEIGHT}
-                fill={REGION_FILLS[group.region]}
+            {/* 구간이 바뀌는 곳(벨, 통화 시작, 끊음)에 세로 점선을 긋는다. */}
+            {regions.slice(1).map((group) => (
+              <Line
+                key={`boundary-${group.start}`}
+                x1={group.start * binWidth}
+                y1={0}
+                x2={group.start * binWidth}
+                y2={CHART_HEIGHT}
+                stroke={SEMANTIC_COLORS.line.neutral}
+                strokeWidth={1}
+                strokeDasharray="3 3"
               />
             ))}
+            <Line
+              x1={0}
+              y1={CHART_HEIGHT - 0.5}
+              x2={width}
+              y2={CHART_HEIGHT - 0.5}
+              stroke={SEMANTIC_COLORS.line.alternative}
+              strokeWidth={1}
+            />
             {segments.map((segment) =>
               segment.length === 1 ? (
                 <Circle
                   key={`dot-${segment[0].x}`}
                   cx={segment[0].x}
                   cy={segment[0].y}
-                  r={2}
-                  fill={SEMANTIC_COLORS.secondary.normal}
+                  r={2.5}
+                  fill={CHART_COLOR}
                 />
               ) : (
                 <Path
@@ -137,8 +158,8 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
                   d={segment
                     .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
                     .join(" ")}
-                  stroke={SEMANTIC_COLORS.secondary.normal}
-                  strokeWidth={2}
+                  stroke={CHART_COLOR}
+                  strokeWidth={2.5}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   fill="none"
@@ -146,25 +167,28 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
               ),
             )}
             {peak && (
-              <Circle
-                cx={peakX}
-                cy={yOf(peak.bpm)}
-                r={5}
-                fill={SEMANTIC_COLORS.secondary.normal}
-                stroke={SEMANTIC_COLORS.background.normal}
-                strokeWidth={2}
-              />
+              <>
+                <Circle
+                  cx={peakX}
+                  cy={yOf(peak.bpm)}
+                  r={PEAK_RADIUS - 1.5}
+                  fill={SEMANTIC_COLORS.background.normal}
+                  stroke={CHART_COLOR}
+                  strokeWidth={3}
+                />
+                <Circle cx={peakX} cy={yOf(peak.bpm)} r={2.5} fill={CHART_COLOR} />
+              </>
             )}
           </Svg>
         )}
       </View>
-      <View className="relative h-5 mt-1">
+      <View className="relative h-5 mt-2">
         {width > 0 &&
           labeledRegions.map((group) => (
             <Text
               key={group.region}
-              className="absolute text-caption font-medium text-label-alternative"
-              style={{ left: group.start * binWidth }}
+              className="absolute text-center text-caption font-medium text-label-alternative"
+              style={{ left: group.start * binWidth, width: (group.end - group.start) * binWidth }}
               numberOfLines={1}
             >
               {REGION_LABELS[group.region]}
@@ -175,11 +199,14 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
   );
 }
 
-function MetricRow({ label, value }: { label: string; value: string }) {
+function MetricRow({ label, value, marker }: { label: string; value: string; marker?: boolean }) {
   return (
-    <View className="flex-row items-start justify-between gap-3">
-      <Text className="text-label font-medium text-label-alternative">{label}</Text>
-      <Text className="flex-1 text-right text-body font-medium text-label-neutral">{value}</Text>
+    <View className="flex-row items-center justify-between gap-3">
+      <Text className="text-body font-medium text-label-alternative">{label}</Text>
+      <View className="flex-row items-center justify-end flex-1 gap-x-2">
+        {marker && <PeakMarker />}
+        <Text className="shrink text-right text-body font-bold text-label-neutral">{value}</Text>
+      </View>
     </View>
   );
 }
@@ -188,26 +215,27 @@ function MetricRow({ label, value }: { label: string; value: string }) {
 export default function BiosignalReportCard({ view }: { view: BiosignalReportView }) {
   const [isNumberVisible, setIsNumberVisible] = useState(false);
   const { chart, callChange, peak, recoveryPct, sentence, baselineBpm } = view;
-  const numberParts = [
-    baselineBpm !== null ? `평소 ${Math.round(baselineBpm)} bpm` : null,
-    peak ? `가장 높을 때 ${Math.round(peak.bpm)} bpm` : null,
-  ].filter((part): part is string => part !== null);
+  const numberRows = [
+    baselineBpm !== null ? { label: "평소 심박", value: `${Math.round(baselineBpm)} bpm` } : null,
+    peak ? { label: "가장 높을 때", value: `${Math.round(peak.bpm)} bpm` } : null,
+  ].filter((row): row is { label: string; value: string } => row !== null);
 
   return (
     <View className="rounded-component" style={SUBTLE_CARD_SHADOW}>
       <View className="gap-y-4 px-3 py-4 overflow-hidden bg-background-normal rounded-component">
-        {chart && <HeartRateChart chart={chart} peak={peak} />}
         {callChange && (
           <Text className="text-body font-bold text-label-neutral">{callChange}</Text>
         )}
+        {chart && <HeartRateChart chart={chart} peak={peak} />}
         {(peak || recoveryPct !== null) && (
-          <View className="gap-y-2">
+          <View className="gap-y-3">
             {peak && (
               <MetricRow
                 label="가장 높았던 순간"
                 value={`${formatCallSecond(peak.atSec)}${
                   peak.phase === "speak" ? " · 내가 말할 때" : peak.phase === "listen" ? " · 상대 말을 들을 때" : ""
                 }`}
+                marker={chart !== null}
               />
             )}
             {recoveryPct !== null && (
@@ -216,17 +244,27 @@ export default function BiosignalReportCard({ view }: { view: BiosignalReportVie
           </View>
         )}
         {sentence && <Text className="text-body font-medium text-label-neutral">{sentence}</Text>}
-        {numberParts.length > 0 && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: isNumberVisible }}
-            onPress={() => setIsNumberVisible((current) => !current)}
-            hitSlop={8}
-          >
-            <Text className="text-label font-medium text-label-alternative underline">
-              {isNumberVisible ? numberParts.join(" · ") : "심박 숫자 보기"}
-            </Text>
-          </Pressable>
+        {/* 절대 bpm은 펼쳐야 보인다. 숫자보다 흐름을 먼저 보게 하려는 것이다. */}
+        {numberRows.length > 0 && (
+          <View className="gap-y-3">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="심박 숫자 보기"
+              accessibilityState={{ expanded: isNumberVisible }}
+              className="flex-row items-center justify-between"
+              onPress={() => setIsNumberVisible((current) => !current)}
+              hitSlop={8}
+            >
+              <Text className="text-body font-medium text-label-alternative">심박 숫자</Text>
+              <Ionicons
+                name={isNumberVisible ? "chevron-up" : "chevron-down"}
+                size={24}
+                color={SEMANTIC_COLORS.line.normal}
+              />
+            </Pressable>
+            {isNumberVisible &&
+              numberRows.map((row) => <MetricRow key={row.label} label={row.label} value={row.value} />)}
+          </View>
         )}
         <Text className="text-caption font-normal text-label-alternative">
           통화할 때 심박이 오르는 건 몸이 대화를 준비하는 자연스러운 신호예요.
