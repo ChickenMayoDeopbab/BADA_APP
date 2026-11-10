@@ -37,6 +37,9 @@ class MeasurementService : Service() {
 
     private var session: ActiveSession? = null
     private val sendingIds = mutableSetOf<String>()
+
+    /** 파일 쓰기·전송 중에 취소된 측정. 그 작업이 끝나면 파일을 지우고 보내지 않는다. */
+    private val cancelledIds = mutableSetOf<String>()
     private var nodeId: String? = null
 
     private val statusTicker = object : Runnable {
@@ -108,6 +111,7 @@ class MeasurementService : Service() {
 
             is Command.Cancel -> {
                 if (active != null && active.id == command.id) discard(active)
+                if (command.id in sendingIds) cancelledIds += command.id
                 io.execute { files.delete(command.id) }
                 replyIdle(command.id)
             }
@@ -153,7 +157,11 @@ class MeasurementService : Service() {
                 }
                 handler.post {
                     sendingIds -= active.id
-                    if (written.isSuccess) sendFile(active.id) else fail(active.id, MeasurementError.WRITE_FAILED)
+                    when {
+                        consumeCancelled(active.id) -> stopIfIdle()
+                        written.isSuccess -> sendFile(active.id)
+                        else -> fail(active.id, MeasurementError.WRITE_FAILED)
+                    }
                 }
             }
         }
@@ -167,7 +175,9 @@ class MeasurementService : Service() {
         phoneLink.sendFile(node, id, files.file(id)) { isSent ->
             handler.post {
                 sendingIds -= id
-                if (isSent) {
+                if (consumeCancelled(id)) {
+                    stopIfIdle()
+                } else if (isSent) {
                     // 파일은 ack를 받을 때까지 남겨 둔다.
                     if (session == null) MeasurementStatus.publish(MeasurementState.SENT, id)
                     sendStatus(id, MeasurementState.SENT)
@@ -177,6 +187,13 @@ class MeasurementService : Service() {
                 }
             }
         }
+    }
+
+    /** 진행 중에 취소된 측정이면 남은 파일을 지우고 true. */
+    private fun consumeCancelled(id: String): Boolean {
+        if (!cancelledIds.remove(id)) return false
+        io.execute { files.delete(id) }
+        return true
     }
 
     /** 측정을 버린다. 파일은 남기지 않는다. */
