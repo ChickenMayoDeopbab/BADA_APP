@@ -713,6 +713,32 @@ export type BiosignalReportStatus = "AWAITING_DATA" | "ANALYZED" | "EXPIRED" | "
 /** 기준선 출처. none이면 다음 측정 통화 전에 휴식 화면을 띄운다. */
 export type BiosignalBaselineSource = "rest" | "previous_sessions" | "none";
 
+/** 지표마다 붙는 측정 상태. MEASURED일 때만 화면에 쓰고, 나머지는 그 요소를 조용히 숨긴다. */
+export type BiosignalMetricStatus = "MEASURED" | "INSUFFICIENT_DATA" | "UNAVAILABLE";
+
+/** 심박 곡선 구간의 단계. baseline은 휴식, anticipation은 벨이 울린 뒤 받기 전 */
+export type BiosignalPhase = "baseline" | "anticipation" | "listen" | "speak" | "recovery";
+
+/** 턴별 몸 반응(심박)과 목소리 흔들림을 묶은 칸 */
+export type BiosignalQuadrant =
+  | "body_high_voice_steady"
+  | "body_high_voice_shaky"
+  | "body_low_voice_steady"
+  | "body_low_voice_shaky";
+
+export interface BiosignalValueMetric {
+  status: BiosignalMetricStatus;
+  value?: number | null;
+}
+
+/** 리포트 심박 곡선. 휴식(없으면 벨)부터 회복 끝까지 bin_sec 간격 중앙값 */
+export interface BiosignalReportTimeline {
+  bin_sec: number;
+  start_sec: number; // 첫 구간 시작. 통화 시작 기준 초라 보통 음수
+  hr: (number | null)[]; // bpm. null은 품질이 낮아 비운 구간이라 선을 끊는다
+  phase: (BiosignalPhase | null)[];
+}
+
 /** 생체신호 분석 결과(업로드 성공 응답·조회 응답). metrics는 화면에서 쓰는 필드만 적는다. */
 export interface BiosignalReportResponse {
   session_id: string;
@@ -721,10 +747,26 @@ export interface BiosignalReportResponse {
   analyzed_at?: string;
   metrics?: {
     cardiac?: {
-      baseline?: {
-        value: number | null; // bpm
-        source: BiosignalBaselineSource;
+      baseline?: BiosignalValueMetric & {
+        source: BiosignalBaselineSource; // value는 bpm
       };
+      hr?: {
+        call_delta?: BiosignalValueMetric; // 통화 중 평균 − 기준선(bpm)
+        peak?: {
+          status: BiosignalMetricStatus;
+          bpm?: number | null;
+          delta?: number | null; // 기준선 대비. 기준선이 없으면 null
+          at_sec?: number | null; // 통화 시작 기준 초
+          phase?: "listen" | "speak" | null;
+          turn?: number | null;
+        };
+        recovery_pct?: BiosignalValueMetric; // 끊고 60초 안에 기준선 쪽으로 돌아온 비율(%)
+      };
+      report_timeline?: BiosignalReportTimeline;
+    };
+    fusion?: {
+      praise_turn?: number | null; // 몸은 반응했지만 목소리가 안정적이었던 턴
+      turns?: { turn: number; quadrant: BiosignalQuadrant | null }[];
     };
   };
 }
