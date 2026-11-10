@@ -84,6 +84,10 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
   const yOf = (bpm: number) =>
     CHART_PADDING_Y + ((maxBpm - bpm) / (maxBpm - minBpm)) * (CHART_HEIGHT - CHART_PADDING_Y * 2);
   const binWidth = width / chart.bpm.length;
+  // 최고점 시각은 곡선과 따로 오므로, 곡선 구간 끝을 살짝 넘어도 점이 곡선 범위(구간 가운데) 안에 그려지게 한다.
+  const peakX = peak
+    ? Math.min(width - binWidth / 2, Math.max(binWidth / 2, xOf(peak.atSec)))
+    : 0;
 
   const regions = groupRegions(chart.phases);
   const segments = buildSegments(
@@ -143,7 +147,7 @@ function HeartRateChart({ chart, peak }: { chart: BiosignalChart; peak: Biosigna
             )}
             {peak && (
               <Circle
-                cx={xOf(peak.atSec)}
+                cx={peakX}
                 cy={yOf(peak.bpm)}
                 r={5}
                 fill={SEMANTIC_COLORS.secondary.normal}
