@@ -752,6 +752,7 @@ export interface BiosignalReportResponse {
       };
       hr?: {
         call_delta?: BiosignalValueMetric; // 통화 중 평균 − 기준선(bpm)
+        // 최고점은 값이 하나가 아니라(bpm·시각·단계·턴) BiosignalValueMetric 대신 서버 모양 그대로 적는다.
         peak?: {
           status: BiosignalMetricStatus;
           bpm?: number | null;
