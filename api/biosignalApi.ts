@@ -16,3 +16,13 @@ export const uploadBiosignals = async (
   );
   return response.data;
 };
+
+/** 통화 생체신호 분석 결과 조회 (AI 서버). 기록이 없으면 404, 남의 기록이면 403 */
+export const getBiosignalReport = async (
+  sessionId: string,
+): Promise<BiosignalReportResponse> => {
+  const response = await aiApiClient.get<BiosignalReportResponse>(
+    `/api/v1/biosignals/${encodeURIComponent(sessionId)}`,
+  );
+  return response.data;
+};
