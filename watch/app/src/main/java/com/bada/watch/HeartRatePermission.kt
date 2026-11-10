@@ -14,10 +14,11 @@ object HeartRatePermission {
     val name: String
         get() = if (Build.VERSION.SDK_INT >= API_WEAR_OS_6) READ_HEART_RATE else Manifest.permission.BODY_SENSORS
 
-    /** 화면에서 한 번에 요청할 권한 목록 */
+    /** 화면에서 한 번에 요청할 권한 목록. 가속도(움직임)는 ACTIVITY_RECOGNITION이 있어야 재고, 없어도 심박은 잰다. */
     val requested: Array<String>
         get() = buildList {
             add(name)
+            add(Manifest.permission.ACTIVITY_RECOGNITION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
         }.toTypedArray()
 
