@@ -15,11 +15,20 @@ Galaxy Watch(Wear OS 3 이상)에서 통화 중 몸의 반응을 재서 폰 앱�
 ```bash
 cd watch
 ./gradlew :app:testDebugUnitTest
-./gradlew :app:installDebug
+./gradlew :app:installDebug                          # 가짜 센서(에뮬레이터)
+./gradlew -Pbada.sensor=samsung :app:installDebug    # 실제 센서(Galaxy Watch)
 ```
+
+## 실제 센서 (Samsung Health Sensor SDK)
+
+1. https://developer.samsung.com/health/sensor/overview.html 의 SDK download에서 zip을 받아 `libs/samsung-health-sensor-api-1.4.1.aar`를 `watch/app/libs/`에 넣는다. 라이선스 확인 전까지 커밋하지 않는다(`.gitignore`).
+   - aar가 없으면 가짜 센서 debug 빌드만 된다. release와 `-Pbada.sensor=samsung` 빌드는 안내 메시지와 함께 멈춘다.
+2. 워치에서 Health Sensor Service 개발자 모드를 켠다. 설정 → 애플리케이션 → Health Sensor Service(펌웨어에 따라 Health Platform) → 제목을 10번쯤 탭 → Developer mode → 라이선스 동의 후 켬.
+   - 꺼져 있으면 측정이 `sdk_policy` 오류로 끝나고 폰은 측정 없이 통화를 이어간다.
+3. 워치 앱을 처음 열 때 센서·신체 활동 권한을 허용한다. 신체 활동(가속도)을 거부해도 심박은 잰다.
 
 ## 구조
 
-- debug 빌드는 가짜 센서(`app/src/debug`)로 측정한다. release 빌드는 Samsung Health Sensor SDK 구현 전이라 측정하지 못한다.
-- Samsung Health Sensor SDK aar는 `app/libs/`에 각자 받아 넣는다. 라이선스 확인 전까지 커밋하지 않는다.
+- 센서 구현은 `app/src/fake`(가짜)와 `app/src/samsung`(Samsung SDK)에 있다. debug는 `bada.sensor` 값(기본 fake)으로, release는 항상 samsung을 쓴다.
+- Samsung 구현은 기기가 지원하는 트래커만 켠다. 심박은 필수이고 가속도·PPG·피부전도(Watch8 이상)·피부 온도(Watch5 이상)는 없으면 빠진다. 측정을 끝낼 때 트래커마다 flush()로 남은 값을 받는다.
 - 폰과 주고받는 경로와 id 규칙은 폰 모듈의 `modules/wear-biosignal/android/src/protocol`을 같이 빌드한다.
